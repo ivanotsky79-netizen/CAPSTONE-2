@@ -38,22 +38,51 @@ io.on('connection', (socket) => {
 // Routes
 app.use('/api', apiRoutes);
 
-app.get('/', (req, res) => {
-  res.send('FUGEN SmartPay API is running');
-});
+// --------------------------------------------------------------------------
+// DYNAMIC FRONTEND SERVING
+// --------------------------------------------------------------------------
+const path = require('path');
+const fs = require('fs');
 
-// Serve Frontend in Production
-if (process.env.NODE_ENV === 'production' || process.env.REPL_ID) {
-  const path = require('path');
-  console.log('Serving frontend from ../frontend/dist');
-  // Serve static files from the React frontend app
-  app.use(express.static(path.join(__dirname, '../frontend/dist')));
+// Log current directory so we can debug paths
+console.log('Current __dirname:', __dirname);
 
-  // Anything that doesn't match the above, send back index.html
+// List possible locations where frontend/dist could be
+const possiblePaths = [
+  path.join(__dirname, '../frontend/dist'), // If server.js is in backend/
+  path.join(__dirname, 'frontend/dist'),    // If server.js is at root and frontend is a child
+  path.join(__dirname, '../dist')           // Alternative structure
+];
+
+let frontendPath = null;
+
+// Find the first path that actually exists
+for (const p of possiblePaths) {
+  if (fs.existsSync(p)) {
+    frontendPath = p;
+    break;
+  }
+}
+
+if (frontendPath) {
+  console.log('✅ Frontend build FOUND at: ' + frontendPath);
+
+  // Serve static files
+  app.use(express.static(frontendPath));
+
+  // Handle client-side routing
   app.get('*', (req, res) => {
-    res.sendFile(path.join(__dirname, '../frontend/dist/index.html'));
+    res.sendFile(path.join(frontendPath, 'index.html'));
+  });
+} else {
+  console.error('⚠️ Frontend build NOT found in any known location.');
+  possiblePaths.forEach(p => console.log('Checked: ' + p));
+
+  app.get('/', (req, res) => {
+    res.send('FUGEN SmartPay API is running (Backend Only Mode)');
   });
 }
+// --------------------------------------------------------------------------
 
 // Error handling middleware
 app.use((err, req, res, next) => {
