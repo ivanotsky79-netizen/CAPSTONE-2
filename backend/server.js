@@ -70,8 +70,9 @@ if (frontendPath) {
   // Serve static files
   app.use(express.static(frontendPath));
 
-  // Handle client-side routing
-  app.get('*', (req, res) => {
+  // Handle client-side routing (catch-all)
+  // Using regex /.*/ to match all routes without triggering parameter errors
+  app.get(/.*/, (req, res) => {
     res.sendFile(path.join(frontendPath, 'index.html'));
   });
 } else {
