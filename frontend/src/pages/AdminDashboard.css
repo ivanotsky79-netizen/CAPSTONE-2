@@ -1,0 +1,250 @@
+/* Visual Basic / Windows 95 Theme */
+:root {
+    --win-gray: #c0c0c0;
+    --win-dark: #808080;
+    --win-darker: #404040;
+    --win-light: #ffffff;
+    --win-blue: #000080;
+    --win-text: #000000;
+}
+
+body,
+#root {
+    background-color: var(--win-gray);
+    font-family: 'Consolas', 'Lucida Console', 'Courier New', monospace !important;
+    color: var(--win-text);
+}
+
+* {
+    border-radius: 0 !important;
+}
+
+/* Layout */
+.ant-layout,
+.ant-layout-header,
+.ant-layout-sider,
+.ant-layout-content {
+    background: var(--win-gray) !important;
+}
+
+.ant-layout-sider {
+    border-right: 2px solid var(--win-light);
+    box-shadow: none !important;
+    border-right-color: var(--win-dark);
+}
+
+.logo {
+    background: var(--win-blue) !important;
+    color: white;
+    font-weight: bold;
+    padding: 16px;
+    border: 2px solid;
+    border-color: var(--win-light) var(--win-dark) var(--win-dark) var(--win-light);
+    margin: 4px;
+    text-align: center;
+}
+
+/* Menu */
+.ant-menu {
+    background: var(--win-gray) !important;
+    border-right: none !important;
+    color: var(--win-text) !important;
+}
+
+.ant-menu-item {
+    color: var(--win-text) !important;
+    margin: 0 !important;
+    width: 100% !important;
+}
+
+.ant-menu-item-selected {
+    background-color: var(--win-blue) !important;
+    color: white !important;
+    font-weight: bold;
+}
+
+.ant-menu-item:active {
+    background-color: var(--win-blue) !important;
+    color: white !important;
+}
+
+/* Cards (Windows) */
+.ant-card {
+    background: var(--win-gray) !important;
+    border: 2px solid !important;
+    border-color: var(--win-light) var(--win-dark) var(--win-dark) var(--win-light) !important;
+    box-shadow: 1px 1px 0 black !important;
+    margin-bottom: 16px;
+}
+
+.ant-card-head {
+    background: var(--win-blue) !important;
+    color: white !important;
+    border-bottom: none !important;
+    min-height: 32px !important;
+    padding: 2px 8px !important;
+}
+
+.ant-card-head-title {
+    padding: 4px 0 !important;
+    color: white !important;
+    font-weight: bold;
+}
+
+.ant-card-body {
+    padding: 16px !important;
+}
+
+/* Buttons */
+.ant-btn {
+    background: var(--win-gray) !important;
+    border: 2px solid !important;
+    border-color: var(--win-light) var(--win-dark) var(--win-dark) var(--win-light) !important;
+    box-shadow: 1px 1px 0 black !important;
+    color: black !important;
+    font-weight: bold;
+}
+
+.ant-btn:active,
+.ant-btn.ant-btn-primary:active {
+    border-color: var(--win-dark) var(--win-light) var(--win-light) var(--win-dark) !important;
+    box-shadow: none !important;
+    transform: translate(1px, 1px);
+}
+
+.ant-btn-primary {
+    /* Make primary buttons look regular but maybe slightly emphasized */
+    background: var(--win-gray) !important;
+    color: black !important;
+}
+
+/* Inputs */
+.ant-input,
+.ant-input-number,
+.ant-picker,
+.ant-select-selector {
+    background: white !important;
+    border: 2px solid !important;
+    border-color: var(--win-dark) var(--win-light) var(--win-light) var(--win-dark) !important;
+    box-shadow: none !important;
+}
+
+/* Tables */
+.ant-table {
+    background: var(--win-gray) !important;
+    border: 2px solid;
+    border-color: var(--win-dark) var(--win-light) var(--win-light) var(--win-dark);
+}
+
+.ant-table-thead>tr>th {
+    background: var(--win-gray) !important;
+    border-bottom: 1px solid var(--win-dark) !important;
+    border-right: 1px solid var(--win-dark) !important;
+    color: black !important;
+}
+
+.ant-table-tbody>tr>td {
+    background: white !important;
+    border-bottom: 1px solid #eee !important;
+    border-right: 1px solid #eee !important;
+}
+
+.ant-table-row:hover>td {
+    background: #e6f7ff !important;
+    /* Keep slight hover but maybe more classic blue selection later */
+}
+
+/* Tabs */
+.ant-tabs-nav {
+    margin-bottom: 0 !important;
+}
+
+.ant-tabs-tab {
+    background: var(--win-gray) !important;
+    border: 2px solid !important;
+    border-color: var(--win-light) var(--win-dark) var(--win-dark) var(--win-light) !important;
+    border-bottom: none !important;
+    margin-right: 2px !important;
+    color: black !important;
+}
+
+.ant-tabs-tab-active {
+    background: var(--win-gray) !important;
+    border-bottom: 2px solid var(--win-gray) !important;
+    font-weight: bold;
+    z-index: 1;
+    position: relative;
+    top: 2px;
+}
+
+.ant-tabs-content {
+    border: 2px solid var(--win-light);
+    border-top: none;
+    background: var(--win-gray);
+    padding: 16px;
+    border-color: var(--win-light) var(--win-dark) var(--win-dark) var(--win-light);
+}
+
+/* Modals */
+.ant-modal-content {
+    background: var(--win-gray) !important;
+    border: 2px solid !important;
+    border-color: var(--win-light) var(--win-dark) var(--win-dark) var(--win-light) !important;
+    box-shadow: 4px 4px 0 black !important;
+    padding: 2px !important;
+}
+
+.ant-modal-header {
+    background: var(--win-blue) !important;
+    padding: 4px 8px !important;
+    margin-bottom: 16px;
+}
+
+.ant-modal-title {
+    color: white !important;
+}
+
+.ant-modal-close {
+    color: white !important;
+    top: 6px !important;
+    right: 8px !important;
+    background: var(--win-gray);
+    border: 1px solid white;
+    border-color: var(--win-light) var(--win-dark) var(--win-dark) var(--win-light);
+    width: 20px;
+    height: 20px;
+    line-height: 16px;
+}
+
+.ant-modal-close-x {
+    color: black;
+    font-size: 14px;
+    line-height: 18px;
+}
+
+.ant-statistic-title {
+    color: #404040 !important;
+}
+
+.ant-statistic-content {
+    color: black !important;
+}
+
+/* Disabled Future Cards */
+.disabled-card {
+    opacity: 1 !important;
+    /* Override opacity to handle it properly with stippling */
+}
+
+.disabled-card .ant-card-body {
+    background-image: linear-gradient(45deg, #ddd 25%, transparent 25%, transparent 50%, #ddd 50%, #ddd 75%, transparent 75%, transparent);
+    background-size: 4px 4px;
+}
+
+/* Custom VB Classes */
+.vb-inset {
+    border: 2px solid;
+    border-color: var(--win-dark) var(--win-light) var(--win-light) var(--win-dark);
+    background: white;
+    padding: 8px;
+}

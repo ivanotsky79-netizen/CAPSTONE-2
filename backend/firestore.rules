@@ -1,0 +1,26 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    
+    // Students Collection
+    // - Read: Allow public read (for QR scanning/admin lookup) - In production, lock this down!
+    // - Write: Allow only if request contains valid data (Admin usually uses Admin SDK effectively bypassing this, 
+    //   but if Client SDK is used, we need rules).
+    //   Since backend uses Firebase Admin SDK, it bypasses these rules.
+    //   These rules apply if Frontend/Mobile App tries to access Firestore DIRECTLY.
+    //   Our architecture uses a Node.js API Middleware, so the App/Frontend DOES NOT talk to Firestore directly.
+    //   Therefore, we can lock this down completely to prevent direct access.
+    
+    match /students/{studentId} {
+      allow read, write: if false; // Only Admin SDK (Node backend) can access
+    }
+    
+    match /transactions/{transactionId} {
+      allow read, write: if false; // Only Admin SDK can access
+    }
+    
+    match /system_totals/{docId} {
+      allow read, write: if false;
+    }
+  }
+}
