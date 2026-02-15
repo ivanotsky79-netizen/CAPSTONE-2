@@ -1,0 +1,19 @@
+# Dependencies
+node_modules/
+
+# Environment variables
+.env
+.env.local
+
+# Backend Secrets
+backend/serviceAccountKey.json
+
+# Builds
+dist/
+dist_electron/
+build/
+.expo/
+
+# OS Files
+.DS_Store
+Thumbs.db
