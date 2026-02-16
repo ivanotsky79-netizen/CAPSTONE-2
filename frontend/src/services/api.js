@@ -2,7 +2,7 @@ import axios from 'axios';
 
 // Local: 'http://localhost:5000/api'
 // Cloud: 'https://your-backend.onrender.com/api'
-const API_BASE_URL = 'https://0028afc3-f39b-496c-a4a7-0daee7c3afcc-00-28bvg4oui5u20.pike.replit.dev/api';
+const API_BASE_URL = 'https://fugen-backend.onrender.com/api';
 
 const api = axios.create({
     baseURL: API_BASE_URL,
