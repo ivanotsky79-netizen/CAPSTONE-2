@@ -17,13 +17,24 @@ try {
     const activePath = possiblePaths.find(p => fs.existsSync(p));
 
     if (activePath) {
+        // LOCAL DEVELOPMENT
         const serviceAccount = require(activePath);
         admin.initializeApp({
             credential: admin.credential.cert(serviceAccount)
         });
         console.log(`✅ Firebase initialized using ${path.basename(activePath)}`);
         initialized = true;
+    } else if (process.env.FIREBASE_SERVICE_ACCOUNT_BASE64) {
+        // RENDER / CLOUD (Using Base64 to avoid copy-paste errors)
+        const buffer = Buffer.from(process.env.FIREBASE_SERVICE_ACCOUNT_BASE64, 'base64');
+        const serviceAccount = JSON.parse(buffer.toString('utf8'));
+        admin.initializeApp({
+            credential: admin.credential.cert(serviceAccount)
+        });
+        console.log("✅ Firebase initialized using FIREBASE_SERVICE_ACCOUNT_BASE64 env var");
+        initialized = true;
     } else if (process.env.FIREBASE_SERVICE_ACCOUNT) {
+        // FALLBACK (Original method)
         const serviceAccount = JSON.parse(process.env.FIREBASE_SERVICE_ACCOUNT);
         admin.initializeApp({
             credential: admin.credential.cert(serviceAccount)
