@@ -1,10 +1,8 @@
 import React, { useState } from 'react';
 import { Form, Input, Button, Card, message } from 'antd';
-import { LockOutlined, UserOutlined } from '@ant-design/icons';
+import { UserOutlined, LockOutlined } from '@ant-design/icons';
 import './LoginPage.css';
 
-// DEFAULT ADMIN CREDENTIALS
-// You can change these values here to update the login
 const ADMIN_CREDENTIALS = {
     username: 'grpfive',
     password: '170206'

@@ -69,7 +69,7 @@ export default function AdminDashboard({ onLogout }) {
         fetchStudents();
         fetchDailyStats();
 
-        const socket = io('https://fugen-backend.onrender.com');
+        const socket = io('https://0028afc3-f39b-496c-a4a7-0daee7c3afcc-00-28bvg4oui5u20.pike.replit.dev');
         socket.on('balanceUpdate', () => {
             fetchStudents();
             fetchDailyStats();
@@ -723,7 +723,7 @@ export default function AdminDashboard({ onLogout }) {
                                                 <Card>
                                                     <Statistic
                                                         title="Total Sales"
-                                                        value={reportStats.canteen?.totalSales?.toFixed(2) || '0.00'}
+                                                        value={reportStats.totalSales?.toFixed(2)}
                                                         prefix={<ShoppingCartOutlined />}
                                                         suffix="Pts"
                                                     />
@@ -733,7 +733,7 @@ export default function AdminDashboard({ onLogout }) {
                                                 <Card>
                                                     <Statistic
                                                         title="Points Collected"
-                                                        value={reportStats.canteen?.cashCollected?.toFixed(2) || '0.00'}
+                                                        value={reportStats.totalCash?.toFixed(2)}
                                                         prefix={<DollarOutlined />}
                                                         suffix="Pts"
                                                         valueStyle={{ color: '#2E7D32' }}
@@ -744,7 +744,7 @@ export default function AdminDashboard({ onLogout }) {
                                                 <Card>
                                                     <Statistic
                                                         title="Total Credit"
-                                                        value={reportStats.canteen?.totalCredit?.toFixed(2) || '0.00'}
+                                                        value={reportStats.todayCreditSales?.toFixed(2)}
                                                         prefix={<CreditCardOutlined />}
                                                         suffix="Pts"
                                                         valueStyle={{ color: '#d32f2f' }}
@@ -942,12 +942,12 @@ export default function AdminDashboard({ onLogout }) {
                     />
                 </div>
                 <div>
-                    <Text strong>{selectedStudent ? 'Student Passkey' : 'Admin PIN (1234)'}</Text>
+                    <Text strong>{selectedStudent ? 'Student Passkey' : 'Admin Password'}</Text>
                     <Input.Password
                         style={{ width: '100%', marginTop: 8 }}
                         size="large"
-                        placeholder="Enter 4-digit PIN"
-                        maxLength={4}
+                        placeholder={selectedStudent ? "Enter 4-digit PIN" : "Enter Password"}
+                        maxLength={20}
                         value={topUpPasskey}
                         onChange={(e) => setTopUpPasskey(e.target.value)}
                     />
