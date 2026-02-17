@@ -169,8 +169,8 @@ exports.withdraw = async (req, res) => {
         const { amount, passkey } = req.body;
         const withdrawAmount = parseFloat(amount);
 
-        // Hardcoded limit check or passkey check (Admin Pin 1234)
-        if (passkey !== '1234') {
+        // Hardcoded limit check or passkey check (Admin Pin 170206)
+        if (passkey !== '170206') {
             return res.status(401).json({ status: 'error', message: 'Invalid Admin PIN' });
         }
 

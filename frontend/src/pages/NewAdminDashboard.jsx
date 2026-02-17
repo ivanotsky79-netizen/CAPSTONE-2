@@ -230,6 +230,12 @@ export default function AdminDashboard({ onLogout }) {
                     return;
                 }
 
+                if (topUpPasskey !== '170206') {
+                    message.error('Invalid Admin Password');
+                    setTopUpLoading(false);
+                    return;
+                }
+
                 await transactionService.withdraw(topUpAmount, topUpPasskey);
                 message.success(`Successfully withdrew SAR ${topUpAmount}`);
             }
