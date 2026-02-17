@@ -148,15 +148,31 @@ exports.purchase = async (req, res) => {
 exports.getTransactions = async (req, res) => {
     try {
         const { studentId } = req.query;
-        let query = db.collection('transactions').orderBy('timestamp', 'desc');
+        let transactions = [];
 
         if (studentId) {
-            query = query.where('studentId', '==', studentId);
-        }
+            // Fetch all transactions for this student
+            // We do NOT use orderBy here to avoid Indexing errors on Cloud Firestore
+            const snapshot = await db.collection('transactions')
+                .where('studentId', '==', studentId)
+                .get();
 
-        const snapshot = await query.limit(50).get();
-        const transactions = [];
-        snapshot.forEach(doc => transactions.push(doc.data()));
+            snapshot.forEach(doc => transactions.push(doc.data()));
+
+            // Sort in memory (Newest first)
+            transactions.sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp));
+
+            // Limit to 50 most recent
+            transactions = transactions.slice(0, 50);
+        } else {
+            // Global fetch (no filter), so single-field orderBy works fine
+            const snapshot = await db.collection('transactions')
+                .orderBy('timestamp', 'desc')
+                .limit(50)
+                .get();
+
+            snapshot.forEach(doc => transactions.push(doc.data()));
+        }
 
         res.status(200).json({ status: 'success', data: transactions });
     } catch (error) {
