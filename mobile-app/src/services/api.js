@@ -6,7 +6,7 @@ const DEV_URL = Platform.OS === 'android' ? 'http://10.0.2.2:5000/api' : 'http:/
 
 // 1. For Local Development (same WiFi), use: 'http://Amirivan.local:5000'
 // 2. For Cloud (works anywhere), use your Render URL: 'https://fugen-backend.onrender.com'
-export const BASE_URL = 'https://fugen-backend.onrender.com';
+export const BASE_URL = 'https://0028afc3-f39b-496c-a4a7-0daee7c3afcc-00-28bvg4oui5u20.pike.replit.dev';
 const API_BASE_URL = `${BASE_URL}/api`;
 
 import { io } from 'socket.io-client';
@@ -41,6 +41,7 @@ api.interceptors.response.use(
 
 export const studentService = {
     getStudent: (studentId) => api.get(`/student/${studentId}`),
+    getAllStudents: () => api.get('/students'),
     verifyPasskey: (studentId, passkey) => api.post('/verify-passkey', { studentId, passkey }),
 };
 
@@ -52,6 +53,7 @@ export const transactionService = {
         location: 'CANTEEN'
     }),
     getDailyStats: (location = 'CANTEEN') => api.get(`/stats/daily`, { params: { location } }),
+    getTransactions: (studentId) => api.get('/transactions', { params: { studentId } }),
 };
 
 export default api;

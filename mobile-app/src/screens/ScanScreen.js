@@ -87,18 +87,19 @@ export default function ScanScreen({ navigation }) {
     return (
         <View style={styles.container}>
             <View style={styles.header}>
-                <View style={{ flex: 1 }}>
+                <View style={{ flex: 1, alignItems: 'center' }}>
                     <Text style={styles.title}>FUGEN SmartPay</Text>
                     <Text style={styles.subtitle}>Align student QR within the frame</Text>
                 </View>
-                <TouchableOpacity
-                    style={styles.homeButton}
-                    onPress={() => navigation.navigate('Home')}
-                    activeOpacity={0.7}
-                >
-                    <Text style={styles.homeButtonText}>🏠 Home</Text>
-                </TouchableOpacity>
             </View>
+
+            <TouchableOpacity
+                style={styles.homeButtonCenter}
+                onPress={() => navigation.navigate('Home')}
+                activeOpacity={0.7}
+            >
+                <Text style={styles.homeButtonText}>🏠 Home</Text>
+            </TouchableOpacity>
 
             <View style={styles.cameraFrame}>
                 {isFocused && (
@@ -126,7 +127,7 @@ export default function ScanScreen({ navigation }) {
                         onPress={() => setShowCash(true)}
                         activeOpacity={0.7}
                     >
-                        <Text style={styles.statsLabel}>CASH AT HAND</Text>
+                        <Text style={styles.statsLabel}>POINTS SCANNED</Text>
                         <Text style={[styles.statsValue, { color: '#2E7D32' }]}>SAR {stats.totalCash.toFixed(2)}</Text>
                     </TouchableOpacity>
 
@@ -255,12 +256,15 @@ const styles = StyleSheet.create({
         paddingHorizontal: 20,
         width: '100%',
     },
-    homeButton: {
+    homeButtonCenter: {
         backgroundColor: '#1A237E',
-        paddingHorizontal: 16,
-        paddingVertical: 8,
-        borderRadius: 8,
-        elevation: 2,
+        paddingHorizontal: 24,
+        paddingVertical: 10,
+        borderRadius: 20,
+        elevation: 4,
+        alignSelf: 'center',
+        marginBottom: 15,
+        zIndex: 10,
     },
     homeButtonText: {
         color: 'white',

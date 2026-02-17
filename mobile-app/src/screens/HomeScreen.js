@@ -34,14 +34,14 @@ export default function HomeScreen({ navigation }) {
                         <Text style={styles.buttonLabel}>System Data</Text>
                     </TouchableOpacity>
 
-                    {/* TRANSACTION HISTORY BUTTON */}
+                    {/* USERS BUTTON */}
                     <TouchableOpacity
                         style={styles.smallButton}
-                        onPress={() => navigation.navigate('TransactionHistory')}
+                        onPress={() => navigation.navigate('Users')}
                         activeOpacity={0.8}
                     >
-                        <MaterialCommunityIcons name="history" size={40} color="white" />
-                        <Text style={styles.buttonLabel}>Today's Data</Text>
+                        <MaterialCommunityIcons name="account-group" size={40} color="white" />
+                        <Text style={styles.buttonLabel}>Users</Text>
                     </TouchableOpacity>
 
                     {/* REPORTS BUTTON */}

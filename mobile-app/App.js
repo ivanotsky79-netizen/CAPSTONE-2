@@ -14,9 +14,9 @@ import DayDetailsScreen from './src/screens/DayDetailsScreen';
 
 import dailyReportService from './src/services/dailyReportService';
 
-const Stack = createStackNavigator();
+import LoginScreen from './src/screens/LoginScreen';
 
-import { SafeAreaProvider } from 'react-native-safe-area-context';
+const Stack = createStackNavigator();
 
 export default function App() {
   useEffect(() => {
@@ -32,13 +32,14 @@ export default function App() {
   return (
     <SafeAreaProvider>
       <NavigationContainer>
-        <Stack.Navigator initialRouteName="Home">
+        <Stack.Navigator initialRouteName="Login">
+          <Stack.Screen name="Login" component={LoginScreen} options={{ headerShown: false }} />
           <Stack.Screen name="Home" component={HomeScreen} options={{ headerShown: false }} />
           <Stack.Screen name="Scan" component={ScanScreen} options={{ headerShown: false }} />
           <Stack.Screen name="Passkey" component={PasskeyScreen} options={{ title: 'Verify Identity' }} />
           <Stack.Screen name="Purchase" component={PurchaseScreen} options={{ title: 'Canteen POS' }} />
           <Stack.Screen name="SystemData" component={SystemDataScreen} options={{ title: 'System Data' }} />
-          <Stack.Screen name="TransactionHistory" component={TransactionHistoryScreen} options={{ title: "Today's Transactions" }} />
+          <Stack.Screen name="Users" component={TransactionHistoryScreen} options={{ title: "Student Users" }} />
           <Stack.Screen name="Reports" component={ReportsScreen} options={{ title: 'Historical Reports' }} />
           <Stack.Screen name="DayDetails" component={DayDetailsScreen} options={{ title: 'Day Details' }} />
         </Stack.Navigator>

@@ -37,7 +37,7 @@ export default function ReportsScreen({ navigation }) {
                 <Text style={styles.headerTitle}>Historical Reports</Text>
             </View>
 
-            {!selectedMonth ? (
+            {selectedMonth === null ? (
                 <ScrollView style={styles.scrollView}>
                     <Text style={styles.sectionTitle}>Select Month</Text>
                     <View style={styles.monthGrid}>

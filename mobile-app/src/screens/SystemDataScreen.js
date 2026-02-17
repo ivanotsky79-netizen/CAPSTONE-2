@@ -12,42 +12,31 @@ export default function SystemDataScreen() {
         creditors: []
     });
 
+    const [students, setStudents] = useState([]);
+
     const fetchData = async () => {
         try {
             setLoading(true);
-            const res = await transactionService.getDailyStats();
+            const [statsRes, studentsRes] = await Promise.all([
+                transactionService.getDailyStats(),
+                studentService.getAllStudents()
+            ]);
 
-            if (res.data.status === 'success') {
-                const data = res.data.data;
-
-                // Build a unique creditor list from today's credit transactions
-                const creditorMap = new Map();
-
-                if (data.creditList && data.creditList.length > 0) {
-                    data.creditList.forEach(txn => {
-                        if (!creditorMap.has(txn.studentId)) {
-                            creditorMap.set(txn.studentId, {
-                                studentId: txn.studentId,
-                                studentName: txn.studentName,
-                                grade: txn.grade,
-                                section: txn.section,
-                                creditAmount: txn.creditAmount || 0
-                            });
-                        } else {
-                            // Accumulate credit amounts for the same student
-                            const existing = creditorMap.get(txn.studentId);
-                            existing.creditAmount += (txn.creditAmount || 0);
-                        }
-                    });
-                }
-
+            if (statsRes.data.status === 'success') {
+                const data = statsRes.data.data;
                 setSystemStats({
                     totalCash: data.totalCash || 0,
                     totalCredit: data.totalCredit || 0,
                     todayCreditSales: data.todayCreditSales || 0,
-                    creditors: Array.from(creditorMap.values())
                 });
             }
+
+            if (studentsRes.data.status === 'success') {
+                // Filter students with negative balance (Active Debtors)
+                const debtors = studentsRes.data.data.filter(s => parseFloat(s.balance) < 0);
+                setStudents(debtors);
+            }
+
         } catch (err) {
             console.error('[SYSTEM DATA ERROR]', err);
         } finally {
@@ -84,25 +73,25 @@ export default function SystemDataScreen() {
                 </View>
 
                 <View style={styles.creditorHeader}>
-                    <MaterialCommunityIcons name="account-details" size={24} color="#1A237E" />
-                    <Text style={styles.headerText}>POS CREDIT</Text>
+                    <MaterialCommunityIcons name="account-alert" size={24} color="#d32f2f" />
+                    <Text style={styles.headerText}>ACTIVE OVERDUE ACCOUNTS</Text>
                 </View>
 
                 {loading && !refreshing ? (
                     <ActivityIndicator size="large" color="#1A237E" style={{ marginTop: 20 }} />
-                ) : systemStats.creditors && systemStats.creditors.length > 0 ? (
-                    systemStats.creditors.map((c, i) => (
+                ) : students.length > 0 ? (
+                    students.map((s, i) => (
                         <View key={i} style={styles.creditorItem}>
                             <View>
-                                <Text style={styles.studentName}>{c.studentName}</Text>
-                                <Text style={styles.studentId}>{c.studentId} • {c.grade} {c.section}</Text>
+                                <Text style={styles.studentName}>{s.fullName}</Text>
+                                <Text style={styles.studentId}>{s.studentId} • {s.gradeSection}</Text>
                             </View>
-                            <Text style={styles.debtAmount}>SAR {parseFloat(c.creditAmount || 0).toFixed(2)}</Text>
+                            <Text style={styles.debtAmount}>SAR {Math.abs(parseFloat(s.balance)).toFixed(2)}</Text>
                         </View>
                     ))
                 ) : (
                     <View style={{ padding: 40, alignItems: 'center' }}>
-                        <Text style={{ color: '#999', fontSize: 16 }}>No credit transactions today</Text>
+                        <Text style={{ color: '#999', fontSize: 16 }}>No students with pending credit.</Text>
                     </View>
                 )}
             </ScrollView>
