@@ -1,9 +1,14 @@
 import React, { useState } from 'react';
 import { Form, Input, Button, Card, message } from 'antd';
-import { LockOutlined } from '@ant-design/icons';
+import { LockOutlined, UserOutlined } from '@ant-design/icons';
 import './LoginPage.css';
 
-const ADMIN_PASSKEY = '1234'; // Change this to your desired admin passkey
+// DEFAULT ADMIN CREDENTIALS
+// You can change these values here to update the login
+const ADMIN_CREDENTIALS = {
+    username: 'grpfive',
+    password: '170206'
+};
 
 export default function LoginPage({ onLogin }) {
     const [loading, setLoading] = useState(false);
@@ -13,11 +18,11 @@ export default function LoginPage({ onLogin }) {
 
         // Simulate authentication delay
         setTimeout(() => {
-            if (values.passkey === ADMIN_PASSKEY) {
+            if (values.username === ADMIN_CREDENTIALS.username && values.password === ADMIN_CREDENTIALS.password) {
                 message.success('Login successful!');
                 onLogin();
             } else {
-                message.error('Invalid admin passkey');
+                message.error('Invalid username or password');
             }
             setLoading(false);
         }, 500);
@@ -39,15 +44,27 @@ export default function LoginPage({ onLogin }) {
                         size="large"
                     >
                         <Form.Item
-                            name="passkey"
+                            name="username"
                             rules={[
-                                { required: true, message: 'Please enter admin passkey' }
+                                { required: true, message: 'Please enter username' }
+                            ]}
+                        >
+                            <Input
+                                prefix={<UserOutlined />}
+                                placeholder="Username"
+                                autoFocus
+                            />
+                        </Form.Item>
+
+                        <Form.Item
+                            name="password"
+                            rules={[
+                                { required: true, message: 'Please enter password' }
                             ]}
                         >
                             <Input.Password
                                 prefix={<LockOutlined />}
-                                placeholder="Enter Admin Passkey"
-                                autoFocus
+                                placeholder="Password"
                             />
                         </Form.Item>
 

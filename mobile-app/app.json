@@ -19,7 +19,11 @@
         "foregroundImage": "./assets/adaptive-icon.png",
         "backgroundColor": "#ffffff"
       },
-      "package": "com.fugen.smartpay"
+      "package": "com.fugen.smartpay",
+      "permissions": [
+        "android.permission.CAMERA",
+        "android.permission.RECORD_AUDIO"
+      ]
     },
     "web": {
       "favicon": "./assets/favicon.png"
@@ -31,6 +35,11 @@
           "cameraPermission": "Allow FUGEN SmartPay to scan student QR codes."
         }
       ]
-    ]
+    ],
+    "extra": {
+      "eas": {
+        "projectId": "301e5941-5f84-4941-808b-783bb4dc84ae"
+      }
+    }
   }
 }
