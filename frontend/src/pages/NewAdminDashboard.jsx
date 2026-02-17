@@ -37,6 +37,11 @@ export default function AdminDashboard({ onLogout }) {
     const [topUpPasskey, setTopUpPasskey] = useState('');
     const [topUpLoading, setTopUpLoading] = useState(false);
 
+    // Profile Modal
+    const [profileModalVisible, setProfileModalVisible] = useState(false);
+    const [studentTransactions, setStudentTransactions] = useState([]);
+    const [transactionsLoading, setTransactionsLoading] = useState(false);
+
     // Stats
     const [dailyStats, setDailyStats] = useState({
         totalSales: 0,
@@ -252,6 +257,22 @@ export default function AdminDashboard({ onLogout }) {
         }
     };
 
+    const handleShowProfile = async (student) => {
+        setSelectedStudent(student);
+        setProfileModalVisible(true);
+        setTransactionsLoading(true);
+        try {
+            const res = await transactionService.getTransactions(student.studentId);
+            if (res.data.status === 'success') {
+                setStudentTransactions(res.data.data);
+            }
+        } catch (err) {
+            message.error('Failed to load transactions');
+        } finally {
+            setTransactionsLoading(false);
+        }
+    };
+
     const showQRCode = async (student) => {
         setSelectedStudent(student);
         setQrModalVisible(true);
@@ -288,6 +309,11 @@ export default function AdminDashboard({ onLogout }) {
             title: 'Full Name',
             dataIndex: 'fullName',
             key: 'fullName',
+            render: (text, record) => (
+                <a onClick={() => handleShowProfile(record)} style={{ fontWeight: 'bold' }}>
+                    {text}
+                </a>
+            ),
         },
         {
             title: 'Grade & Section',
@@ -374,36 +400,49 @@ export default function AdminDashboard({ onLogout }) {
                             </Col>
                         </Row>
 
-                        <Space style={{ marginBottom: 16 }}>
-                            <Input
-                                placeholder="Search by name, ID, or grade..."
-                                prefix={<SearchOutlined />}
-                                value={searchText}
-                                onChange={(e) => setSearchText(e.target.value)}
-                                style={{ width: 300 }}
-                            />
-                            <Button type="primary" icon={<PlusOutlined />} onClick={() => setAddModalVisible(true)}>
-                                Add Student
-                            </Button>
-                            <Button
-                                danger
-                                icon={<DeleteOutlined />}
-                                onClick={handleRemoveStudents}
-                                disabled={selectedRowKeys.length === 0}
-                            >
-                                Remove Selected ({selectedRowKeys.length})
-                            </Button>
-                        </Space>
+                        <Tabs defaultActiveKey="all" type="card" style={{ marginTop: 16 }}>
+                            <TabPane tab="All Students" key="all">
+                                <Space style={{ marginBottom: 16 }}>
+                                    <Input
+                                        placeholder="Search by name, ID, or grade..."
+                                        prefix={<SearchOutlined />}
+                                        value={searchText}
+                                        onChange={(e) => setSearchText(e.target.value)}
+                                        style={{ width: 300 }}
+                                    />
+                                    <Button type="primary" icon={<PlusOutlined />} onClick={() => setAddModalVisible(true)}>
+                                        Add Student
+                                    </Button>
+                                    <Button
+                                        danger
+                                        icon={<DeleteOutlined />}
+                                        onClick={handleRemoveStudents}
+                                        disabled={selectedRowKeys.length === 0}
+                                    >
+                                        Remove Selected ({selectedRowKeys.length})
+                                    </Button>
+                                </Space>
 
-                        <Table
-                            rowSelection={rowSelection}
-                            columns={columns}
-                            dataSource={filteredStudents}
-                            rowKey="studentId"
-                            loading={loading}
-                            pagination={{ pageSize: 10 }}
-                        />
-                    </div>
+                                <Table
+                                    rowSelection={rowSelection}
+                                    columns={columns}
+                                    dataSource={filteredStudents}
+                                    rowKey="studentId"
+                                    loading={loading}
+                                    pagination={{ pageSize: 10 }}
+                                />
+                            </TabPane>
+                            <TabPane tab="Students with Credit" key="credit">
+                                <Table
+                                    columns={columns}
+                                    dataSource={students.filter(s => parseFloat(s.balance) < 0)}
+                                    rowKey="studentId"
+                                    loading={loading}
+                                    pagination={{ pageSize: 10 }}
+                                />
+                            </TabPane>
+                        </Tabs>
+                    </div >
                 );
 
             case 'transactions':
@@ -989,6 +1028,58 @@ export default function AdminDashboard({ onLogout }) {
                         }}>
                             Download QR Code
                         </Button>
+                    </div>
+                )}
+            </Modal>
+
+            {/* Student Profile Modal */}
+            <Modal
+                title="Student Profile"
+                open={profileModalVisible}
+                onCancel={() => setProfileModalVisible(false)}
+                footer={[<Button key="close" onClick={() => setProfileModalVisible(false)}>Close</Button>]}
+                width={800}
+            >
+                {selectedStudent && (
+                    <div>
+                        <div style={{ marginBottom: 24, padding: 16, background: '#f5f5f5', borderRadius: 8 }}>
+                            <Title level={4}>{selectedStudent.fullName}</Title>
+                            <Text>ID: {selectedStudent.studentId}</Text><br />
+                            <Text>Grade: {selectedStudent.gradeSection}</Text><br />
+                            <div style={{ marginTop: 12 }}>
+                                <Text strong>Credit Status: </Text>
+                                {parseFloat(selectedStudent.balance) < 0 ? (
+                                    <Tag color="red" style={{ fontSize: 14, padding: '4px 8px' }}>
+                                        PENDING CREDIT: SAR {Math.abs(parseFloat(selectedStudent.balance)).toFixed(2)}
+                                    </Tag>
+                                ) : (
+                                    <Tag color="green" style={{ fontSize: 14, padding: '4px 8px' }}>
+                                        No Pending Credits
+                                    </Tag>
+                                )}
+                            </div>
+                        </div>
+
+                        <Title level={5}>Transaction History</Title>
+                        <Table
+                            loading={transactionsLoading}
+                            dataSource={studentTransactions}
+                            rowKey="id"
+                            pagination={{ pageSize: 5 }}
+                            columns={[
+                                { title: 'Time', dataIndex: 'timestamp', render: t => new Date(t).toLocaleString() },
+                                {
+                                    title: 'Type', dataIndex: 'type', render: t => {
+                                        let color = 'blue';
+                                        if (t === 'PURCHASE') color = 'green';
+                                        if (t === 'WITHDRAWAL') color = 'orange';
+                                        return <Tag color={color}>{t}</Tag>;
+                                    }
+                                },
+                                { title: 'Amount', dataIndex: 'amount', render: a => `SAR ${parseFloat(a).toFixed(2)}` },
+                                { title: 'Balance After', dataIndex: 'newBalance', render: b => b ? `SAR ${parseFloat(b).toFixed(2)}` : '-' }
+                            ]}
+                        />
                     </div>
                 )}
             </Modal>
