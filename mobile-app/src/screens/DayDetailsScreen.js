@@ -155,10 +155,10 @@ export default function DayDetailsScreen({ route }) {
                                 <View style={{ flex: 1 }}>
                                     <Text style={styles.txnName}>{txn.studentName || 'System Admin'}</Text>
                                     <Text style={styles.txnSub}>
-                                        {new Date(txn.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })} • {txn.type}
+                                        {txn.timestamp ? new Date(txn.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : 'Time Unknown'} • {txn.type || 'TXN'}
                                     </Text>
                                 </View>
-                                <Text style={styles.txnAmount}>SAR {parseFloat(txn.amount).toFixed(2)}</Text>
+                                <Text style={styles.txnAmount}>SAR {parseFloat(txn.amount || 0).toFixed(2)}</Text>
                             </View>
                         ))}
                     </View>

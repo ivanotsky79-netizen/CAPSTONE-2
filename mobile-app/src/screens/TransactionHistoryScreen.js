@@ -161,11 +161,11 @@ export default function UsersScreen() {
                                 <View style={styles.txnItem}>
                                     <View>
                                         <Text style={styles.txnType}>{item.type || 'TXN'}</Text>
-                                        <Text style={styles.txnDate}>{new Date(item.timestamp).toLocaleString()}</Text>
+                                        <Text style={styles.txnDate}>{item.timestamp ? new Date(item.timestamp).toLocaleString() : 'Unknown'}</Text>
                                     </View>
                                     <View>
                                         <Text style={[styles.txnAmount, { color: item.type === 'PURCHASE' ? '#d32f2f' : '#2E7D32' }]}>
-                                            {item.type === 'PURCHASE' ? '-' : '+'}{parseFloat(item.amount).toFixed(2)}
+                                            {item.type === 'PURCHASE' ? '-' : '+'}{parseFloat(item.amount || 0).toFixed(2)}
                                         </Text>
                                         {item.newBalance && <Text style={styles.txnBalance}>Bal: {parseFloat(item.newBalance).toFixed(2)}</Text>}
                                     </View>
