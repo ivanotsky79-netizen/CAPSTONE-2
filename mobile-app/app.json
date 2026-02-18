@@ -1,7 +1,7 @@
 {
   "expo": {
     "name": "FGSmartPay",
-    "slug": "fgsmartpay",
+    "slug": "fgsmartpay-new",
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
@@ -19,11 +19,7 @@
         "foregroundImage": "./assets/adaptive-icon.png",
         "backgroundColor": "#ffffff"
       },
-      "package": "com.fugen.smartpay",
-      "permissions": [
-        "android.permission.CAMERA",
-        "android.permission.RECORD_AUDIO"
-      ]
+      "package": "com.fugen.smartpay.new"
     },
     "web": {
       "favicon": "./assets/favicon.png"
@@ -35,11 +31,6 @@
           "cameraPermission": "Allow FUGEN SmartPay to scan student QR codes."
         }
       ]
-    ],
-    "extra": {
-      "eas": {
-        "projectId": "2983596d-491f-4429-882b-92e05092ca9b"
-      }
-    }
+    ]
   }
 }
