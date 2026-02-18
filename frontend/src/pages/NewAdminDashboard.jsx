@@ -762,7 +762,7 @@ export default function AdminDashboard({ onLogout }) {
                                                 <Card>
                                                     <Statistic
                                                         title="Total Sales"
-                                                        value={reportStats.totalSales?.toFixed(2)}
+                                                        value={reportStats.canteen?.totalSales?.toFixed(2)}
                                                         prefix={<ShoppingCartOutlined />}
                                                         suffix="Pts"
                                                     />
@@ -772,7 +772,7 @@ export default function AdminDashboard({ onLogout }) {
                                                 <Card>
                                                     <Statistic
                                                         title="Points Collected"
-                                                        value={reportStats.totalCash?.toFixed(2)}
+                                                        value={reportStats.canteen?.cashCollected?.toFixed(2)}
                                                         prefix={<DollarOutlined />}
                                                         suffix="Pts"
                                                         valueStyle={{ color: '#2E7D32' }}
@@ -783,7 +783,7 @@ export default function AdminDashboard({ onLogout }) {
                                                 <Card>
                                                     <Statistic
                                                         title="Total Credit"
-                                                        value={reportStats.todayCreditSales?.toFixed(2)}
+                                                        value={reportStats.canteen?.totalCredit?.toFixed(2)}
                                                         prefix={<CreditCardOutlined />}
                                                         suffix="Pts"
                                                         valueStyle={{ color: '#d32f2f' }}
