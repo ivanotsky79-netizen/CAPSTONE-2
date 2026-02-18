@@ -53,6 +53,8 @@ export default function DayDetailsScreen({ route }) {
 
     // Helper to normalize data: if flat (legacy), wrap it like new structure
     const normalizeData = (data) => {
+        if (!data) return { canteen: null, system: null };
+
         if (data.canteen && data.system) {
             return data;
         }
@@ -68,7 +70,10 @@ export default function DayDetailsScreen({ route }) {
         };
     };
 
-    const displayData = dayData.canteen ? dayData : normalizeData(dayData);
+    const displayData = dayData && (dayData.canteen || dayData.totalSales !== undefined)
+        ? (dayData.canteen ? dayData : normalizeData(dayData))
+        : normalizeData({});
+
     const currentStats = activeTab === 'canteen' ? displayData.canteen : displayData.system;
 
     return (
