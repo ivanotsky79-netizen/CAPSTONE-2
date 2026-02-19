@@ -47,8 +47,12 @@ export default function AdminDashboard({ onLogout }) {
     // Graph Data
     const [graphData, setGraphData] = useState([]);
 
+    // Local Audit Log Implementation
+    const [localAuditLogs, setLocalAuditLogs] = useState([]);
+
     useEffect(() => {
         loadData();
+        loadLocalLogs(); // Load audit logs from localStorage
         const socket = io('https://fugen-backend.onrender.com');
         socket.on('balanceUpdate', loadData);
         socket.on('studentCreated', loadData);
@@ -64,6 +68,24 @@ export default function AdminDashboard({ onLogout }) {
             setGeneratedPasskey('');
         }
     }, [addForm.lrn]);
+
+    const loadLocalLogs = () => {
+        const stored = localStorage.getItem('win98_admin_logs');
+        if (stored) setLocalAuditLogs(JSON.parse(stored));
+    };
+
+    const addAuditLog = (action, details) => {
+        const newLog = {
+            timestamp: new Date().toISOString(),
+            location: 'ADMIN',
+            type: action,
+            description: details,
+            amount: 0 // System action, 0 value
+        };
+        const updated = [newLog, ...localAuditLogs];
+        setLocalAuditLogs(updated);
+        localStorage.setItem('win98_admin_logs', JSON.stringify(updated));
+    };
 
     const loadData = async () => {
         setLoading(true);
@@ -144,6 +166,8 @@ export default function AdminDashboard({ onLogout }) {
             setIsImporting(true);
             setImportProgress({ current: 0, total: data.length });
 
+            addAuditLog('IMPORT_START', `Started bulk import of ${data.length} records via CSV`);
+
             let successCount = 0;
             for (let i = 0; i < data.length; i++) {
                 try {
@@ -157,6 +181,7 @@ export default function AdminDashboard({ onLogout }) {
             }
 
             setIsImporting(false);
+            addAuditLog('IMPORT_COMPLETE', `Completed import. Success: ${successCount}. Fail: ${data.length - successCount}`);
             message.success(`Imported ${successCount} of ${data.length} students`);
             loadData();
         };
@@ -168,6 +193,8 @@ export default function AdminDashboard({ onLogout }) {
         // Export current daily report or transactions
         const data = reportData?.canteen?.transactions || dailyStats.canteen?.transactions || [];
         if (data.length === 0) { message.warning('No data to export'); return; }
+
+        addAuditLog('EXPORT_DATA', `User exported transaction history to Excel/CSV`);
 
         let csv = 'Date,Time,Student,Type,Amount\n';
         data.forEach(t => {
@@ -187,6 +214,7 @@ export default function AdminDashboard({ onLogout }) {
         try {
             if (!generatedPasskey) { message.error('Invalid LRN'); return; }
             await studentService.createStudent({ ...addForm, passkey: generatedPasskey });
+            addAuditLog('ADD_STUDENT', `Created student: ${addForm.fullName} (${addForm.lrn})`);
             message.success('Student Added');
             setShowAddModal(false); setAddForm({ fullName: '', gradeSection: '', lrn: '' }); loadData();
         } catch (e) { message.error('Failed'); }
@@ -197,6 +225,7 @@ export default function AdminDashboard({ onLogout }) {
         try {
             await studentService.verifyPasskey(selectedStudent.studentId, topUpForm.passkey);
             await transactionService.topUp(selectedStudent.studentId, topUpForm.amount);
+            addAuditLog('TOP_UP', `Added SAR ${topUpForm.amount} to ${selectedStudent.fullName} (${selectedStudent.studentId})`);
             message.success('Success');
             setShowTopUpModal(false); setTopUpForm({ amount: '', passkey: '' }); loadData();
             if (showProfileModal) fetchUserTransactions(selectedStudent.studentId);
@@ -207,6 +236,7 @@ export default function AdminDashboard({ onLogout }) {
         try {
             if (withdrawForm.passkey !== '170206') { message.error('Invalid Admin PIN'); return; }
             await transactionService.withdraw(withdrawForm.amount, withdrawForm.passkey);
+            addAuditLog('WITHDRAW_CASH', `Admin withdrew SAR ${withdrawForm.amount} from system`);
             message.success('Cash Withdrawn');
             setShowWithdrawModal(false); setWithdrawForm({ amount: '', passkey: '' }); loadData();
         } catch (e) { message.error('Failed'); }
@@ -228,6 +258,8 @@ export default function AdminDashboard({ onLogout }) {
         if (selectedIds.size === 0) return;
         if (!confirm(`Delete ${selectedIds.size} students?`)) return;
         try {
+            const count = selectedIds.size;
+            addAuditLog('DELETE_STUDENT', `Deleted ${count} students. IDs: ${Array.from(selectedIds).join(', ')}`);
             for (let id of selectedIds) {
                 await studentService.deleteStudent(id);
             }
@@ -247,6 +279,7 @@ export default function AdminDashboard({ onLogout }) {
     const downloadQR = () => {
         const canvas = document.getElementById('qr-canvas');
         if (canvas) {
+            addAuditLog('DOWNLOAD_QR', `Downloaded QR Code for ${selectedStudent?.studentId}`);
             const link = document.createElement('a');
             link.download = `QR_${selectedStudent?.studentId}.png`;
             link.href = canvas.toDataURL();
@@ -265,6 +298,13 @@ export default function AdminDashboard({ onLogout }) {
 
     // Rendering Helpers
     const filtered = students.filter(s => s.fullName.toLowerCase().includes(searchText.toLowerCase()) || s.studentId.includes(searchText));
+
+    // Combine Logs: Server Transactions + Local Audit Logs
+    const combinedLogs = [
+        ...localAuditLogs.map(l => ({ ...l, isLocal: true })),
+        ...(dailyStats.system?.transactions || []).map(t => ({ ...t, location: 'ADMIN' })),
+        ...(dailyStats.canteen?.transactions || []).map(t => ({ ...t, location: 'CASHIER' }))
+    ].sort((a, b) => new Date(b.timestamp || 0) - new Date(a.timestamp || 0));
 
     return (
         <div className="win98-container">
@@ -301,7 +341,7 @@ export default function AdminDashboard({ onLogout }) {
                 {view === 'users' && (
                     <div className="win98-window" style={{ flex: 1 }}>
                         <div className="win98-title-bar">
-                            <span>Student Management</span>
+                            <span>Student Management (Admin Only)</span>
                             <WindowControls />
                         </div>
                         <div className="win98-content" style={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
@@ -495,27 +535,30 @@ export default function AdminDashboard({ onLogout }) {
 
                 {view === 'logs' && (
                     <div className="win98-window" style={{ flex: 1 }}>
-                        <div className="win98-title-bar"><span>Security Logs</span><WindowControls /></div>
+                        <div className="win98-title-bar"><span>Security & Activity Logs</span><WindowControls /></div>
                         <div className="win98-content" style={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
-                            <div className="win98-toolbar">
-                                <span>Role Management: <b>Admin</b> vs <b>Cashier</b></span>
+                            <div className="win98-toolbar" style={{ display: 'block' }}>
+                                <div><b>Roles:</b> <span style={{ color: 'blue' }}>Admin</span> (This Dashboard) vs <span style={{ color: 'green' }}>Cashier</span> (Mobile App)</div>
+                                <div style={{ fontSize: 10, marginTop: 5 }}>System tracks: Purchases, TopUps, Withdrawals, Student Deletions.</div>
                             </div>
                             <div className="win98-table-wrapper">
                                 <table className="win98-table">
-                                    <thead><tr><th>Time</th><th>Role</th><th>Action</th><th>Details</th></tr></thead>
+                                    <thead><tr><th>Time</th><th>Role</th><th>Action</th><th>Description</th></tr></thead>
                                     <tbody>
-                                        {[...(dailyStats.system?.transactions || []), ...(dailyStats.canteen?.transactions || [])]
-                                            .sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp))
-                                            .map((t, i) => (
+                                        {combinedLogs.length === 0 ? (
+                                            <tr><td colSpan={4}>No activity logs yet.</td></tr>
+                                        ) : (
+                                            combinedLogs.map((t, i) => (
                                                 <tr key={i}>
                                                     <td>{new Date(t.timestamp).toLocaleString()}</td>
-                                                    <td style={{ fontWeight: 'bold' }}>
-                                                        {t.location === 'ADMIN' ? 'Admin' : 'Cashier'}
+                                                    <td style={{ fontWeight: 'bold', color: t.location === 'ADMIN' || t.isLocal ? 'blue' : 'green' }}>
+                                                        {t.isLocal ? 'Admin Use' : (t.location === 'ADMIN' ? 'Admin' : 'Cashier')}
                                                     </td>
                                                     <td>{t.type}</td>
-                                                    <td>{parseFloat(t.amount).toFixed(2)}</td>
+                                                    <td>{t.description ? t.description : `Amount: ${parseFloat(t.amount).toFixed(2)}`}</td>
                                                 </tr>
-                                            ))}
+                                            ))
+                                        )}
                                     </tbody>
                                 </table>
                             </div>
