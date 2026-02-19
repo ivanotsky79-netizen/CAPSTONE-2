@@ -309,23 +309,23 @@ export default function AdminDashboard({ onLogout }) {
                 </div>
                 <div className="win98-menu">
                     <div className={`win98-menu-item ${view === 'users' ? 'active' : ''}`} onClick={() => setView('users')}>
-                        <span>👤</span> Users
+                        Users
                     </div>
                     <div className={`win98-menu-item ${view === 'transactions' ? 'active' : ''}`} onClick={() => setView('transactions')}>
-                        <span>🕒</span> History
+                        History
                     </div>
                     <div className={`win98-menu-item ${view === 'reports' ? 'active' : ''}`} onClick={() => { setView('reports'); fetchReport(); }}>
-                        <span>📄</span> Reports
+                        Reports
                     </div>
                     <div className={`win98-menu-item ${view === 'system' ? 'active' : ''}`} onClick={() => setView('system')}>
-                        <span>⚙️</span> System
+                        System
                     </div>
                     <div className={`win98-menu-item ${view === 'logs' ? 'active' : ''}`} onClick={() => setView('logs')}>
-                        <span>🛡️</span> Logs
+                        Logs
                     </div>
                 </div>
                 <div className="win98-menu-item" onClick={onLogout} style={{ marginTop: 'auto' }}>
-                    <span>🚪</span> Logout
+                    Logout
                 </div>
             </div>
 
@@ -358,6 +358,12 @@ export default function AdminDashboard({ onLogout }) {
                             <div className="win98-toolbar">
                                 <input className="win98-input" placeholder="Search..." value={searchText} onChange={e => setSearchText(e.target.value)} />
                                 <button className="win98-btn" onClick={() => setShowAddModal(true)}>+ Add</button>
+                                <button className="win98-btn" disabled={selectedIds.size !== 1} onClick={() => {
+                                    if (selectedIds.size !== 1) return;
+                                    const id = Array.from(selectedIds)[0];
+                                    const student = students.find(s => s.studentId === id);
+                                    if (student) { setSelectedStudent(student); setShowTopUpModal(true); }
+                                }}>Top Up</button>
                                 <label className="win98-btn">
                                     📂 Import CSV
                                     <input type="file" accept=".csv" style={{ display: 'none' }} onChange={handleFileUpload} />
@@ -394,7 +400,6 @@ export default function AdminDashboard({ onLogout }) {
                                                 <td style={{ color: parseFloat(s.balance) < 0 ? 'red' : 'green' }}>SAR {parseFloat(s.balance).toFixed(2)}</td>
                                                 <td>
                                                     <button className="win98-btn" style={{ padding: '2px 5px', fontSize: 11 }} onClick={() => { setSelectedStudent(s); setShowQrModal(true); }}>QR</button>
-                                                    <button className="win98-btn" style={{ padding: '2px 5px', fontSize: 11 }} onClick={() => { setSelectedStudent(s); setShowTopUpModal(true); }}>TopUp</button>
                                                 </td>
                                             </tr>
                                         ))}
