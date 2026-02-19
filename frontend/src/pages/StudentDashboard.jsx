@@ -135,7 +135,7 @@ export default function StudentDashboard({ user, onLogout }) {
                 <div className="card-top">
                     <span className="label">Available Balance</span>
                     <div className="balance-amount-row">
-                        <span className="currency">SAR</span>
+                        <span className="currency">Points</span>
                         <span className="amount">
                             {balanceVisible ? parseFloat(studentData.balance).toFixed(2) : '****'}
                         </span>
@@ -147,7 +147,7 @@ export default function StudentDashboard({ user, onLogout }) {
                 <div className="card-bottom">
                     <div className="card-info">
                         <span className="card-label">Credit Limit</span>
-                        <span className="card-value">SAR 500.00</span>
+                        <span className="card-value">500.00 Points</span>
                     </div>
                     <span className="card-number">**** {(studentData.studentId || '0000').slice(-4)}</span>
                 </div>
@@ -193,7 +193,7 @@ export default function StudentDashboard({ user, onLogout }) {
                                     </div>
                                 </div>
                                 <div className={`item-amount ${item.type === 'TOPUP' ? 'positive' : ''}`}>
-                                    {item.type === 'TOPUP' ? '+' : '-'} SAR {Math.abs(item.amount).toFixed(2)}
+                                    {item.type === 'TOPUP' ? '+' : '-'} Points {Math.abs(item.amount).toFixed(2)}
                                 </div>
                             </List.Item>
                         )}
@@ -251,7 +251,7 @@ export default function StudentDashboard({ user, onLogout }) {
                         </div>
                         <div>
                             <small style={{ opacity: 0.7 }}>Credit Limit</small>
-                            <div style={{ fontWeight: 'bold' }}>SAR 500</div>
+                            <div style={{ fontWeight: 'bold' }}>500 Points</div>
                         </div>
                     </div>
                 </div>
