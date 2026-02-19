@@ -24,6 +24,10 @@ export default function StudentDashboard({ user, onLogout }) {
     const [qrModalVisible, setQrModalVisible] = useState(false);
     const [studentData, setStudentData] = useState(user);
 
+    if (!studentData) {
+        return <div style={{ padding: 20, textAlign: 'center' }}>Loading user data...</div>;
+    }
+
     useEffect(() => {
         loadData();
     }, []);
@@ -35,8 +39,8 @@ export default function StudentDashboard({ user, onLogout }) {
                 transactionService.getTransactions(user.studentId),
                 studentService.getStudent(user.studentId)
             ]);
-            setTransactions(tRes.data);
-            setStudentData(sRes.data);
+            setTransactions(tRes.data.data || []);
+            setStudentData(sRes.data.data || sRes.data);
         } catch (err) {
             message.error('Failed to load student data');
         } finally {
@@ -59,7 +63,7 @@ export default function StudentDashboard({ user, onLogout }) {
                         <UserOutlined />
                     </div>
                     <div className="user-info">
-                        <span className="greeting">Hi, {studentData.fullName.split(' ')[0]}</span>
+                        <span className="greeting">Hi, {(studentData.fullName || 'User').split(' ')[0]}</span>
                         <span className="welcome-back">Welcome back!</span>
                     </div>
                 </div>
@@ -83,7 +87,7 @@ export default function StudentDashboard({ user, onLogout }) {
                     </div>
                 </div>
                 <div className="card-bottom">
-                    <span className="card-number">**** **** **** {studentData.studentId.slice(-4)}</span>
+                    <span className="card-number">**** **** **** {(studentData.studentId || '0000').slice(-4)}</span>
                     <div className="chip"></div>
                 </div>
             </div>
@@ -159,7 +163,7 @@ export default function StudentDashboard({ user, onLogout }) {
                 bodyStyle={{ textAlign: 'center', padding: '40px 20px' }}
             >
                 <div className="qr-card">
-                    <QRCodeCanvas value={studentData.studentId} size={200} level="H" includeMargin={true} />
+                    <QRCodeCanvas value={studentData.studentId || 'NO_ID'} size={200} level="H" includeMargin={true} />
                     <h2 style={{ marginTop: 20, marginBottom: 5 }}>{studentData.fullName}</h2>
                     <p style={{ color: '#888' }}>ID: {studentData.studentId}</p>
                     <p style={{ fontWeight: 'bold', color: '#3B5ED2', fontSize: 18 }}>{studentData.gradeSection}</p>
