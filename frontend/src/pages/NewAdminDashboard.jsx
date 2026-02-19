@@ -287,14 +287,8 @@ export default function AdminDashboard({ onLogout }) {
         }
     };
 
-    // Helper for rendering Title Bar controls
-    const WindowControls = () => (
-        <div className="win98-title-controls">
-            <div className="win98-control-btn">_</div>
-            <div className="win98-control-btn">□</div>
-            <div className="win98-control-btn">×</div>
-        </div>
-    );
+    // Removed Window Controls as requested
+    const WindowControls = () => null;
 
     // Rendering Helpers
     const filtered = students.filter(s => s.fullName.toLowerCase().includes(searchText.toLowerCase()) || s.studentId.includes(searchText));
