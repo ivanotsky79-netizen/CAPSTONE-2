@@ -1,250 +1,172 @@
-/* Visual Basic / Windows 95 Theme */
-:root {
-    --win-gray: #c0c0c0;
-    --win-dark: #808080;
-    --win-darker: #404040;
-    --win-light: #ffffff;
-    --win-blue: #000080;
-    --win-text: #000000;
+/* OSPOS Modern Layout */
+body {
+    background-color: #ecf0f1;
+    font-family: 'Open Sans', sans-serif;
 }
 
-body,
-#root {
-    background-color: var(--win-gray);
-    font-family: 'Consolas', 'Lucida Console', 'Courier New', monospace !important;
-    color: var(--win-text);
+.ospos-header {
+    background-color: #2c3e50;
+    height: 48px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 0 20px;
+    color: #ecf0f1;
+    font-size: 14px;
 }
 
-* {
-    border-radius: 0 !important;
-}
-
-/* Layout */
-.ant-layout,
-.ant-layout-header,
-.ant-layout-sider,
-.ant-layout-content {
-    background: var(--win-gray) !important;
-}
-
-.ant-layout-sider {
-    border-right: 2px solid var(--win-light);
-    box-shadow: none !important;
-    border-right-color: var(--win-dark);
-}
-
-.logo {
-    background: var(--win-blue) !important;
-    color: white;
+.ospos-logo {
+    font-size: 18px;
     font-weight: bold;
-    padding: 16px;
-    border: 2px solid;
-    border-color: var(--win-light) var(--win-dark) var(--win-dark) var(--win-light);
-    margin: 4px;
+    color: #ecf0f1;
+    letter-spacing: 1px;
+}
+
+.ospos-header-actions {
+    display: flex;
+    align-items: center;
+    gap: 20px;
+}
+
+.ospos-nav-bar {
+    background-color: #34495e;
+    height: 90px;
+    display: flex;
+    align-items: center;
+    padding: 0 20px;
+    gap: 15px;
+    box-shadow: 0 2px 5px rgba(0, 0, 0, 0.2);
+}
+
+.nav-item {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    width: 100px;
+    height: 80px;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    border-radius: 8px;
+    color: #ecf0f1;
     text-align: center;
 }
 
-/* Menu */
-.ant-menu {
-    background: var(--win-gray) !important;
-    border-right: none !important;
-    color: var(--win-text) !important;
+.nav-item:hover {
+    background-color: rgba(255, 255, 255, 0.1);
+    transform: translateY(-2px);
 }
 
-.ant-menu-item {
-    color: var(--win-text) !important;
-    margin: 0 !important;
-    width: 100% !important;
+.nav-item.active {
+    background-color: #2980b9;
+    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
 }
 
-.ant-menu-item-selected {
-    background-color: var(--win-blue) !important;
-    color: white !important;
-    font-weight: bold;
+.nav-icon {
+    font-size: 28px;
+    margin-bottom: 5px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 48px;
+    height: 48px;
+    border-radius: 50%;
+    margin: 0 auto 5px;
+    background-color: rgba(0, 0, 0, 0.2);
 }
 
-.ant-menu-item:active {
-    background-color: var(--win-blue) !important;
-    color: white !important;
+.nav-text {
+    font-size: 12px;
+    font-weight: 600;
+    letter-spacing: 0.5px;
 }
 
-/* Cards (Windows) */
+/* Specific Icon Colors for differentiation */
+.nav-item.users .nav-icon {
+    background-color: #e74c3c;
+}
+
+/* Red for Customers */
+.nav-item.transactions .nav-icon {
+    background-color: #f39c12;
+}
+
+/* Orange for Sales */
+.nav-item.reports .nav-icon {
+    background-color: #3498db;
+}
+
+/* Blue for Reports */
+.nav-item.systemdata .nav-icon {
+    background-color: #9b59b6;
+}
+
+/* Purple for System */
+
+.ospos-content {
+    padding: 30px;
+    max-width: 1400px;
+    margin: 0 auto;
+}
+
+.main-panel {
+    background: #ffffff;
+    border-radius: 8px;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+    min-height: 600px;
+    padding: 30px;
+}
+
+.section-title {
+    color: #2c3e50;
+    margin-bottom: 25px;
+    border-bottom: 2px solid #ecf0f1;
+    padding-bottom: 10px;
+}
+
+/* Enhance existing Ant Design components */
 .ant-card {
-    background: var(--win-gray) !important;
-    border: 2px solid !important;
-    border-color: var(--win-light) var(--win-dark) var(--win-dark) var(--win-light) !important;
-    box-shadow: 1px 1px 0 black !important;
-    margin-bottom: 16px;
-}
-
-.ant-card-head {
-    background: var(--win-blue) !important;
-    color: white !important;
-    border-bottom: none !important;
-    min-height: 32px !important;
-    padding: 2px 8px !important;
-}
-
-.ant-card-head-title {
-    padding: 4px 0 !important;
-    color: white !important;
-    font-weight: bold;
-}
-
-.ant-card-body {
-    padding: 16px !important;
-}
-
-/* Buttons */
-.ant-btn {
-    background: var(--win-gray) !important;
-    border: 2px solid !important;
-    border-color: var(--win-light) var(--win-dark) var(--win-dark) var(--win-light) !important;
-    box-shadow: 1px 1px 0 black !important;
-    color: black !important;
-    font-weight: bold;
-}
-
-.ant-btn:active,
-.ant-btn.ant-btn-primary:active {
-    border-color: var(--win-dark) var(--win-light) var(--win-light) var(--win-dark) !important;
-    box-shadow: none !important;
-    transform: translate(1px, 1px);
-}
-
-.ant-btn-primary {
-    /* Make primary buttons look regular but maybe slightly emphasized */
-    background: var(--win-gray) !important;
-    color: black !important;
-}
-
-/* Inputs */
-.ant-input,
-.ant-input-number,
-.ant-picker,
-.ant-select-selector {
-    background: white !important;
-    border: 2px solid !important;
-    border-color: var(--win-dark) var(--win-light) var(--win-light) var(--win-dark) !important;
-    box-shadow: none !important;
-}
-
-/* Tables */
-.ant-table {
-    background: var(--win-gray) !important;
-    border: 2px solid;
-    border-color: var(--win-dark) var(--win-light) var(--win-light) var(--win-dark);
-}
-
-.ant-table-thead>tr>th {
-    background: var(--win-gray) !important;
-    border-bottom: 1px solid var(--win-dark) !important;
-    border-right: 1px solid var(--win-dark) !important;
-    color: black !important;
-}
-
-.ant-table-tbody>tr>td {
-    background: white !important;
-    border-bottom: 1px solid #eee !important;
-    border-right: 1px solid #eee !important;
-}
-
-.ant-table-row:hover>td {
-    background: #e6f7ff !important;
-    /* Keep slight hover but maybe more classic blue selection later */
-}
-
-/* Tabs */
-.ant-tabs-nav {
-    margin-bottom: 0 !important;
-}
-
-.ant-tabs-tab {
-    background: var(--win-gray) !important;
-    border: 2px solid !important;
-    border-color: var(--win-light) var(--win-dark) var(--win-dark) var(--win-light) !important;
-    border-bottom: none !important;
-    margin-right: 2px !important;
-    color: black !important;
-}
-
-.ant-tabs-tab-active {
-    background: var(--win-gray) !important;
-    border-bottom: 2px solid var(--win-gray) !important;
-    font-weight: bold;
-    z-index: 1;
-    position: relative;
-    top: 2px;
-}
-
-.ant-tabs-content {
-    border: 2px solid var(--win-light);
-    border-top: none;
-    background: var(--win-gray);
-    padding: 16px;
-    border-color: var(--win-light) var(--win-dark) var(--win-dark) var(--win-light);
-}
-
-/* Modals */
-.ant-modal-content {
-    background: var(--win-gray) !important;
-    border: 2px solid !important;
-    border-color: var(--win-light) var(--win-dark) var(--win-dark) var(--win-light) !important;
-    box-shadow: 4px 4px 0 black !important;
-    padding: 2px !important;
-}
-
-.ant-modal-header {
-    background: var(--win-blue) !important;
-    padding: 4px 8px !important;
-    margin-bottom: 16px;
-}
-
-.ant-modal-title {
-    color: white !important;
-}
-
-.ant-modal-close {
-    color: white !important;
-    top: 6px !important;
-    right: 8px !important;
-    background: var(--win-gray);
-    border: 1px solid white;
-    border-color: var(--win-light) var(--win-dark) var(--win-dark) var(--win-light);
-    width: 20px;
-    height: 20px;
-    line-height: 16px;
-}
-
-.ant-modal-close-x {
-    color: black;
-    font-size: 14px;
-    line-height: 18px;
+    border-radius: 8px;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
 }
 
 .ant-statistic-title {
-    color: #404040 !important;
+    color: #7f8c8d;
+    font-weight: 600;
 }
 
 .ant-statistic-content {
-    color: black !important;
+    font-weight: bold;
 }
 
-/* Disabled Future Cards */
-.disabled-card {
-    opacity: 1 !important;
-    /* Override opacity to handle it properly with stippling */
+.ant-tag {
+    font-weight: 600;
+    border-radius: 4px;
 }
 
-.disabled-card .ant-card-body {
-    background-image: linear-gradient(45deg, #ddd 25%, transparent 25%, transparent 50%, #ddd 50%, #ddd 75%, transparent 75%, transparent);
-    background-size: 4px 4px;
+.ant-btn-primary {
+    background-color: #3498db;
+    border-color: #3498db;
+    box-shadow: 0 2px 4px rgba(52, 152, 219, 0.3);
 }
 
-/* Custom VB Classes */
-.vb-inset {
-    border: 2px solid;
-    border-color: var(--win-dark) var(--win-light) var(--win-light) var(--win-dark);
-    background: white;
-    padding: 8px;
+.ant-btn-primary:hover {
+    background-color: #2980b9;
+    border-color: #2980b9;
+}
+
+.ant-btn-danger {
+    background-color: #e74c3c;
+    border-color: #e74c3c;
+}
+
+.ant-input,
+.ant-input-search {
+    border-radius: 4px;
+}
+
+.ant-table-thead>tr>th {
+    background-color: #f8f9fa;
+    color: #2c3e50;
+    font-weight: 700;
 }
