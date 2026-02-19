@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Form, Input, Button, Card, message, Typography, Space } from 'antd';
+import { Form, Input, Button, Card, message, Typography, Space, Modal } from 'antd';
 import { UserOutlined, LockOutlined, IdcardOutlined, ArrowLeftOutlined, UserAddOutlined } from '@ant-design/icons';
 import { studentService } from '../services/api';
 import './LoginPage.css';
@@ -47,19 +47,42 @@ export default function LoginPage({ onLogin }) {
     const handleRegister = async (values) => {
         setLoading(true);
         try {
+            const lrn = values.studentId.replace(/\D/g, ''); // Ensure only digits
+
+            if (lrn.length !== 12) {
+                message.error('Student ID (LRN) must be exactly 12 digits to generate Passkey.');
+                setLoading(false);
+                return;
+            }
+
+            // Generate Passkey: 3rd, 6th, 9th, 12th digits
+            // Indices (0-based): 2, 5, 8, 11
+            const generatedPasskey = lrn[2] + lrn[5] + lrn[8] + lrn[11];
+
             // Include default balance and structure for new student
             const studentData = {
-                studentId: values.studentId,
+                studentId: lrn,
                 fullName: values.fullName,
                 gradeSection: values.gradeSection,
-                passkey: values.passkey,
+                passkey: generatedPasskey,
                 balance: 0,
                 status: 'Active'
             };
 
             await studentService.createStudent(studentData);
-            message.success('Registration successful! Please login.');
-            setView('student-login');
+
+            Modal.success({
+                title: 'Registration Successful!',
+                content: (
+                    <div>
+                        <p>Your account has been created.</p>
+                        <p><strong>Your Auto-Generated Passkey is: <span style={{ color: '#1890ff', fontSize: 18 }}>{generatedPasskey}</span></strong></p>
+                        <p>Please memorize this 4-digit code to login.</p>
+                    </div>
+                ),
+                onOk: () => setView('student-login')
+            });
+
         } catch (err) {
             message.error(err.response?.data?.error || 'Registration failed. ID might be taken.');
         } finally {
@@ -172,18 +195,20 @@ export default function LoginPage({ onLogin }) {
                             <Form.Item name="fullName" rules={[{ required: true, message: 'Enter Full Name' }]}>
                                 <Input prefix={<UserOutlined />} placeholder="Full Name (e.g., Juan Dela Cruz)" autoFocus />
                             </Form.Item>
-                            <Form.Item name="studentId" rules={[{ required: true, message: 'Enter Student ID' }]}>
-                                <Input prefix={<IdcardOutlined />} placeholder="Student ID (LRN)" />
+                            <Form.Item name="studentId" rules={[
+                                { required: true, message: 'Enter 12-digit LRN' },
+                                { len: 12, message: 'LRN must be exactly 12 digits' },
+                                { pattern: /^\d+$/, message: 'LRN must contain only numbers' }
+                            ]}>
+                                <Input prefix={<IdcardOutlined />} placeholder="12-Digit LRN (Student ID)" maxLength={12} />
                             </Form.Item>
                             <Form.Item name="gradeSection" rules={[{ required: true, message: 'Enter Grade & Section' }]}>
                                 <Input prefix={<UserAddOutlined />} placeholder="Grade & Section (e.g., Grade 12 - A)" />
                             </Form.Item>
-                            <Form.Item name="passkey" rules={[
-                                { required: true, message: 'Create a 4-digit Passkey' },
-                                { len: 4, message: 'Must be exactly 4 digits' }
-                            ]}>
-                                <Input.Password prefix={<LockOutlined />} placeholder="Create 4-digit Passkey" maxLength={4} />
-                            </Form.Item>
+
+                            <div style={{ marginBottom: 20, padding: 15, background: '#f6f8fa', borderRadius: 8, fontSize: 13, color: '#555', border: '1px solid #e1e4e8' }}>
+                                <strong>Note:</strong> Your 4-digit Passkey will be automatically generated from the <strong>3rd, 6th, 9th, and 12th</strong> digits of your LRN.
+                            </div>
 
                             <Button type="primary" htmlType="submit" block loading={loading} size="large">
                                 Create Account
