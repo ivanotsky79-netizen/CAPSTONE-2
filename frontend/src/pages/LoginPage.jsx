@@ -188,7 +188,7 @@ export default function LoginPage({ onLogin }) {
                     {view === 'student-login' && (
                         <Form onFinish={handleStudentLogin} layout="vertical" size="large">
                             <Form.Item name="studentId" rules={[{ required: true, message: 'Enter Student ID' }]}>
-                                <Input prefix={<IdcardOutlined />} placeholder="Student ID (LRN)" autoFocus />
+                                <Input prefix={<IdcardOutlined />} placeholder="Student ID (e.g. S2026-1234)" autoFocus />
                             </Form.Item>
                             <Form.Item name="passkey" rules={[{ required: true, message: 'Enter 4-digit Passkey' }]}>
                                 <Input.Password prefix={<LockOutlined />} placeholder="Passkey" maxLength={4} />
