@@ -359,8 +359,9 @@ export default function AdminDashboard({ onLogout }) {
                             <div className="win98-toolbar">
                                 <input className="win98-input" placeholder="Search..." value={searchText} onChange={e => setSearchText(e.target.value)} />
                                 <button className="win98-btn" onClick={() => setShowAddModal(true)}>+ Add</button>
-                                <button className="win98-btn" disabled={selectedIds.size !== 1} onClick={() => {
-                                    if (selectedIds.size !== 1) return;
+                                <button className="win98-btn" onClick={() => {
+                                    if (selectedIds.size === 0) { message.warning('Please select a student to Top Up.'); return; }
+                                    if (selectedIds.size > 1) { message.warning('Please select only one student.'); return; }
                                     const id = Array.from(selectedIds)[0];
                                     const student = students.find(s => s.studentId === id);
                                     if (student) { setSelectedStudent(student); setShowTopUpModal(true); }
