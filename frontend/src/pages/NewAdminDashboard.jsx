@@ -1,205 +1,196 @@
 import React, { useState, useEffect } from 'react';
-import { Layout, Table, Button, Input, Form, Modal, message, Typography, Row, Col, Card, Space, Select, DatePicker } from 'antd';
-import {
-    PlusOutlined, SaveOutlined, DeleteOutlined, PrinterOutlined, ReloadOutlined,
-    SearchOutlined, UserOutlined, FileTextOutlined, BarChartOutlined, SettingOutlined,
-    LogoutOutlined
-} from '@ant-design/icons';
+import { Tabs, Form, Input, Button, Table, Card, message, Modal, InputNumber, Tag, Row, Col, Typography, Statistic, Space } from 'antd';
+import { UserOutlined, QrcodeOutlined, DollarOutlined, FileTextOutlined, LockOutlined, ReloadOutlined, LogoutOutlined } from '@ant-design/icons';
 import { studentService, transactionService } from '../services/api';
 import { io } from 'socket.io-client';
-import QRCode from 'qrcode';
-import './RetroAdminDashboard.css'; // Will contain Professional ERP styles
+import QRCode from 'qrcode'; // Use local library for better control
 
 const { Title, Text } = Typography;
-const { Option } = Select;
+const { TabPane } = Tabs;
 
-export default function AdminDashboard({ onLogout }) {
-    const [currentModule, setCurrentModule] = useState('masters'); // masters, transactions, reports, system
-    const [subModule, setSubModule] = useState('students'); // students, items...
-
-    // Data States
+const AdminDashboard = ({ onLogout }) => {
     const [students, setStudents] = useState([]);
-    const [dailyStats, setDailyStats] = useState({ canteen: {}, system: {} });
-    const [reportStats, setReportStats] = useState(null);
-
-    // Selecting
-    const [selectedStudent, setSelectedStudent] = useState(null);
-    const [searchText, setSearchText] = useState('');
-
-    // Modals
-    const [addModalVisible, setAddModalVisible] = useState(false);
-    const [topUpModalVisible, setTopUpModalVisible] = useState(false);
+    const [loading, setLoading] = useState(false);
     const [qrModalVisible, setQrModalVisible] = useState(false);
+    const [withdrawModalVisible, setWithdrawModalVisible] = useState(false);
+    const [selectedStudent, setSelectedStudent] = useState(null);
 
-    // Modal Inputs
-    const [topUpAmount, setTopUpAmount] = useState(null);
-    const [topUpPasskey, setTopUpPasskey] = useState('');
-    const [form] = Form.useForm();
-    const [generatedPasskey, setGeneratedPasskey] = useState('');
+    // Stats
+    const [totalBalance, setTotalBalance] = useState(0);
+    const [totalCredit, setTotalCredit] = useState(0);
+    const [creditedStudents, setCreditedStudents] = useState([]);
+    const [dailyStats, setDailyStats] = useState({
+        canteen: { totalSales: 0, cashCollected: 0, totalCredit: 0 },
+        system: { totalCashOnHand: 0, todayTopups: 0, todayWithdrawals: 0 }
+    });
 
     useEffect(() => {
-        fetchData();
-        const socket = io('https://fugen-backend.onrender.com');
-        socket.on('balanceUpdate', fetchData);
-        socket.on('studentCreated', fetchData);
-        socket.on('studentDeleted', fetchData);
+        fetchStudents();
+        fetchDailyStats();
+
+        const socket = io('https://fugen-backend.onrender.com'); // Updated Backend URL
+        socket.on('balanceUpdate', () => { fetchStudents(); fetchDailyStats(); });
+        socket.on('studentCreated', () => fetchStudents());
         return () => socket.disconnect();
     }, []);
 
-    const fetchData = async () => {
+    const fetchStudents = async () => {
+        setLoading(true);
         try {
-            const [stdRes, statRes] = await Promise.all([
-                studentService.getAllStudents(),
-                transactionService.getDailyStats(null, true)
-            ]);
-            setStudents(stdRes.data.data);
-            if (statRes.data.status === 'success') setDailyStats(statRes.data.data);
-        } catch (e) { console.error(e); }
+            const res = await studentService.getAllStudents();
+            const allStudents = res.data.data;
+            setStudents(allStudents);
+            setTotalBalance(allStudents.reduce((acc, curr) => acc + (parseFloat(curr.balance) || 0), 0));
+
+            const negative = allStudents.filter(s => parseFloat(s.balance) < 0);
+            setCreditedStudents(negative);
+            setTotalCredit(negative.reduce((acc, curr) => acc + Math.abs(parseFloat(curr.balance)), 0));
+        } catch (err) { message.error('Failed to fetch students'); } finally { setLoading(false); }
     };
 
-    // ... Helper functions (handleAddStudent, handleTopUp, etc.) ...
-    // Re-implementing simplified versions for brevity in rewriting
-    const handleAddStudent = async (v) => { /* ... */ };
-    const generatePasskeyFromLRN = (lrn) => { /* ... */ };
-    // I will mock these for now or copy logic from previous if needed. 
-    // Actually detailed logic was in previous steps, I will include essential logic.
+    const fetchDailyStats = async () => {
+        try {
+            const res = await transactionService.getDailyStats(null, true); // Changed to fit API update
+            if (res.data.status === 'success') setDailyStats(res.data.data);
+        } catch (err) { console.error('Failed to fetch stats'); }
+    };
 
-    const renderToolbar = () => (
-        <div className="erp-toolbar">
-            <Space>
-                <Button type="text" icon={<PlusOutlined />} onClick={() => setAddModalVisible(true)}>New</Button>
-                <Button type="text" icon={<SaveOutlined />}>Save</Button>
-                <Button type="text" icon={<DeleteOutlined />} danger>Delete</Button>
-                <div className="erp-separator" />
-                <Button type="text" icon={<PrinterOutlined />}>Print</Button>
-                <Button type="text" icon={<ReloadOutlined />} onClick={fetchData}>Refresh</Button>
-                <div className="erp-separator" />
-                <Button type="text" icon={<LogoutOutlined />} onClick={onLogout}>Exit</Button>
-            </Space>
-        </div>
-    );
+    const [form] = Form.useForm();
+    const handleCreateStudent = async (values) => {
+        try {
+            // Auto-generate passkey from LRN if needed or use input
+            // Keeping original logic structure
+            await studentService.createStudent(values);
+            message.success('Student Created Successfully');
+            form.resetFields(); fetchStudents();
+        } catch (err) { message.error(err.response?.data?.message || 'Failed'); }
+    };
 
-    const renderContent = () => {
-        if (currentModule === 'masters') {
-            const filtered = students.filter(s => s.fullName.toLowerCase().includes(searchText.toLowerCase()) || s.studentId.includes(searchText));
-            const totalBal = students.reduce((a, c) => a + (parseFloat(c.balance) || 0), 0);
+    const showQrModal = (student) => { setSelectedStudent(student); setQrModalVisible(true); };
 
-            return (
-                <div className="erp-workspace">
-                    <div className="erp-form-header">
-                        <Space size="large">
-                            <div>
-                                <label>Search:</label>
-                                <Input style={{ width: 200 }} value={searchText} onChange={e => setSearchText(e.target.value)} prefix={<SearchOutlined />} />
-                            </div>
-                            <div>
-                                <label>Filter Grade:</label>
-                                <Select style={{ width: 150 }} defaultValue="All"><Option value="All">All Grades</Option></Select>
-                            </div>
-                        </Space>
-                    </div>
+    // Enhanced QR Download with Student ID
+    const downloadQRWithID = () => {
+        const canvas = document.getElementById('qr-canvas');
+        if (!canvas || !selectedStudent) return;
+        const size = canvas.width;
+        const newCanvas = document.createElement('canvas'); newCanvas.width = size; newCanvas.height = size + 60;
+        const ctx = newCanvas.getContext('2d');
+        ctx.fillStyle = '#FFFFFF'; ctx.fillRect(0, 0, newCanvas.width, newCanvas.height);
+        ctx.drawImage(canvas, 0, 0);
+        ctx.fillStyle = '#000000'; ctx.font = 'bold 24px Arial'; ctx.textAlign = 'center';
+        ctx.fillText(selectedStudent.studentId, size / 2, size + 40);
+        const link = document.createElement('a'); link.download = `${selectedStudent.studentId}_QR.png`; link.href = newCanvas.toDataURL('image/png'); link.click();
+    };
 
-                    <div className="erp-grid-container">
-                        <Table
-                            className="erp-table table-striped"
-                            size="small"
-                            dataSource={filtered}
-                            rowKey="studentId"
-                            pagination={{ pageSize: 15, size: 'small' }}
-                            onRow={(record) => ({
-                                onClick: () => setSelectedStudent(record),
-                                className: selectedStudent?.studentId === record.studentId ? 'erp-row-selected' : ''
-                            })}
-                            columns={[
-                                { title: 'Student ID', dataIndex: 'studentId' },
-                                { title: 'Full Name', dataIndex: 'fullName', render: t => <b>{t}</b> },
-                                { title: 'Grade & Section', dataIndex: 'gradeSection' },
-                                { title: 'Current Balance', dataIndex: 'balance', align: 'right', render: b => <span style={{ color: b < 0 ? 'red' : 'green' }}>{parseFloat(b).toFixed(2)}</span> },
-                                { title: 'Status', render: (_, r) => r.balance < 0 ? <span className="erp-badge danger">Overdue</span> : <span className="erp-badge success">Active</span> }
-                            ]}
-                        />
-                    </div>
+    const studentColumns = [
+        { title: 'ID', dataIndex: 'studentId' },
+        { title: 'Name', dataIndex: 'fullName' },
+        { title: 'Grade', dataIndex: 'grade' },
+        { title: 'Balance', dataIndex: 'balance', render: b => <Tag color={b < 0 ? 'red' : 'green'}>{parseFloat(b).toFixed(2)} SAR</Tag> },
+        { title: 'Action', render: (_, r) => <Button icon={<QrcodeOutlined />} onClick={() => showQrModal(r)}>QR Code</Button> }
+    ];
 
-                    <div className="erp-footer-panel">
-                        <div className="erp-stat-box">
-                            <span className="label">Total Students:</span>
-                            <span className="value">{students.length}</span>
-                        </div>
-                        <div className="erp-stat-box">
-                            <span className="label">Total Prepaid Load:</span>
-                            <span className="value">{totalBal.toFixed(2)}</span>
-                        </div>
-                        <div className="erp-actions">
-                            <Button type="primary" disabled={!selectedStudent} onClick={() => setTopUpModalVisible(true)}>Top Up / Withdraw</Button>
-                            <Button disabled={!selectedStudent} onClick={() => setQrModalVisible(true)}>View QR</Button>
-                        </div>
-                    </div>
-                </div>
-            );
-        } else if (currentModule === 'transactions') {
-            const txns = dailyStats.canteen?.transactions || [];
-            return (
-                <div className="erp-workspace">
-                    <div className="erp-form-header">
-                        <Space>
-                            <label>Date:</label> <Input value={new Date().toLocaleDateString()} readOnly style={{ width: 120 }} />
-                            <label>Location:</label> <Input value="Main Canteen" readOnly />
-                        </Space>
-                    </div>
-                    <div className="erp-grid-container">
-                        <Table
-                            className="erp-table"
-                            size="small"
-                            dataSource={txns}
-                            rowKey={(r, i) => i}
-                            pagination={{ pageSize: 15 }}
-                            columns={[
-                                { title: 'Time', dataIndex: 'timestamp', render: t => new Date(t).toLocaleTimeString() },
-                                { title: 'Transaction Type', dataIndex: 'type' },
-                                { title: 'Student Name', dataIndex: 'studentName' },
-                                { title: 'Amount (SAR)', dataIndex: 'amount', align: 'right', render: a => <b>{parseFloat(a).toFixed(2)}</b> },
-                                { title: 'Cash', dataIndex: 'cashAmount', align: 'right', render: c => (c || 0).toFixed(2) },
-                                { title: 'Credit', dataIndex: 'creditAmount', align: 'right', render: c => (c || 0).toFixed(2) }
-                            ]}
-                        />
-                    </div>
-                    <div className="erp-footer-panel">
-                        <div className="erp-stat-box"><span className="label">Total Sales:</span><span className="value">{dailyStats.canteen?.totalSales?.toFixed(2)}</span></div>
-                        <div className="erp-stat-box"><span className="label">Cash Collected:</span><span className="value">{dailyStats.canteen?.cashCollected?.toFixed(2)}</span></div>
-                    </div>
-                </div>
-            );
-        }
-        return null; // Add other modules as needed logic from previous steps
+    // TOP UP LOGIC
+    const [topUpForm] = Form.useForm();
+    const [searchQuery, setSearchQuery] = useState('');
+    const [foundStudent, setFoundStudent] = useState(null);
+
+    const handleSearchStudent = () => {
+        const s = students.find(s => s.studentId === searchQuery.toUpperCase() || s.fullName.toLowerCase().includes(searchQuery.toLowerCase()));
+        if (s) setFoundStudent(s); else { message.warning('Not found'); setFoundStudent(null); }
+    };
+
+    const handleTopUp = async (values) => {
+        try {
+            await studentService.verifyPasskey(foundStudent.studentId, values.passkey);
+            await transactionService.topUp(foundStudent.studentId, values.amount);
+            message.success(`Added ${values.amount} SAR`);
+            topUpForm.resetFields(); setFoundStudent(null); setSearchQuery(''); fetchStudents();
+        } catch (err) { message.error('Transaction Failed'); }
     };
 
     return (
-        <div className="erp-layout">
-            <div className="erp-titlebar">
-                <div className="app-name">FUGEN SmartPay Enterprise</div>
-                <div className="user-info">Logged in as: Administrator | {new Date().toLocaleDateString()}</div>
+        <div className="admin-dashboard" style={{ padding: 20 }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 20 }}>
+                <Title level={3}>FUGEN Admin Dashboard</Title>
+                <Button type="primary" danger icon={<LogoutOutlined />} onClick={onLogout}>Logout</Button>
             </div>
 
-            <div className="erp-menubar">
-                <div className={`menu-item ${currentModule === 'masters' ? 'active' : ''}`} onClick={() => setCurrentModule('masters')}>Masters</div>
-                <div className={`menu-item ${currentModule === 'transactions' ? 'active' : ''}`} onClick={() => setCurrentModule('transactions')}>Transactions</div>
-                <div className={`menu-item ${currentModule === 'reports' ? 'active' : ''}`} onClick={() => setCurrentModule('reports')}>Reports</div>
-                <div className={`menu-item ${currentModule === 'system' ? 'active' : ''}`} onClick={() => setCurrentModule('system')}>System</div>
-                <div className="menu-item">Help</div>
-            </div>
+            <Row gutter={16} style={{ marginBottom: 24 }}>
+                <Col span={8}><Card><Statistic title="Total System Balance" value={totalBalance} precision={2} prefix="SAR" /></Card></Col>
+                <Col span={8}><Card><Statistic title="Total Students" value={students.length} prefix={<UserOutlined />} /></Card></Col>
+                <Col span={8}><Card><Statistic title="Total Pending Credit" value={totalCredit} precision={2} prefix="SAR" valueStyle={{ color: '#cf1322' }} /></Card></Col>
+            </Row>
 
-            {renderToolbar()}
+            <Tabs defaultActiveKey="1">
+                <TabPane tab={<span><UserOutlined />System</span>} key="1">
+                    <Row gutter={24}>
+                        <Col span={12}>
+                            <Card title="System Overview">
+                                <Statistic title="Total Cash (System)" value={dailyStats.system?.totalCashOnHand || 0} precision={2} prefix="SAR" valueStyle={{ color: '#3f8600' }} />
+                                <Statistic title="Total Debt" value={totalCredit} precision={2} prefix="SAR" valueStyle={{ color: '#cf1322', marginTop: 20 }} />
+                            </Card>
+                        </Col>
+                        <Col span={12}>
+                            <Card title="Add New Student">
+                                <Form form={form} layout="vertical" onFinish={handleCreateStudent}>
+                                    <Form.Item name="fullName" label="Name" rules={[{ required: true }]}><Input /></Form.Item>
+                                    <Form.Item name="grade" label="Grade" rules={[{ required: true }]}><Input /></Form.Item>
+                                    <Form.Item name="passkey" label="Passkey" rules={[{ required: true, len: 4 }]}><Input.Password maxLength={4} /></Form.Item>
+                                    <Button type="primary" htmlType="submit" block>Create</Button>
+                                </Form>
+                            </Card>
+                        </Col>
+                    </Row>
+                    <Row style={{ marginTop: 20 }}><Col span={24}><Table dataSource={students} columns={studentColumns} rowKey="studentId" pagination={{ pageSize: 6 }} /></Col></Row>
+                </TabPane>
 
-            <div className="erp-main">
-                {renderContent()}
-            </div>
+                <TabPane tab={<span><DollarOutlined />Top Up</span>} key="2">
+                    <Card title="Load Account">
+                        <Row gutter={16}>
+                            <Col span={12}>
+                                <Input.Search placeholder="Search ID/Name" enterButton="Find" size="large" value={searchQuery} onChange={e => setSearchQuery(e.target.value)} onSearch={handleSearchStudent} />
+                                {foundStudent && <Card style={{ marginTop: 20 }}><Title level={4}>{foundStudent.fullName}</Title><Text>ID: {foundStudent.studentId}</Text><br /><Text strong style={{ color: foundStudent.balance < 0 ? 'red' : 'green', fontSize: 18 }}>SAR {parseFloat(foundStudent.balance).toFixed(2)}</Text></Card>}
+                            </Col>
+                            <Col span={12}>
+                                <Form form={topUpForm} layout="vertical" onFinish={handleTopUp} disabled={!foundStudent}>
+                                    <Form.Item name="amount" label="Amount" rules={[{ required: true }]}><InputNumber style={{ width: '100%' }} min={1} /></Form.Item>
+                                    <Form.Item name="passkey" label="Passkey" rules={[{ required: true }]}><Input.Password /></Form.Item>
+                                    <Button type="primary" htmlType="submit" block>Confirm</Button>
+                                </Form>
+                            </Col>
+                        </Row>
+                    </Card>
+                </TabPane>
 
-            {/* Modals - Simplified for this file, assuming standard Antd Modals logic persists */}
-            <Modal title="Student Action" open={topUpModalVisible} onCancel={() => setTopUpModalVisible(false)} footer={null}>
-                <p>Selected: {selectedStudent?.fullName}</p>
-                <Input prefix="SAR" placeholder="Amount" value={topUpAmount} onChange={e => setTopUpAmount(e.target.value)} />
-                <Button type="primary" block style={{ marginTop: 10 }} onClick={() => { /* Assume logic */ setTopUpModalVisible(false); }}>Confirm</Button>
+                <TabPane tab={<span><ReloadOutlined />Reports</span>} key="4">
+                    <Card title="Today's Canteen Transactions">
+                        <Row gutter={16} style={{ marginBottom: 20 }}>
+                            <Col span={8}><Statistic title="Total Sales" value={dailyStats.canteen?.totalSales || 0} precision={2} prefix="SAR" valueStyle={{ color: '#1890ff' }} /></Col>
+                            <Col span={8}><Statistic title="Cash Collected" value={dailyStats.canteen?.cashCollected || 0} precision={2} prefix="SAR" valueStyle={{ color: '#52c41a' }} /></Col>
+                        </Row>
+                        <Table dataSource={dailyStats.canteen?.transactions || []} columns={[
+                            { title: 'Time', dataIndex: 'timestamp', render: t => new Date(t).toLocaleTimeString() },
+                            { title: 'Student', dataIndex: 'studentName' },
+                            { title: 'Amount', dataIndex: 'amount', render: a => <Tag color="blue">{parseFloat(a).toFixed(2)} SAR</Tag> },
+                            { title: 'Type', dataIndex: 'type' }
+                        ]} rowKey="id" pagination={{ pageSize: 10 }} />
+                    </Card>
+                </TabPane>
+            </Tabs>
+
+            <Modal title="QR Code" open={qrModalVisible} onCancel={() => setQrModalVisible(false)} footer={null}>
+                {selectedStudent && (
+                    <div style={{ textAlign: 'center' }}>
+                        <Title level={4}>{selectedStudent.fullName}</Title>
+                        <canvas id="qr-canvas" ref={c => { if (c && selectedStudent) QRCode.toCanvas(c, `FUGEN:${selectedStudent.studentId}`, { width: 250 }); }} />
+                        <br />
+                        <Button type="primary" onClick={downloadQRWithID} style={{ marginTop: 10 }}>Download with ID</Button>
+                    </div>
+                )}
             </Modal>
         </div>
     );
-}
+};
+
+export default AdminDashboard;

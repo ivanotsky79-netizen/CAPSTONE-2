@@ -1,193 +1,206 @@
-/* Professional ERP Style - FUGEN SmartPay */
-@import url('https://fonts.googleapis.com/css2?family=Segoe+UI:wght@400;600&display=swap');
+/* Retro Windows 98 Style */
+@import url('https://fonts.googleapis.com/css2?family=Tahoma:wght@400;700&display=swap');
 
 body {
-    background-color: #f0f2f5;
-    font-family: 'Segoe UI', 'Roboto', 'Helvetica Neue', sans-serif;
+    background-color: #d4d0c8;
+    /* Classic Grey */
+    font-family: 'Tahoma', sans-serif;
+    font-size: 11px;
+    color: #000;
     margin: 0;
-    font-size: 13px;
-    color: #333;
-    overflow: hidden;
 }
 
-.erp-layout {
+/* 3D Borders */
+.retro-outset {
+    border: 2px solid;
+    border-color: #ffffff #404040 #404040 #ffffff;
+    background-color: #d4d0c8;
+}
+
+.retro-inset {
+    border: 2px solid;
+    border-color: #404040 #ffffff #ffffff #404040;
+    background-color: #fff;
+}
+
+/* Layout */
+.retro-container {
     display: flex;
     flex-direction: column;
     height: 100vh;
-    background: #fff;
+    background-color: #d4d0c8;
 }
 
-/* Top Title Bar - Dark & Professional */
-.erp-titlebar {
-    background: #001529;
-    /* Enterprise Blue */
-    color: white;
-    padding: 0 15px;
-    height: 48px;
+/* Menu Bar */
+.retro-menu-bar {
     display: flex;
-    justify-content: space-between;
-    align-items: center;
-    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
-    z-index: 10;
+    background-color: #d4d0c8;
+    border-bottom: 1px solid #808080;
+    padding: 2px 0;
 }
 
-.app-name {
-    font-size: 16px;
-    font-weight: 600;
-    letter-spacing: 0.5px;
-}
-
-.user-info {
-    font-size: 12px;
-    color: #bfbfbf;
-}
-
-/* Menu Bar - Classic Windows Style but Cleaner */
-.erp-menubar {
-    background: #ffffff;
-    border-bottom: 1px solid #e8e8e8;
-    display: flex;
-    padding: 0 10px;
-    height: 40px;
-    align-items: center;
-}
-
-.menu-item {
-    padding: 0 20px;
-    height: 40px;
-    display: flex;
-    align-items: center;
+.retro-menu-item {
+    padding: 4px 12px;
     cursor: pointer;
-    font-weight: 500;
-    color: #595959;
-    border-bottom: 2px solid transparent;
-    transition: all 0.2s;
+    user-select: none;
 }
 
-.menu-item:hover {
-    color: #1890ff;
-    background: #f0f5ff;
+.retro-menu-item:hover,
+.retro-menu-item.active {
+    background-color: #000080;
+    color: white;
 }
 
-.menu-item.active {
-    color: #1890ff;
-    border-bottom: 2px solid #1890ff;
-    background: #f0f5ff;
-}
-
-/* Toolbar - Icons & Actions */
-.erp-toolbar {
-    padding: 5px 15px;
-    background: #fafafa;
-    border-bottom: 1px solid #e8e8e8;
+/* Toolbar */
+.retro-toolbar {
     display: flex;
     align-items: center;
-    gap: 8px;
-}
-
-.erp-separator {
-    width: 1px;
-    height: 20px;
-    background: #d9d9d9;
-    margin: 0 8px;
-}
-
-/* Main Workspace */
-.erp-main {
-    flex: 1;
-    background: #f0f2f5;
-    padding: 15px;
-    overflow: hidden;
-    display: flex;
-    flex-direction: column;
-}
-
-.erp-workspace {
-    flex: 1;
-    display: flex;
-    flex-direction: column;
+    padding: 6px;
+    border-bottom: 1px solid #fff;
     gap: 10px;
-    height: 100%;
 }
 
-/* Form / Filter Area - Top of Grid */
-.erp-form-header {
-    background: #fff;
-    padding: 15px 20px;
-    border: 1px solid #d9d9d9;
-    border-radius: 4px;
-    box-shadow: 0 1px 2px rgba(0, 0, 0, 0.03);
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-}
-
-.erp-form-header label {
-    font-weight: 600;
-    margin-right: 8px;
-    color: #262626;
-}
-
-/* Data Grid Container */
-.erp-grid-container {
+/* Content Area */
+.retro-content {
     flex: 1;
-    background: #fff;
-    border: 1px solid #d9d9d9;
-    border-radius: 4px;
-    overflow: hidden;
-    display: flex;
-    flex-direction: column;
+    padding: 10px;
+    overflow: auto;
 }
 
-/* Footer Totals Bar */
-.erp-footer-panel {
-    background: #fff;
-    border: 1px solid #d9d9d9;
-    padding: 10px 20px;
-    border-radius: 4px;
+/* Panels/Grouping */
+.retro-group {
+    border: 1px solid #808080;
+    position: relative;
+    margin-top: 10px;
+    padding: 10px;
+    padding-top: 15px;
+}
+
+.retro-group-legend {
+    position: absolute;
+    top: -8px;
+    left: 10px;
+    background-color: #d4d0c8;
+    padding: 0 5px;
+    color: #000080;
+    font-weight: bold;
+}
+
+/* Stats Box mimicking "Bill Date / Supplier" fields */
+.retro-field-row {
     display: flex;
+    gap: 15px;
+    margin-bottom: 5px;
     align-items: center;
-    justify-content: space-between;
-    box-shadow: 0 -2px 8px rgba(0, 0, 0, 0.03);
 }
 
-.erp-stat-box {
-    display: flex;
-    align-items: center;
-    gap: 10px;
-    padding: 5px 15px;
-    background: #f9f9f9;
-    border: 1px solid #f0f0f0;
-    border-radius: 4px;
+.retro-label {
+    min-width: 80px;
+    font-weight: bold;
 }
 
-.erp-stat-box .label {
-    color: #8c8c8c;
+.retro-value-box {
+    background-color: #fff;
+    border: 2px solid;
+    border-color: #404040 #ffffff #ffffff #404040;
+    /* Inset */
+    padding: 2px 5px;
+    min-width: 100px;
+    text-align: right;
+    font-family: 'Courier New', monospace;
+    font-weight: bold;
+}
+
+/* Table */
+.retro-table {
+    width: 100%;
+    border-collapse: collapse;
+    background-color: #fff;
+    border: 2px solid #808080;
+    margin-top: 10px;
+}
+
+.retro-table th {
+    background-color: #d4d0c8;
+    border: 1px solid #808080;
+    border-bottom: 1px solid #000;
+    padding: 4px;
+    text-align: left;
+    font-weight: normal;
+    font-size: 11px;
+}
+
+.retro-table td {
+    border: 1px solid #d4d0c8;
+    padding: 2px 4px;
     font-size: 12px;
-    text-transform: uppercase;
-    font-weight: 600;
 }
 
-.erp-stat-box .value {
-    color: #001529;
-    font-weight: 700;
-    font-size: 16px;
+.retro-table tr:nth-child(even) {
+    background-color: #f0f0f0;
 }
 
-/* Table Customization */
-.erp-table .ant-table-thead>tr>th {
-    background: #fafafa;
-    color: #595959;
-    font-weight: 600;
-    border-bottom: 2px solid #e8e8e8;
-}
-
-.erp-row-selected td {
-    background-color: #e6f7ff !important;
+.retro-table tr:hover {
+    background-color: #000080;
+    color: white;
 }
 
 /* Buttons */
-.erp-actions {
-    display: flex;
-    gap: 10px;
+.retro-btn {
+    background-color: #d4d0c8;
+    border: 2px solid;
+    border-color: #ffffff #404040 #404040 #ffffff;
+    /* Outset */
+    padding: 4px 15px;
+    font-family: 'Tahoma', sans-serif;
+    font-size: 12px;
+    cursor: pointer;
+    min-width: 80px;
+    text-align: center;
+}
+
+.retro-btn:active {
+    border-color: #404040 #ffffff #ffffff #404040;
+    /* Inset */
+}
+
+.retro-btn.danger {
+    color: red;
+}
+
+.retro-btn.primary {
+    font-weight: bold;
+}
+
+/* Status Bar */
+.retro-status-bar {
+    border-top: 1px solid #808080;
+    padding: 2px 5px;
+    font-size: 11px;
+    color: #404040;
+}
+
+/* Ant Design Overrides to match theme */
+.ant-modal-content,
+.ant-modal-header {
+    background-color: #d4d0c8 !important;
+    border-radius: 0 !important;
+    border: 2px solid;
+    border-color: #ffffff #404040 #404040 #ffffff !important;
+}
+
+.ant-modal-title {
+    color: #000 !important;
+}
+
+.ant-input {
+    border: 2px solid !important;
+    border-color: #404040 #ffffff #ffffff #404040 !important;
+    border-radius: 0 !important;
+    background-color: #fff !important;
+}
+
+.ant-tag {
+    border: 1px solid #808080 !important;
+    border-radius: 0 !important;
 }
