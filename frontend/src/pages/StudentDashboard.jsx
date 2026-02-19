@@ -17,9 +17,9 @@ import {
     BulbOutlined
 } from '@ant-design/icons';
 import { QRCodeCanvas } from 'qrcode.react';
-import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, Cell } from 'recharts';
 import { transactionService, studentService } from '../services/api';
 import './StudentDashboard.css';
+import { io } from 'socket.io-client';
 
 const { TabPane } = Tabs;
 
@@ -32,7 +32,6 @@ export default function StudentDashboard({ user, onLogout }) {
     const [qrModalVisible, setQrModalVisible] = useState(false);
     const [settingsVisible, setSettingsVisible] = useState(false);
     const [studentData, setStudentData] = useState(user);
-    const [chartData, setChartData] = useState([]);
     const [darkMode, setDarkMode] = useState(localStorage.getItem('studentDarkMode') === 'true');
 
     // Forms
@@ -44,6 +43,17 @@ export default function StudentDashboard({ user, onLogout }) {
 
     useEffect(() => {
         loadData();
+
+        // Real-time Updates
+        const socket = io('https://fugen-backend.onrender.com'); // Or use API_BASE_URL from a config if available
+        socket.on('balanceUpdate', (data) => {
+            if (data.studentId === user.studentId) {
+                console.log('Real-time update received', data);
+                loadData();
+            }
+        });
+
+        return () => socket.disconnect();
     }, []);
 
     useEffect(() => {
@@ -67,14 +77,6 @@ export default function StudentDashboard({ user, onLogout }) {
             const transList = tRes.data.data || [];
             setTransactions(transList);
             setStudentData(sRes.data.data || sRes.data);
-
-            // Process Chart Data (Last 5 Purchases)
-            const purchases = transList.filter(t => t.type === 'PURCHASE').slice(0, 5).reverse();
-            const cData = purchases.map(t => ({
-                name: new Date(t.timestamp).toLocaleDateString(undefined, { weekday: 'short' }),
-                amount: Math.abs(t.amount)
-            }));
-            setChartData(cData);
 
         } catch (err) {
             message.error('Failed to load student data');
@@ -164,28 +166,7 @@ export default function StudentDashboard({ user, onLogout }) {
                 </button>
             </div>
 
-            {/* Spending Chart Section */}
-            {chartData.length > 0 && (
-                <div className="chart-section">
-                    <h3>Recent Spending</h3>
-                    <div style={{ width: '100%', height: 150 }}>
-                        <ResponsiveContainer>
-                            <BarChart data={chartData}>
-                                <XAxis dataKey="name" tick={{ fontSize: 10, fill: darkMode ? '#aaa' : '#666' }} axisLine={false} tickLine={false} />
-                                <Tooltip
-                                    cursor={{ fill: 'transparent' }}
-                                    contentStyle={{ borderRadius: 8, border: 'none', boxShadow: '0 2px 8px rgba(0,0,0,0.1)' }}
-                                />
-                                <Bar dataKey="amount" radius={[4, 4, 0, 0]}>
-                                    {chartData.map((entry, index) => (
-                                        <Cell key={`cell-${index}`} fill={index % 2 === 0 ? '#3B5ED2' : '#5C7CE5'} />
-                                    ))}
-                                </Bar>
-                            </BarChart>
-                        </ResponsiveContainer>
-                    </div>
-                </div>
-            )}
+
 
             {/* History Section */}
             <div className="history-section">
@@ -254,8 +235,9 @@ export default function StudentDashboard({ user, onLogout }) {
                         <p style={{ opacity: 0.8, margin: 0 }}>Student Identity Card</p>
                     </div>
 
+
                     <div style={{ background: 'white', padding: 15, borderRadius: 10, display: 'inline-block', marginBottom: 20 }}>
-                        <QRCodeCanvas value={studentData.studentId || 'NO_ID'} size={180} level="H" />
+                        <QRCodeCanvas value={`FUGEN:${studentData.studentId}`} size={180} level="H" />
                     </div>
 
                     <h2 style={{ color: 'white', fontSize: 24, margin: '10px 0' }}>{studentData.fullName}</h2>
