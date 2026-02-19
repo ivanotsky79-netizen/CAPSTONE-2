@@ -59,32 +59,47 @@ export default function LoginPage({ onLogin }) {
             // Indices (0-based): 2, 5, 8, 11
             const generatedPasskey = lrn[2] + lrn[5] + lrn[8] + lrn[11];
 
-            // Include default balance and structure for new student
+            // Payload for Backend
+            // Backend generates 'studentId' automatically (S-202X-XXXX)
+            // We pass 'lrn' explicitly so it's saved in the record
             const studentData = {
-                studentId: lrn,
+                lrn: lrn,
                 fullName: values.fullName,
                 gradeSection: values.gradeSection,
-                passkey: generatedPasskey,
-                balance: 0,
-                status: 'Active'
+                passkey: generatedPasskey
             };
 
-            await studentService.createStudent(studentData);
+            const response = await studentService.createStudent(studentData);
+            const newStudentId = response.data.data.studentId;
 
             Modal.success({
                 title: 'Registration Successful!',
+                width: 500,
                 content: (
-                    <div>
-                        <p>Your account has been created.</p>
-                        <p><strong>Your Auto-Generated Passkey is: <span style={{ color: '#1890ff', fontSize: 18 }}>{generatedPasskey}</span></strong></p>
-                        <p>Please memorize this 4-digit code to login.</p>
+                    <div style={{ textAlign: 'center', marginTop: 10 }}>
+                        <p style={{ fontSize: 16 }}>Your account has been created.</p>
+
+                        <div style={{ background: '#f0f5ff', padding: 15, borderRadius: 8, margin: '15px 0' }}>
+                            <p style={{ margin: 5, color: '#555' }}>Your Student ID:</p>
+                            <h2 style={{ color: '#1A237E', margin: 0, fontSize: 28, letterSpacing: 1 }}>{newStudentId}</h2>
+                        </div>
+
+                        <div style={{ background: '#f9f9f9', padding: 15, borderRadius: 8, margin: '15px 0', border: '1px dashed #d9d9d9' }}>
+                            <p style={{ margin: 5, color: '#555' }}>Your Passkey:</p>
+                            <h2 style={{ color: '#1890ff', margin: 0, fontSize: 24, letterSpacing: 2 }}>{generatedPasskey}</h2>
+                            <p style={{ margin: 0, fontSize: 12, color: '#888' }}>(Derived from your LRN)</p>
+                        </div>
+
+                        <p style={{ color: 'red', fontWeight: 'bold' }}>Please save these credentials!</p>
+                        <p>You will use the <strong>Student ID</strong> ({newStudentId}) to login, NOT your LRN.</p>
                     </div>
                 ),
                 onOk: () => setView('student-login')
             });
 
         } catch (err) {
-            message.error(err.response?.data?.error || 'Registration failed. ID might be taken.');
+            console.error(err);
+            message.error(err.response?.data?.message || 'Registration failed. Please try again.');
         } finally {
             setLoading(false);
         }
@@ -205,10 +220,6 @@ export default function LoginPage({ onLogin }) {
                             <Form.Item name="gradeSection" rules={[{ required: true, message: 'Enter Grade & Section' }]}>
                                 <Input prefix={<UserAddOutlined />} placeholder="Grade & Section (e.g., Grade 12 - A)" />
                             </Form.Item>
-
-                            <div style={{ marginBottom: 20, padding: 15, background: '#f6f8fa', borderRadius: 8, fontSize: 13, color: '#555', border: '1px solid #e1e4e8' }}>
-                                <strong>Note:</strong> Your 4-digit Passkey will be automatically generated from the <strong>3rd, 6th, 9th, and 12th</strong> digits of your LRN.
-                            </div>
 
                             <Button type="primary" htmlType="submit" block loading={loading} size="large">
                                 Create Account
