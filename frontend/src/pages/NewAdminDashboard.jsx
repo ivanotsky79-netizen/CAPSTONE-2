@@ -1,196 +1,260 @@
 import React, { useState, useEffect } from 'react';
-import { Tabs, Form, Input, Button, Table, Card, message, Modal, InputNumber, Tag, Row, Col, Typography, Statistic, Space } from 'antd';
-import { UserOutlined, QrcodeOutlined, DollarOutlined, FileTextOutlined, LockOutlined, ReloadOutlined, LogoutOutlined } from '@ant-design/icons';
+import { message } from 'antd';
 import { studentService, transactionService } from '../services/api';
 import { io } from 'socket.io-client';
-import QRCode from 'qrcode'; // Use local library for better control
+import QRCode from 'qrcode';
+import './VisualBasicDashboard.css';
 
-const { Title, Text } = Typography;
-const { TabPane } = Tabs;
-
-const AdminDashboard = ({ onLogout }) => {
+// Admin Dashboard - Visual Basic Look Recreation
+export default function AdminDashboard({ onLogout }) {
+    const [view, setView] = useState('users'); // users, transactions, reports, system
     const [students, setStudents] = useState([]);
     const [loading, setLoading] = useState(false);
-    const [qrModalVisible, setQrModalVisible] = useState(false);
-    const [withdrawModalVisible, setWithdrawModalVisible] = useState(false);
-    const [selectedStudent, setSelectedStudent] = useState(null);
+    const [searchText, setSearchText] = useState('');
 
     // Stats
-    const [totalBalance, setTotalBalance] = useState(0);
+    const [totalBal, setTotalBal] = useState(0);
     const [totalCredit, setTotalCredit] = useState(0);
-    const [creditedStudents, setCreditedStudents] = useState([]);
-    const [dailyStats, setDailyStats] = useState({
-        canteen: { totalSales: 0, cashCollected: 0, totalCredit: 0 },
-        system: { totalCashOnHand: 0, todayTopups: 0, todayWithdrawals: 0 }
-    });
+
+    // Modals
+    const [showAddModal, setShowAddModal] = useState(false);
+    const [showTopUpModal, setShowTopUpModal] = useState(false);
+    const [showQrModal, setShowQrModal] = useState(false);
+    const [selectedStudent, setSelectedStudent] = useState(null);
+
+    // Forms
+    const [addForm, setAddForm] = useState({ fullName: '', gradeSection: '', lrn: '' });
+    const [topUpForm, setTopUpForm] = useState({ amount: '', passkey: '' });
+
+    // Reports Data
+    const [dailyStats, setDailyStats] = useState({});
 
     useEffect(() => {
-        fetchStudents();
-        fetchDailyStats();
-
-        const socket = io('https://fugen-backend.onrender.com'); // Updated Backend URL
-        socket.on('balanceUpdate', () => { fetchStudents(); fetchDailyStats(); });
-        socket.on('studentCreated', () => fetchStudents());
+        loadData();
+        const socket = io('https://fugen-backend.onrender.com');
+        socket.on('balanceUpdate', loadData);
+        socket.on('studentCreated', loadData);
         return () => socket.disconnect();
     }, []);
 
-    const fetchStudents = async () => {
+    const loadData = async () => {
         setLoading(true);
         try {
-            const res = await studentService.getAllStudents();
-            const allStudents = res.data.data;
+            const [sRes, dRes] = await Promise.all([
+                studentService.getAllStudents(),
+                transactionService.getDailyStats(null, true)
+            ]);
+
+            const allStudents = sRes.data.data;
             setStudents(allStudents);
-            setTotalBalance(allStudents.reduce((acc, curr) => acc + (parseFloat(curr.balance) || 0), 0));
+            setTotalBal(allStudents.reduce((a, c) => a + (parseFloat(c.balance) || 0), 0));
+            setTotalCredit(allStudents.filter(s => parseFloat(s.balance) < 0).reduce((a, c) => a + Math.abs(parseFloat(c.balance)), 0));
 
-            const negative = allStudents.filter(s => parseFloat(s.balance) < 0);
-            setCreditedStudents(negative);
-            setTotalCredit(negative.reduce((acc, curr) => acc + Math.abs(parseFloat(curr.balance)), 0));
-        } catch (err) { message.error('Failed to fetch students'); } finally { setLoading(false); }
+            if (dRes.data.status === 'success') setDailyStats(dRes.data.data);
+
+        } catch (e) { console.error(e); } finally { setLoading(false); }
     };
 
-    const fetchDailyStats = async () => {
+    // Actions
+    const handleAddStudent = async () => {
         try {
-            const res = await transactionService.getDailyStats(null, true); // Changed to fit API update
-            if (res.data.status === 'success') setDailyStats(res.data.data);
-        } catch (err) { console.error('Failed to fetch stats'); }
+            const passkey = addForm.lrn[2] + addForm.lrn[5] + addForm.lrn[8] + addForm.lrn[11];
+            await studentService.createStudent({ ...addForm, passkey });
+            message.success('Student Added');
+            setShowAddModal(false); setAddForm({ fullName: '', gradeSection: '', lrn: '' }); loadData();
+        } catch (e) { message.error('Failed'); }
     };
 
-    const [form] = Form.useForm();
-    const handleCreateStudent = async (values) => {
+    const handleTopUp = async () => {
+        if (!selectedStudent) return;
         try {
-            // Auto-generate passkey from LRN if needed or use input
-            // Keeping original logic structure
-            await studentService.createStudent(values);
-            message.success('Student Created Successfully');
-            form.resetFields(); fetchStudents();
-        } catch (err) { message.error(err.response?.data?.message || 'Failed'); }
+            await studentService.verifyPasskey(selectedStudent.studentId, topUpForm.passkey);
+            await transactionService.topUp(selectedStudent.studentId, topUpForm.amount);
+            message.success('Success');
+            setShowTopUpModal(false); setTopUpForm({ amount: '', passkey: '' }); loadData();
+        } catch (e) { message.error('Failed'); }
     };
 
-    const showQrModal = (student) => { setSelectedStudent(student); setQrModalVisible(true); };
-
-    // Enhanced QR Download with Student ID
-    const downloadQRWithID = () => {
+    const downloadQR = () => {
         const canvas = document.getElementById('qr-canvas');
-        if (!canvas || !selectedStudent) return;
-        const size = canvas.width;
-        const newCanvas = document.createElement('canvas'); newCanvas.width = size; newCanvas.height = size + 60;
-        const ctx = newCanvas.getContext('2d');
-        ctx.fillStyle = '#FFFFFF'; ctx.fillRect(0, 0, newCanvas.width, newCanvas.height);
-        ctx.drawImage(canvas, 0, 0);
-        ctx.fillStyle = '#000000'; ctx.font = 'bold 24px Arial'; ctx.textAlign = 'center';
-        ctx.fillText(selectedStudent.studentId, size / 2, size + 40);
-        const link = document.createElement('a'); link.download = `${selectedStudent.studentId}_QR.png`; link.href = newCanvas.toDataURL('image/png'); link.click();
+        if (canvas) {
+            const link = document.createElement('a');
+            link.download = 'QR.png';
+            link.href = canvas.toDataURL();
+            link.click();
+        }
     };
 
-    const studentColumns = [
-        { title: 'ID', dataIndex: 'studentId' },
-        { title: 'Name', dataIndex: 'fullName' },
-        { title: 'Grade', dataIndex: 'grade' },
-        { title: 'Balance', dataIndex: 'balance', render: b => <Tag color={b < 0 ? 'red' : 'green'}>{parseFloat(b).toFixed(2)} SAR</Tag> },
-        { title: 'Action', render: (_, r) => <Button icon={<QrcodeOutlined />} onClick={() => showQrModal(r)}>QR Code</Button> }
-    ];
-
-    // TOP UP LOGIC
-    const [topUpForm] = Form.useForm();
-    const [searchQuery, setSearchQuery] = useState('');
-    const [foundStudent, setFoundStudent] = useState(null);
-
-    const handleSearchStudent = () => {
-        const s = students.find(s => s.studentId === searchQuery.toUpperCase() || s.fullName.toLowerCase().includes(searchQuery.toLowerCase()));
-        if (s) setFoundStudent(s); else { message.warning('Not found'); setFoundStudent(null); }
-    };
-
-    const handleTopUp = async (values) => {
-        try {
-            await studentService.verifyPasskey(foundStudent.studentId, values.passkey);
-            await transactionService.topUp(foundStudent.studentId, values.amount);
-            message.success(`Added ${values.amount} SAR`);
-            topUpForm.resetFields(); setFoundStudent(null); setSearchQuery(''); fetchStudents();
-        } catch (err) { message.error('Transaction Failed'); }
-    };
+    // Rendering Helpers
+    const filtered = students.filter(s => s.fullName.toLowerCase().includes(searchText.toLowerCase()) || s.studentId.includes(searchText));
 
     return (
-        <div className="admin-dashboard" style={{ padding: 20 }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 20 }}>
-                <Title level={3}>FUGEN Admin Dashboard</Title>
-                <Button type="primary" danger icon={<LogoutOutlined />} onClick={onLogout}>Logout</Button>
+        <div className="vb-container">
+            {/* Sidebar */}
+            <div className="vb-sidebar">
+                <div className="vb-logo-area">
+                    <div className="vb-logo-text">FUGEN<br />SmartPay</div>
+                </div>
+                <div className="vb-menu">
+                    <div className={`vb-menu-item ${view === 'users' ? 'active' : ''}`} onClick={() => setView('users')}>
+                        <span>👤</span> Users
+                    </div>
+                    <div className={`vb-menu-item ${view === 'transactions' ? 'active' : ''}`} onClick={() => setView('transactions')}>
+                        <span>🕒</span> Transaction History
+                    </div>
+                    <div className={`vb-menu-item ${view === 'reports' ? 'active' : ''}`} onClick={() => setView('reports')}>
+                        <span>📄</span> Reports
+                    </div>
+                    <div className={`vb-menu-item ${view === 'system' ? 'active' : ''}`} onClick={() => setView('system')}>
+                        <span>⚙️</span> System Data
+                    </div>
+                </div>
+                <div className="vb-menu-item" onClick={onLogout} style={{ marginTop: 'auto', borderTop: '1px solid #ffffff55' }}>
+                    <span>🚪</span> Logout
+                </div>
             </div>
 
-            <Row gutter={16} style={{ marginBottom: 24 }}>
-                <Col span={8}><Card><Statistic title="Total System Balance" value={totalBalance} precision={2} prefix="SAR" /></Card></Col>
-                <Col span={8}><Card><Statistic title="Total Students" value={students.length} prefix={<UserOutlined />} /></Card></Col>
-                <Col span={8}><Card><Statistic title="Total Pending Credit" value={totalCredit} precision={2} prefix="SAR" valueStyle={{ color: '#cf1322' }} /></Card></Col>
-            </Row>
+            {/* Main Content */}
+            <div className="vb-main">
+                <div className="vb-header">
+                    <div className="vb-header-title">Admin Dashboard</div>
+                    <div className="vb-date">{new Date().toLocaleDateString()}</div>
+                </div>
 
-            <Tabs defaultActiveKey="1">
-                <TabPane tab={<span><UserOutlined />System</span>} key="1">
-                    <Row gutter={24}>
-                        <Col span={12}>
-                            <Card title="System Overview">
-                                <Statistic title="Total Cash (System)" value={dailyStats.system?.totalCashOnHand || 0} precision={2} prefix="SAR" valueStyle={{ color: '#3f8600' }} />
-                                <Statistic title="Total Debt" value={totalCredit} precision={2} prefix="SAR" valueStyle={{ color: '#cf1322', marginTop: 20 }} />
-                            </Card>
-                        </Col>
-                        <Col span={12}>
-                            <Card title="Add New Student">
-                                <Form form={form} layout="vertical" onFinish={handleCreateStudent}>
-                                    <Form.Item name="fullName" label="Name" rules={[{ required: true }]}><Input /></Form.Item>
-                                    <Form.Item name="grade" label="Grade" rules={[{ required: true }]}><Input /></Form.Item>
-                                    <Form.Item name="passkey" label="Passkey" rules={[{ required: true, len: 4 }]}><Input.Password maxLength={4} /></Form.Item>
-                                    <Button type="primary" htmlType="submit" block>Create</Button>
-                                </Form>
-                            </Card>
-                        </Col>
-                    </Row>
-                    <Row style={{ marginTop: 20 }}><Col span={24}><Table dataSource={students} columns={studentColumns} rowKey="studentId" pagination={{ pageSize: 6 }} /></Col></Row>
-                </TabPane>
+                {view === 'users' && (
+                    <>
+                        <div className="vb-page-title">Student Management</div>
 
-                <TabPane tab={<span><DollarOutlined />Top Up</span>} key="2">
-                    <Card title="Load Account">
-                        <Row gutter={16}>
-                            <Col span={12}>
-                                <Input.Search placeholder="Search ID/Name" enterButton="Find" size="large" value={searchQuery} onChange={e => setSearchQuery(e.target.value)} onSearch={handleSearchStudent} />
-                                {foundStudent && <Card style={{ marginTop: 20 }}><Title level={4}>{foundStudent.fullName}</Title><Text>ID: {foundStudent.studentId}</Text><br /><Text strong style={{ color: foundStudent.balance < 0 ? 'red' : 'green', fontSize: 18 }}>SAR {parseFloat(foundStudent.balance).toFixed(2)}</Text></Card>}
-                            </Col>
-                            <Col span={12}>
-                                <Form form={topUpForm} layout="vertical" onFinish={handleTopUp} disabled={!foundStudent}>
-                                    <Form.Item name="amount" label="Amount" rules={[{ required: true }]}><InputNumber style={{ width: '100%' }} min={1} /></Form.Item>
-                                    <Form.Item name="passkey" label="Passkey" rules={[{ required: true }]}><Input.Password /></Form.Item>
-                                    <Button type="primary" htmlType="submit" block>Confirm</Button>
-                                </Form>
-                            </Col>
-                        </Row>
-                    </Card>
-                </TabPane>
+                        {/* Stats Cards Row */}
+                        <div className="vb-stats-row">
+                            <div className="vb-card">
+                                <div className="vb-card-label">Total Students</div>
+                                <div className="vb-card-value">{students.length}</div>
+                            </div>
+                            <div className="vb-card">
+                                <div className="vb-card-label">Total Balance</div>
+                                <div className="vb-card-value">SAR {totalBal.toFixed(2)}</div>
+                            </div>
+                            <div className="vb-card">
+                                <div className="vb-card-label">Total Credit (Debt)</div>
+                                <div className="vb-card-value">SAR {totalCredit.toFixed(2)}</div>
+                            </div>
+                        </div>
 
-                <TabPane tab={<span><ReloadOutlined />Reports</span>} key="4">
-                    <Card title="Today's Canteen Transactions">
-                        <Row gutter={16} style={{ marginBottom: 20 }}>
-                            <Col span={8}><Statistic title="Total Sales" value={dailyStats.canteen?.totalSales || 0} precision={2} prefix="SAR" valueStyle={{ color: '#1890ff' }} /></Col>
-                            <Col span={8}><Statistic title="Cash Collected" value={dailyStats.canteen?.cashCollected || 0} precision={2} prefix="SAR" valueStyle={{ color: '#52c41a' }} /></Col>
-                        </Row>
-                        <Table dataSource={dailyStats.canteen?.transactions || []} columns={[
-                            { title: 'Time', dataIndex: 'timestamp', render: t => new Date(t).toLocaleTimeString() },
-                            { title: 'Student', dataIndex: 'studentName' },
-                            { title: 'Amount', dataIndex: 'amount', render: a => <Tag color="blue">{parseFloat(a).toFixed(2)} SAR</Tag> },
-                            { title: 'Type', dataIndex: 'type' }
-                        ]} rowKey="id" pagination={{ pageSize: 10 }} />
-                    </Card>
-                </TabPane>
-            </Tabs>
+                        {/* Toolbar */}
+                        <div className="vb-toolbar">
+                            <input className="vb-search" placeholder="Search by name, ID, or grade..." value={searchText} onChange={e => setSearchText(e.target.value)} />
+                            <button className="vb-btn vb-btn-blue" onClick={() => setShowAddModal(true)}>+ Add Student</button>
+                            <button className="vb-btn vb-btn-grey">Remove Selected (0)</button>
+                        </div>
 
-            <Modal title="QR Code" open={qrModalVisible} onCancel={() => setQrModalVisible(false)} footer={null}>
-                {selectedStudent && (
-                    <div style={{ textAlign: 'center' }}>
-                        <Title level={4}>{selectedStudent.fullName}</Title>
-                        <canvas id="qr-canvas" ref={c => { if (c && selectedStudent) QRCode.toCanvas(c, `FUGEN:${selectedStudent.studentId}`, { width: 250 }); }} />
-                        <br />
-                        <Button type="primary" onClick={downloadQRWithID} style={{ marginTop: 10 }}>Download with ID</Button>
+                        {/* Table */}
+                        <div className="vb-table-container">
+                            <table className="vb-table">
+                                <thead>
+                                    <tr>
+                                        <th style={{ width: 30 }}><input type="checkbox" /></th>
+                                        <th>Student ID</th>
+                                        <th>Full Name</th>
+                                        <th>Grade & Section</th>
+                                        <th>Balance</th>
+                                        <th>Actions</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {filtered.map(s => (
+                                        <tr key={s.studentId}>
+                                            <td><input type="checkbox" /></td>
+                                            <td>{s.studentId}</td>
+                                            <td>{s.fullName}</td>
+                                            <td>{s.gradeSection}</td>
+                                            <td style={{ color: parseFloat(s.balance) < 0 ? 'red' : 'green', fontWeight: 'bold' }}>SAR {parseFloat(s.balance).toFixed(2)}</td>
+                                            <td>
+                                                <button className="vb-action-btn" onClick={() => { setSelectedStudent(s); setShowQrModal(true); }}>QR Code</button>
+                                                <button className="vb-action-btn" onClick={() => { setSelectedStudent(s); setShowTopUpModal(true); }}>Top Up</button>
+                                            </td>
+                                        </tr>
+                                    ))}
+                                </tbody>
+                            </table>
+                        </div>
+                    </>
+                )}
+
+                {view === 'transactions' && (
+                    <>
+                        <div className="vb-page-title">Transaction History</div>
+                        <div className="vb-table-container">
+                            <table className="vb-table">
+                                <thead><tr><th>Time</th><th>Student</th><th>Type</th><th>Amount</th><th>Method</th></tr></thead>
+                                <tbody>
+                                    {(dailyStats.canteen?.transactions || []).map((t, i) => (
+                                        <tr key={i}>
+                                            <td>{new Date(t.timestamp).toLocaleTimeString()}</td>
+                                            <td>{t.studentName}</td>
+                                            <td>{t.type}</td>
+                                            <td>SAR {parseFloat(t.amount).toFixed(2)}</td>
+                                            <td>{t.cashAmount > 0 ? 'Cash' : ''}{t.creditAmount > 0 ? 'Credit' : ''}</td>
+                                        </tr>
+                                    ))}
+                                </tbody>
+                            </table>
+                        </div>
+                    </>
+                )}
+
+                {/* Simplified View for Reports/System for now */}
+                {(view === 'reports' || view === 'system') && (
+                    <div style={{ padding: 20, textAlign: 'center' }}>
+                        <h2>Section Under Construction</h2>
+                        <p>Using Visual Basic Design Template</p>
                     </div>
                 )}
-            </Modal>
+            </div>
+
+            {/* Modals */}
+            {showAddModal && (
+                <div className="vb-modal-overlay">
+                    <div className="vb-modal">
+                        <div className="vb-modal-header">Add New Student</div>
+                        <div className="vb-form-group"><label>Name</label><input value={addForm.fullName} onChange={e => setAddForm({ ...addForm, fullName: e.target.value })} /></div>
+                        <div className="vb-form-group"><label>Grade</label><input value={addForm.gradeSection} onChange={e => setAddForm({ ...addForm, gradeSection: e.target.value })} /></div>
+                        <div className="vb-form-group"><label>LRN</label><input value={addForm.lrn} onChange={e => setAddForm({ ...addForm, lrn: e.target.value })} maxLength={12} /></div>
+                        <div style={{ display: 'flex', gap: 10, justifyContent: 'flex-end' }}>
+                            <button className="vb-btn vb-btn-grey" onClick={() => setShowAddModal(false)}>Cancel</button>
+                            <button className="vb-btn vb-btn-blue" onClick={handleAddStudent}>Save</button>
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            {showTopUpModal && (
+                <div className="vb-modal-overlay">
+                    <div className="vb-modal">
+                        <div className="vb-modal-header">Top Up / Withdraw</div>
+                        <p>Student: {selectedStudent?.fullName}</p>
+                        <div className="vb-form-group"><label>Amount (SAR)</label><input type="number" value={topUpForm.amount} onChange={e => setTopUpForm({ ...topUpForm, amount: e.target.value })} /></div>
+                        <div className="vb-form-group"><label>Passkey</label><input type="password" value={topUpForm.passkey} onChange={e => setTopUpForm({ ...topUpForm, passkey: e.target.value })} /></div>
+                        <div style={{ display: 'flex', gap: 10, justifyContent: 'flex-end' }}>
+                            <button className="vb-btn vb-btn-grey" onClick={() => setShowTopUpModal(false)}>Cancel</button>
+                            <button className="vb-btn vb-btn-blue" onClick={handleTopUp}>Confirm</button>
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            {showQrModal && (
+                <div className="vb-modal-overlay">
+                    <div className="vb-modal" style={{ textAlign: 'center' }}>
+                        <div className="vb-modal-header">Student QR Code</div>
+                        <h3>{selectedStudent?.fullName}</h3>
+                        <canvas id="qr-canvas" ref={c => { if (c && selectedStudent) QRCode.toCanvas(c, `FUGEN:${selectedStudent.studentId}`, { width: 200 }); }} />
+                        <br />
+                        <button className="vb-btn vb-btn-blue" style={{ marginTop: 10 }} onClick={downloadQR}>Download</button>
+                        <button className="vb-btn vb-btn-grey" style={{ marginTop: 10, marginLeft: 10 }} onClick={() => setShowQrModal(false)}>Close</button>
+                    </div>
+                </div>
+            )}
         </div>
     );
-};
-
-export default AdminDashboard;
+}
