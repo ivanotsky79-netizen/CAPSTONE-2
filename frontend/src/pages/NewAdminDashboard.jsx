@@ -20,14 +20,18 @@ export default function AdminDashboard({ onLogout }) {
     const [showAddModal, setShowAddModal] = useState(false);
     const [showTopUpModal, setShowTopUpModal] = useState(false);
     const [showQrModal, setShowQrModal] = useState(false);
+    const [showWithdrawModal, setShowWithdrawModal] = useState(false);
     const [selectedStudent, setSelectedStudent] = useState(null);
 
     // Forms
     const [addForm, setAddForm] = useState({ fullName: '', gradeSection: '', lrn: '' });
     const [topUpForm, setTopUpForm] = useState({ amount: '', passkey: '' });
+    const [withdrawForm, setWithdrawForm] = useState({ amount: '', passkey: '' });
 
     // Reports Data
     const [dailyStats, setDailyStats] = useState({});
+    const [reportDate, setReportDate] = useState(new Date().toISOString().split('T')[0]);
+    const [reportData, setReportData] = useState(null);
 
     useEffect(() => {
         loadData();
@@ -55,6 +59,15 @@ export default function AdminDashboard({ onLogout }) {
         } catch (e) { console.error(e); } finally { setLoading(false); }
     };
 
+    const fetchReport = async () => {
+        if (!reportDate) return;
+        try {
+            const res = await transactionService.getDailyStats(reportDate);
+            if (res.data.status === 'success') setReportData(res.data.data);
+            else message.warning('No data for this date');
+        } catch (e) { message.error('Failed to load report'); }
+    };
+
     // Actions
     const handleAddStudent = async () => {
         try {
@@ -72,6 +85,15 @@ export default function AdminDashboard({ onLogout }) {
             await transactionService.topUp(selectedStudent.studentId, topUpForm.amount);
             message.success('Success');
             setShowTopUpModal(false); setTopUpForm({ amount: '', passkey: '' }); loadData();
+        } catch (e) { message.error('Failed'); }
+    };
+
+    const handleWithdraw = async () => {
+        try {
+            if (withdrawForm.passkey !== '170206') { message.error('Invalid Admin PIN'); return; }
+            await transactionService.withdraw(withdrawForm.amount, withdrawForm.passkey);
+            message.success('Cash Withdrawn');
+            setShowWithdrawModal(false); setWithdrawForm({ amount: '', passkey: '' }); loadData();
         } catch (e) { message.error('Failed'); }
     };
 
@@ -102,7 +124,7 @@ export default function AdminDashboard({ onLogout }) {
                     <div className={`vb-menu-item ${view === 'transactions' ? 'active' : ''}`} onClick={() => setView('transactions')}>
                         <span>🕒</span> Transaction History
                     </div>
-                    <div className={`vb-menu-item ${view === 'reports' ? 'active' : ''}`} onClick={() => setView('reports')}>
+                    <div className={`vb-menu-item ${view === 'reports' ? 'active' : ''}`} onClick={() => { setView('reports'); fetchReport(); }}>
                         <span>📄</span> Reports
                     </div>
                     <div className={`vb-menu-item ${view === 'system' ? 'active' : ''}`} onClick={() => setView('system')}>
@@ -203,12 +225,85 @@ export default function AdminDashboard({ onLogout }) {
                     </>
                 )}
 
-                {/* Simplified View for Reports/System for now */}
-                {(view === 'reports' || view === 'system') && (
-                    <div style={{ padding: 20, textAlign: 'center' }}>
-                        <h2>Section Under Construction</h2>
-                        <p>Using Visual Basic Design Template</p>
-                    </div>
+                {view === 'reports' && (
+                    <>
+                        <div className="vb-page-title">Daily Financial Reports</div>
+                        <div className="vb-toolbar">
+                            <input type="date" className="vb-search" value={reportDate} onChange={e => setReportDate(e.target.value)} />
+                            <button className="vb-btn vb-btn-blue" onClick={fetchReport}>Load Report</button>
+                        </div>
+
+                        {reportData && (
+                            <>
+                                <div className="vb-stats-row">
+                                    <div className="vb-card">
+                                        <div className="vb-card-label">Total Sales</div>
+                                        <div className="vb-card-value" style={{ color: '#000080' }}>SAR {reportData.canteen?.totalSales?.toFixed(2)}</div>
+                                    </div>
+                                    <div className="vb-card">
+                                        <div className="vb-card-label">Cash Collected</div>
+                                        <div className="vb-card-value" style={{ color: 'green' }}>SAR {reportData.canteen?.cashCollected?.toFixed(2)}</div>
+                                    </div>
+                                    <div className="vb-card">
+                                        <div className="vb-card-label">Credit Issued</div>
+                                        <div className="vb-card-value" style={{ color: 'orange' }}>SAR {reportData.canteen?.totalCredit?.toFixed(2)}</div>
+                                    </div>
+                                </div>
+                                <div className="vb-table-container">
+                                    <table className="vb-table">
+                                        <thead><tr><th>Time</th><th>Student</th><th>Type</th><th>Amount</th></tr></thead>
+                                        <tbody>
+                                            {(reportData.canteen?.transactions || []).map((t, i) => (
+                                                <tr key={i}>
+                                                    <td>{new Date(t.timestamp).toLocaleTimeString()}</td>
+                                                    <td>{t.studentName}</td>
+                                                    <td>{t.type}</td>
+                                                    <td>SAR {parseFloat(t.amount).toFixed(2)}</td>
+                                                </tr>
+                                            ))}
+                                        </tbody>
+                                    </table>
+                                </div>
+                            </>
+                        )}
+                    </>
+                )}
+
+                {view === 'system' && (
+                    <>
+                        <div className="vb-page-title">System Overview</div>
+                        <div className="vb-stats-row">
+                            <div className="vb-card">
+                                <div className="vb-card-label">System Cash on Hand</div>
+                                <div className="vb-card-value" style={{ color: 'green' }}>SAR {dailyStats.system?.totalCashOnHand?.toFixed(2)}</div>
+                            </div>
+                            <div className="vb-card">
+                                <div className="vb-card-label">Total Debt (Pending)</div>
+                                <div className="vb-card-value" style={{ color: 'red' }}>SAR {totalCredit.toFixed(2)}</div>
+                            </div>
+                            <div className="vb-card">
+                                <div className="vb-card-label">Today's Withdrawals</div>
+                                <div className="vb-card-value" style={{ color: 'orange' }}>SAR {dailyStats.system?.todayWithdrawals?.toFixed(2)}</div>
+                            </div>
+                        </div>
+                        <div className="vb-toolbar">
+                            <button className="vb-btn vb-btn-blue" onClick={() => setShowWithdrawModal(true)}>Withdraw Cash</button>
+                        </div>
+                        <div className="vb-table-container">
+                            <table className="vb-table">
+                                <thead><tr><th>Time</th><th>Type</th><th>Amount</th></tr></thead>
+                                <tbody>
+                                    {(dailyStats.system?.transactions || []).map((t, i) => (
+                                        <tr key={i}>
+                                            <td>{new Date(t.timestamp).toLocaleTimeString()}</td>
+                                            <td>{t.type}</td>
+                                            <td>SAR {parseFloat(t.amount).toFixed(2)}</td>
+                                        </tr>
+                                    ))}
+                                </tbody>
+                            </table>
+                        </div>
+                    </>
                 )}
             </div>
 
@@ -252,6 +347,20 @@ export default function AdminDashboard({ onLogout }) {
                         <br />
                         <button className="vb-btn vb-btn-blue" style={{ marginTop: 10 }} onClick={downloadQR}>Download</button>
                         <button className="vb-btn vb-btn-grey" style={{ marginTop: 10, marginLeft: 10 }} onClick={() => setShowQrModal(false)}>Close</button>
+                    </div>
+                </div>
+            )}
+
+            {showWithdrawModal && (
+                <div className="vb-modal-overlay">
+                    <div className="vb-modal">
+                        <div className="vb-modal-header">System Withdrawal</div>
+                        <div className="vb-form-group"><label>Amount (SAR)</label><input type="number" value={withdrawForm.amount} onChange={e => setWithdrawForm({ ...withdrawForm, amount: e.target.value })} /></div>
+                        <div className="vb-form-group"><label>Admin PIN (170206)</label><input type="password" value={withdrawForm.passkey} onChange={e => setWithdrawForm({ ...withdrawForm, passkey: e.target.value })} /></div>
+                        <div style={{ display: 'flex', gap: 10, justifyContent: 'flex-end' }}>
+                            <button className="vb-btn vb-btn-grey" onClick={() => setShowWithdrawModal(false)}>Cancel</button>
+                            <button className="vb-btn vb-btn-blue" onClick={handleWithdraw}>Confirm</button>
+                        </div>
                     </div>
                 </div>
             )}
