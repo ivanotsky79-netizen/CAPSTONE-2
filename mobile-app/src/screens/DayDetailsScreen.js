@@ -1,10 +1,10 @@
 import React, { useState, useEffect } from 'react';
 import { View, Text, StyleSheet, FlatList, TouchableOpacity, ScrollView, SafeAreaView, ActivityIndicator } from 'react-native';
 import { MaterialIcons, MaterialCommunityIcons } from '@expo/vector-icons';
-import AsyncStorage from '@react-native-async-storage/async-storage';
+import { transactionService } from '../services/api';
 
 export default function DayDetailsScreen({ route, navigation }) {
-    // 1. Get Params (Month, Day, Year)
+    // 1. Get Params (Month Name, Day Number, Year)
     const { month, day, year } = route.params || {};
 
     // 2. State for Data
@@ -23,22 +23,32 @@ export default function DayDetailsScreen({ route, navigation }) {
                     return;
                 }
 
-                // Construct Key: report_YYYY_Month_DD
-                // NOTE: Month is full name e.g. "February"
-                const key = `report_${year}_${month}_${day}`;
-                console.log('Fetching report:', key);
+                // Convert Month Name to Number
+                const monthMap = {
+                    'January': '01', 'February': '02', 'March': '03', 'April': '04',
+                    'May': '05', 'June': '06', 'July': '07', 'August': '08',
+                    'September': '09', 'October': '10', 'November': '11', 'December': '12'
+                };
 
-                const storedData = await AsyncStorage.getItem(key);
+                const mm = monthMap[month];
+                if (!mm) { searchError('Invalid Month'); return; }
+                const dd = String(day).padStart(2, '0');
+                const dateStr = `${year}-${mm}-${dd}`;
 
-                if (storedData) {
-                    const parsed = JSON.parse(storedData);
-                    setDayData(parsed);
+                console.log('Fetching daily stats for:', dateStr);
+
+                // Fetch from Backend API (matches Admin System)
+                // Pass null as location to get full nested data structure
+                const res = await transactionService.getDailyStats(null, dateStr);
+
+                if (res.data.status === 'success') {
+                    setDayData(res.data.data);
                 } else {
-                    setError('No report found for this date.');
+                    setError('Failed to load data.');
                 }
             } catch (err) {
                 console.error('Error fetching day details:', err);
-                setError('Failed to load data.');
+                setError('Failed to load data from server.');
             } finally {
                 setLoading(false);
             }
@@ -67,7 +77,7 @@ export default function DayDetailsScreen({ route, navigation }) {
             <SafeAreaView style={styles.container}>
                 <View style={styles.center}>
                     <ActivityIndicator size="large" color="#1A237E" />
-                    <Text style={{ marginTop: 10, color: '#666' }}>Loading Report...</Text>
+                    <Text style={{ marginTop: 10, color: '#666' }}>Syncing with System...</Text>
                 </View>
             </SafeAreaView>
         );
@@ -83,26 +93,23 @@ export default function DayDetailsScreen({ route, navigation }) {
                     <Text style={styles.headerTitle}>Details Unavailable</Text>
                 </View>
                 <View style={styles.center}>
-                    <MaterialIcons name="error-outline" size={48} color="#FF5252" />
+                    <MaterialIcons name="cloud-off" size={48} color="#FF5252" />
                     <Text style={styles.errorText}>{error || 'Data is missing.'}</Text>
-                    <Text style={styles.subErrorText}>Note: Reports are generated automatically at 3:30 PM.</Text>
                 </View>
             </SafeAreaView>
         );
     }
 
     // 6. Prepare Data for Render
+    // Structure: { canteen: {...}, system: {...} }
     const currentStats = activeTab === 'canteen'
         ? (dayData.canteen || {})
         : (dayData.system || {});
 
-    // Safety check for transactions array
     const transactions = Array.isArray(currentStats.transactions) ? currentStats.transactions : [];
 
     const renderTransaction = ({ item, index }) => {
-        // Safe access to item properties
         if (!item) return null;
-
         return (
             <View style={styles.transactionCard}>
                 <View style={[styles.sidebar, { backgroundColor: item.type === 'REFUND' ? '#FFEBEE' : '#E8F5E9' }]} />
@@ -174,7 +181,13 @@ export default function DayDetailsScreen({ route, navigation }) {
                         {activeTab === 'canteen' && (
                             <View style={styles.statItem}>
                                 <Text style={styles.statLabel}>Cash</Text>
-                                <Text style={styles.statValue}>{formatCurrency(currentStats.totalCash)}</Text>
+                                <Text style={styles.statValue}>{formatCurrency(currentStats.totalCash || currentStats.cashCollected)}</Text>
+                            </View>
+                        )}
+                        {activeTab === 'canteen' && (
+                            <View style={styles.statItem}>
+                                <Text style={styles.statLabel}>Credit</Text>
+                                <Text style={styles.statValue}>{formatCurrency(currentStats.totalCredit)}</Text>
                             </View>
                         )}
                         {activeTab === 'system' && (
@@ -201,6 +214,9 @@ export default function DayDetailsScreen({ route, navigation }) {
                         <Text style={styles.emptyText}>No transactions recorded.</Text>
                     </View>
                 )}
+
+                {/* Spacer for bottom */}
+                <View style={{ height: 40 }} />
             </ScrollView>
         </SafeAreaView>
     );
@@ -213,7 +229,6 @@ const styles = StyleSheet.create({
     backButton: { marginRight: 15 },
     headerTitle: { fontSize: 20, fontWeight: 'bold', color: '#1A237E' },
     errorText: { fontSize: 18, color: '#333', marginTop: 10, fontWeight: 'bold' },
-    subErrorText: { fontSize: 14, color: '#666', marginTop: 5, textAlign: 'center' },
 
     tabsContainer: { backgroundColor: 'white', paddingBottom: 10 },
     tabs: { flexDirection: 'row', marginHorizontal: 15, backgroundColor: '#F5F5F5', borderRadius: 10, padding: 4 },

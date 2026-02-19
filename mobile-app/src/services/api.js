@@ -52,7 +52,7 @@ export const transactionService = {
         passkey,
         location: 'CANTEEN'
     }),
-    getDailyStats: (location = 'CANTEEN') => api.get(`/stats/daily`, { params: { location } }),
+    getDailyStats: (location = 'CANTEEN', date = null) => api.get(`/stats/daily`, { params: { location, date } }),
     getTransactions: (studentId) => api.get('/transactions', { params: { studentId } }),
 };
 

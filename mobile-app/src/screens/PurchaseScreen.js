@@ -43,7 +43,7 @@ export default function PurchaseScreen({ route, navigation }) {
         try {
             await transactionService.purchase(student.studentId, amount, passkey);
             Alert.alert('Success', 'Transaction Completed', [
-                { text: 'New Sale', onPress: () => navigation.popToTop() }
+                { text: 'New Sale', onPress: () => navigation.navigate('Scan') }
             ]);
             setAmount('');
         } catch (error) {

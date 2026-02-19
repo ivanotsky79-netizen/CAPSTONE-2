@@ -6,19 +6,19 @@ import {
 import {
     UserOutlined, SearchOutlined, PlusOutlined, DeleteOutlined,
     HistoryOutlined, FileTextOutlined, DatabaseOutlined, LogoutOutlined,
-    DollarOutlined, CreditCardOutlined, ShoppingCartOutlined, WalletOutlined, LockOutlined
+    DollarOutlined, CreditCardOutlined, ShoppingCartOutlined, WalletOutlined, LockOutlined,
+    QrcodeOutlined
 } from '@ant-design/icons';
 import { studentService, transactionService } from '../services/api';
 import { io } from 'socket.io-client';
 import QRCode from 'qrcode';
 import './AdminDashboard.css';
 
-const { Header, Sider, Content } = Layout;
+const { Header, Content } = Layout;
 const { Title, Text } = Typography;
 const { TabPane } = Tabs;
 
 export default function AdminDashboard({ onLogout }) {
-    const [collapsed, setCollapsed] = useState(false);
     const [currentSection, setCurrentSection] = useState('users');
     const [students, setStudents] = useState([]);
     const [loading, setLoading] = useState(false);
@@ -44,13 +44,8 @@ export default function AdminDashboard({ onLogout }) {
 
     // Stats
     const [dailyStats, setDailyStats] = useState({
-        totalSales: 0,
-        totalCash: 0,
-        totalCredit: 0,
-        todayCreditSales: 0,
-        allTransactions: [],
-        creditList: [],
-        cashList: []
+        canteen: { totalSales: 0, cashCollected: 0, totalCredit: 0, transactions: [] },
+        system: { topups: 0, withdrawals: 0, totalCashOnHand: 0, totalDebt: 0, transactions: [] }
     });
     const [reportStats, setReportStats] = useState(null);
     const [reportDate, setReportDate] = useState(null);
@@ -226,7 +221,6 @@ export default function AdminDashboard({ onLogout }) {
                 message.success(`Successfully added SAR ${topUpAmount} to ${selectedStudent.fullName}`);
             } else {
                 // SYSTEM WITHDRAWAL (No student selected)
-                // Enforce limit: Cannot withdraw more than today's POS Cash Collected
                 const maxWithdrawal = dailyStats.canteen?.cashCollected || 0;
 
                 if (topUpAmount > maxWithdrawal) {
@@ -286,10 +280,42 @@ export default function AdminDashboard({ onLogout }) {
     };
 
     const showWithdraw = () => {
-        setSelectedStudent(null); // Null student means Withdrawal
+        setSelectedStudent(null);
         setTopUpAmount(null);
         setTopUpPasskey('');
         setTopUpModalVisible(true);
+    };
+
+    const downloadQRWithID = () => {
+        const canvas = document.getElementById('qr-canvas');
+        if (!canvas || !selectedStudent) return;
+
+        // Create composite canvas
+        const size = canvas.width;
+        const newCanvas = document.createElement('canvas');
+        newCanvas.width = size;
+        newCanvas.height = size + 60; // Extra space for ID
+        const ctx = newCanvas.getContext('2d');
+
+        // White background
+        ctx.fillStyle = '#FFFFFF';
+        ctx.fillRect(0, 0, newCanvas.width, newCanvas.height);
+
+        // Draw QR
+        ctx.drawImage(canvas, 0, 0);
+
+        // Draw ID text
+        ctx.fillStyle = '#000000';
+        ctx.font = 'bold 24px Arial';
+        ctx.textAlign = 'center';
+        ctx.fillText(selectedStudent.studentId, size / 2, size + 40);
+
+        // Download
+        const url = newCanvas.toDataURL('image/png');
+        const link = document.createElement('a');
+        link.download = `${selectedStudent.studentId}_QR.png`;
+        link.href = url;
+        link.click();
     };
 
     const filteredStudents = students.filter(s =>
@@ -338,8 +364,8 @@ export default function AdminDashboard({ onLogout }) {
             width: 200,
             render: (_, record) => (
                 <Space>
-                    <Button type="link" size="small" onClick={() => showQRCode(record)}>
-                        QR Code
+                    <Button type="default" size="small" icon={<QrcodeOutlined />} onClick={() => showQRCode(record)}>
+                        QR
                     </Button>
                     <Button type="primary" size="small" icon={<WalletOutlined />} onClick={() => showTopUp(record)}>
                         Top Up
@@ -355,10 +381,10 @@ export default function AdminDashboard({ onLogout }) {
     };
 
     const menuItems = [
-        { key: 'users', icon: <UserOutlined />, label: 'Students' },
-        { key: 'transactions', icon: <ShoppingCartOutlined />, label: 'Canteen Transactions' },
-        { key: 'systemdata', icon: <DatabaseOutlined />, label: 'System Overview' },
-        { key: 'reports', icon: <FileTextOutlined />, label: 'Historical Reports' },
+        { key: 'users', icon: <UserOutlined />, label: 'Customers' },
+        { key: 'transactions', icon: <ShoppingCartOutlined />, label: 'Sales' },
+        { key: 'reports', icon: <FileTextOutlined />, label: 'Reports' },
+        { key: 'systemdata', icon: <DatabaseOutlined />, label: 'System' },
     ];
 
     const renderContent = () => {
@@ -366,269 +392,135 @@ export default function AdminDashboard({ onLogout }) {
             case 'users':
                 return (
                     <div>
-                        <Title level={3}>Student Management</Title>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 20 }}>
+                            <Title level={4}>Student Management</Title>
+                            <Space>
+                                <Button type="primary" icon={<PlusOutlined />} onClick={() => setAddModalVisible(true)}>
+                                    New Student
+                                </Button>
+                                <Button
+                                    danger
+                                    icon={<DeleteOutlined />}
+                                    onClick={handleRemoveStudents}
+                                    disabled={selectedRowKeys.length === 0}
+                                >
+                                    Remove ({selectedRowKeys.length})
+                                </Button>
+                            </Space>
+                        </div>
 
                         <Row gutter={16} style={{ marginBottom: 24 }}>
                             <Col span={8}>
-                                <Card>
-                                    <Statistic
-                                        title="Total Students"
-                                        value={students.length}
-                                        prefix={<UserOutlined />}
-                                    />
+                                <Card size="small">
+                                    <Statistic title="Total Students" value={students.length} prefix={<UserOutlined />} />
                                 </Card>
                             </Col>
                             <Col span={8}>
-                                <Card>
-                                    <Statistic
-                                        title="Total Prepaid Load"
-                                        value={totalBalance.toFixed(2)}
-                                        prefix="SAR"
-                                        valueStyle={{ color: '#2E7D32' }}
-                                    />
+                                <Card size="small">
+                                    <Statistic title="Total Prepaid Load" value={totalBalance.toFixed(2)} prefix="SAR" valueStyle={{ color: '#2E7D32' }} />
                                 </Card>
                             </Col>
                             <Col span={8}>
-                                <Card>
-                                    <Statistic
-                                        title="Total Student Debt"
-                                        value={totalCredit.toFixed(2)}
-                                        prefix="SAR"
-                                        valueStyle={{ color: '#d32f2f' }}
-                                    />
+                                <Card size="small">
+                                    <Statistic title="Total Student Debt" value={totalCredit.toFixed(2)} prefix="SAR" valueStyle={{ color: '#d32f2f' }} />
                                 </Card>
                             </Col>
                         </Row>
 
-                        <Tabs defaultActiveKey="all" type="card" style={{ marginTop: 16 }}>
-                            <TabPane tab="All Students" key="all">
-                                <Space style={{ marginBottom: 16 }}>
-                                    <Input
-                                        placeholder="Search by name, ID, or grade..."
-                                        prefix={<SearchOutlined />}
-                                        value={searchText}
-                                        onChange={(e) => setSearchText(e.target.value)}
-                                        style={{ width: 300 }}
-                                    />
-                                    <Button type="primary" icon={<PlusOutlined />} onClick={() => setAddModalVisible(true)}>
-                                        Add Student
-                                    </Button>
-                                    <Button
-                                        danger
-                                        icon={<DeleteOutlined />}
-                                        onClick={handleRemoveStudents}
-                                        disabled={selectedRowKeys.length === 0}
-                                    >
-                                        Remove Selected ({selectedRowKeys.length})
-                                    </Button>
-                                </Space>
+                        <Input
+                            placeholder="Find/Scan Student..."
+                            prefix={<SearchOutlined />}
+                            value={searchText}
+                            onChange={(e) => setSearchText(e.target.value)}
+                            style={{ marginBottom: 16, width: '100%' }}
+                            size="large"
+                        />
 
-                                <Table
-                                    rowSelection={rowSelection}
-                                    columns={columns}
-                                    dataSource={filteredStudents}
-                                    rowKey="studentId"
-                                    loading={loading}
-                                    pagination={{ pageSize: 10 }}
-                                />
-                            </TabPane>
-                            <TabPane tab="Students with Credit" key="credit">
-                                <Table
-                                    columns={columns}
-                                    dataSource={students.filter(s => parseFloat(s.balance) < 0)}
-                                    rowKey="studentId"
-                                    loading={loading}
-                                    pagination={{ pageSize: 10 }}
-                                />
-                            </TabPane>
-                        </Tabs>
-                    </div >
+                        <Table
+                            rowSelection={rowSelection}
+                            columns={columns}
+                            dataSource={filteredStudents}
+                            rowKey="studentId"
+                            loading={loading}
+                            pagination={{ pageSize: 10 }}
+                            size="middle"
+                        />
+                    </div>
                 );
 
             case 'transactions':
                 return (
                     <div>
                         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 }}>
-                            <Title level={3} style={{ margin: 0 }}>Canteen Transactions <Text type="secondary" style={{ fontSize: '16px' }}>(Today)</Text></Title>
-                            <Button type="primary" danger size="large" onClick={showWithdraw}>
+                            <Title level={4} style={{ margin: 0 }}>Today's Sales</Title>
+                            <Button type="primary" danger onClick={showWithdraw}>
                                 Withdraw Cash
                             </Button>
                         </div>
 
                         <Row gutter={16} style={{ marginBottom: 24 }}>
                             <Col span={6}>
-                                <Card>
-                                    <Statistic
-                                        title="Today's Canteen Points"
-                                        value={dailyStats.canteen?.totalSales?.toFixed(2) || '0.00'}
-                                        prefix={<ShoppingCartOutlined />}
-                                        suffix="Pts"
-                                        valueStyle={{ color: '#1890ff' }}
-                                    />
+                                <Card size="small">
+                                    <Statistic title="Canteen Points" value={dailyStats.canteen?.totalSales?.toFixed(2) || '0.00'} suffix="Pts" valueStyle={{ color: '#1890ff' }} />
                                 </Card>
                             </Col>
                             <Col span={6}>
-                                <Card>
-                                    <Statistic
-                                        title="Today's Points Collected"
-                                        value={dailyStats.canteen?.cashCollected?.toFixed(2) || '0.00'}
-                                        prefix={<DollarOutlined />}
-                                        suffix="Pts"
-                                        valueStyle={{ color: '#2E7D32' }}
-                                    />
+                                <Card size="small">
+                                    <Statistic title="Cash Collected" value={dailyStats.canteen?.cashCollected?.toFixed(2) || '0.00'} suffix="Pts" valueStyle={{ color: '#2E7D32' }} />
                                 </Card>
                             </Col>
                             <Col span={6}>
-                                <Card>
-                                    <Statistic
-                                        title="Today's Credit Points"
-                                        value={dailyStats.canteen?.totalCredit?.toFixed(2) || '0.00'}
-                                        prefix={<CreditCardOutlined />}
-                                        suffix="Pts"
-                                        valueStyle={{ color: '#d32f2f' }}
-                                    />
+                                <Card size="small">
+                                    <Statistic title="Credit Given" value={dailyStats.canteen?.totalCredit?.toFixed(2) || '0.00'} suffix="Pts" valueStyle={{ color: '#d32f2f' }} />
                                 </Card>
                             </Col>
                             <Col span={6}>
-                                <Card>
-                                    <Statistic
-                                        title="System Cash Balance"
-                                        value={dailyStats.system?.totalCashOnHand?.toFixed(2) || '0.00'}
-                                        prefix={<WalletOutlined />}
-                                        suffix="SAR"
-                                        valueStyle={{ color: '#722ed1' }}
-                                    />
+                                <Card size="small">
+                                    <Statistic title="System Cash" value={dailyStats.system?.totalCashOnHand?.toFixed(2) || '0.00'} suffix="SAR" valueStyle={{ color: '#722ed1' }} />
                                 </Card>
                             </Col>
                         </Row>
 
-                        <Tabs defaultActiveKey="all" type="card">
-                            <TabPane tab="All Transactions" key="all">
-                                <Table
-                                    dataSource={dailyStats.canteen?.transactions || []}
-                                    columns={[
-                                        { title: 'Time', dataIndex: 'timestamp', render: (t) => new Date(t).toLocaleTimeString() },
-                                        { title: 'Student ID', dataIndex: 'studentId' },
-                                        { title: 'Name', dataIndex: 'studentName' },
-                                        { title: 'Grade', dataIndex: 'grade' },
-                                        { title: 'Amount', dataIndex: 'amount', render: (a) => `${parseFloat(a).toFixed(2)} Pts` },
-                                        {
-                                            title: 'Type',
-                                            render: (_, record) => {
-                                                if (record.type === 'TOPUP') return <Tag color="blue">TOPUP</Tag>;
-                                                const hasCash = record.cashAmount > 0;
-                                                const hasCredit = record.creditAmount > 0;
-                                                if (hasCash && hasCredit) return <Tag color="orange">MIXED</Tag>;
-                                                if (hasCredit) return <Tag color="red">CREDIT</Tag>;
-                                                return <Tag color="green">POINTS</Tag>;
-                                            }
-                                        }
-                                    ]}
-                                    rowKey={(record, index) => `${record.id}-${index}`}
-                                    pagination={{ pageSize: 10 }}
-                                />
-                            </TabPane>
-                            <TabPane tab="Cash Sales" key="cash">
-                                <Table
-                                    dataSource={(dailyStats.canteen?.transactions || []).filter(t => t.cashAmount > 0)}
-                                    columns={[
-                                        { title: 'Time', dataIndex: 'timestamp', render: (t) => new Date(t).toLocaleTimeString() },
-                                        { title: 'Student ID', dataIndex: 'studentId' },
-                                        { title: 'Name', dataIndex: 'studentName' },
-                                        { title: 'Grade', dataIndex: 'grade' },
-                                        { title: 'Total Amount', dataIndex: 'amount', render: (a) => `${parseFloat(a).toFixed(2)} Pts` },
-                                        { title: 'Points Paid', dataIndex: 'cashAmount', render: (a) => <Text strong style={{ color: '#2E7D32' }}>{parseFloat(a).toFixed(2)} Pts</Text> },
-                                        {
-                                            title: 'Type',
-                                            render: (_, record) => <Tag color="green">POINTS</Tag>
-                                        }
-                                    ]}
-                                    rowKey={(record, index) => `cash-${record.id}-${index}`}
-                                    pagination={{ pageSize: 10 }}
-                                />
-                            </TabPane>
-                            <TabPane tab="Credit Sales" key="credit">
-                                <Table
-                                    dataSource={(dailyStats.canteen?.transactions || []).filter(t => t.creditAmount > 0)}
-                                    columns={[
-                                        { title: 'Time', dataIndex: 'timestamp', render: (t) => new Date(t).toLocaleTimeString() },
-                                        { title: 'Student ID', dataIndex: 'studentId' },
-                                        { title: 'Name', dataIndex: 'studentName' },
-                                        { title: 'Grade', dataIndex: 'grade' },
-                                        { title: 'Total Amount', dataIndex: 'amount', render: (a) => `${parseFloat(a).toFixed(2)} Pts` },
-                                        { title: 'Credit Used', dataIndex: 'creditAmount', render: (a) => <Text strong style={{ color: '#d32f2f' }}>{parseFloat(a).toFixed(2)} Pts</Text> },
-                                        {
-                                            title: 'Type',
-                                            render: (_, record) => <Tag color="red">CREDIT</Tag>
-                                        }
-                                    ]}
-                                    rowKey={(record, index) => `credit-${record.id}-${index}`}
-                                    pagination={{ pageSize: 10 }}
-                                />
-                            </TabPane>
-                        </Tabs>
+                        <Table
+                            dataSource={dailyStats.canteen?.transactions || []}
+                            columns={[
+                                { title: 'Time', dataIndex: 'timestamp', render: (t) => new Date(t).toLocaleTimeString() },
+                                { title: 'Student', dataIndex: 'studentName' },
+                                { title: 'Amount', dataIndex: 'amount', render: (a) => `${parseFloat(a).toFixed(2)} Pts` },
+                                { title: 'Type', render: (_, r) => r.type === 'TOPUP' ? <Tag color="blue">TOPUP</Tag> : <Tag color="green">SALE</Tag> }
+                            ]}
+                            rowKey={(record, index) => `${record.id}-${index}`}
+                            pagination={{ pageSize: 10 }}
+                            size="middle"
+                        />
                     </div>
                 );
 
             case 'systemdata':
                 return (
                     <div>
-                        <Title level={3}>System Overview</Title>
+                        <Title level={4}>System Overview</Title>
                         <Row gutter={16} style={{ marginBottom: 24 }}>
-                            <Col span={6}>
-                                <Card>
-                                    <Statistic
-                                        title="Total System Cash"
-                                        value={dailyStats.system?.totalCashOnHand?.toFixed(2) || '0.00'}
-                                        prefix="SAR"
-                                        valueStyle={{ color: '#3f8600' }}
-                                    />
+                            <Col span={8}>
+                                <Card size="small">
+                                    <Statistic title="Total System Cash" value={dailyStats.system?.totalCashOnHand?.toFixed(2) || '0.00'} prefix="SAR" valueStyle={{ color: '#3f8600' }} />
                                 </Card>
                             </Col>
-                            <Col span={6}>
-                                <Card>
-                                    <Statistic
-                                        title="Total Outstanding Debt"
-                                        value={dailyStats.system?.totalDebt?.toFixed(2) || '0.00'}
-                                        prefix="SAR"
-                                        valueStyle={{ color: '#d32f2f' }}
-                                    />
-                                </Card>
-                            </Col>
-                            <Col span={6}>
-                                <Card>
-                                    <Statistic
-                                        title="Today's Top-Ups"
-                                        value={dailyStats.system?.todayTopups?.toFixed(2) || '0.00'}
-                                        prefix="SAR"
-                                        valueStyle={{ color: '#1890ff' }}
-                                    />
-                                </Card>
-                            </Col>
-                            <Col span={6}>
-                                <Card>
-                                    <Statistic
-                                        title="Today's Withdrawals"
-                                        value={dailyStats.system?.todayWithdrawals?.toFixed(2) || '0.00'}
-                                        prefix="SAR"
-                                        valueStyle={{ color: '#faad14' }}
-                                    />
+                            <Col span={8}>
+                                <Card size="small">
+                                    <Statistic title="Total Outstanding Debt" value={dailyStats.system?.totalDebt?.toFixed(2) || '0.00'} prefix="SAR" valueStyle={{ color: '#d32f2f' }} />
                                 </Card>
                             </Col>
                         </Row>
-
-                        <Card title="System Transactions (Top-ups & Withdrawals)">
-                            <Table
-                                dataSource={dailyStats.system?.transactions || []}
-                                columns={[
-                                    { title: 'Time', dataIndex: 'timestamp', render: (t) => new Date(t).toLocaleTimeString() },
-                                    { title: 'Student', dataIndex: 'studentName', render: (text) => text || 'System Admin' },
-                                    { title: 'Type', dataIndex: 'type', render: (t) => <Tag color={t === 'WITHDRAWAL' ? 'orange' : 'blue'}>{t}</Tag> },
-                                    { title: 'Amount', dataIndex: 'amount', render: (a) => `SAR ${parseFloat(a).toFixed(2)}` }
-                                ]}
-                                rowKey="id"
-                            />
-                        </Card>
+                        <Table
+                            dataSource={dailyStats.system?.transactions || []}
+                            columns={[
+                                { title: 'Time', dataIndex: 'timestamp', render: (t) => new Date(t).toLocaleTimeString() },
+                                { title: 'Type', dataIndex: 'type', render: (t) => <Tag color={t === 'WITHDRAWAL' ? 'orange' : 'blue'}>{t}</Tag> },
+                                { title: 'Amount', dataIndex: 'amount', render: (a) => `SAR ${parseFloat(a).toFixed(2)}` }
+                            ]}
+                            rowKey="id"
+                        />
                     </div>
                 );
 
@@ -637,30 +529,15 @@ export default function AdminDashboard({ onLogout }) {
                     [...(reportStats.canteen?.transactions || []), ...(reportStats.system?.transactions || [])]
                         .sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp))
                     : [];
+
                 const reportColumns = [
                     { title: 'Time', dataIndex: 'timestamp', render: (t) => new Date(t).toLocaleTimeString() },
-                    { title: 'Student ID', dataIndex: 'studentId' },
                     { title: 'Name', dataIndex: 'studentName' },
                     { title: 'Amount', dataIndex: 'amount', render: (a) => `${parseFloat(a).toFixed(2)} Pts` },
-                    {
-                        title: 'Type',
-                        render: (_, record) => {
-                            if (record.type === 'TOPUP') return <Tag color="blue">TOPUP</Tag>;
-                            if (record.type === 'WITHDRAWAL') return <Tag color="orange">WITHDRAWAL</Tag>;
-                            const hasCash = record.cashAmount > 0;
-                            const hasCredit = record.creditAmount > 0;
-                            if (hasCash && hasCredit) return <Tag color="orange">MIXED</Tag>;
-                            if (hasCredit) return <Tag color="red">CREDIT</Tag>;
-                            return <Tag color="green">POINTS</Tag>;
-                        }
-                    }
+                    { title: 'Type', render: (_, r) => <Tag>{r.type}</Tag> }
                 ];
 
                 const navigateToMonth = (index) => {
-                    if (index > new Date().getMonth() && currentYear === new Date().getFullYear()) {
-                        message.warning('Cannot view future months');
-                        return;
-                    }
                     setSelectedMonth(index);
                     setReportViewMode('days');
                 };
@@ -673,167 +550,48 @@ export default function AdminDashboard({ onLogout }) {
                     setReportViewMode('details');
                 };
 
-                const resetView = () => {
-                    setReportViewMode('months');
-                    setSelectedMonth(null);
-                    setSelectedDay(null);
-                    setReportStats(null);
-                };
-
                 return (
                     <div>
                         <div style={{ display: 'flex', alignItems: 'center', marginBottom: 24 }}>
-                            <Title level={3} style={{ margin: 0 }}>Historical Reports</Title>
-                            {reportViewMode !== 'months' && (
-                                <Button type="link" onClick={() => setReportViewMode('months')} style={{ marginLeft: 16 }}>
-                                    Change Month
-                                </Button>
-                            )}
-                            {reportViewMode === 'details' && (
-                                <Button type="link" onClick={() => setReportViewMode('days')}>
-                                    Change Day
-                                </Button>
-                            )}
+                            <Title level={4} style={{ margin: 0 }}>Historical Reports</Title>
+                            {reportViewMode !== 'months' && <Button type="link" onClick={() => setReportViewMode('months')}>Change Month</Button>}
+                            {reportViewMode === 'details' && <Button type="link" onClick={() => setReportViewMode('days')}>Change Day</Button>}
                         </div>
 
                         {reportViewMode === 'months' && (
                             <Row gutter={[16, 16]}>
-                                {months.map((month, index) => {
-                                    const isFuture = index > new Date().getMonth() && currentYear === new Date().getFullYear();
-                                    return (
-                                        <Col span={6} key={month}>
-                                            <Card
-                                                hoverable={!isFuture}
-                                                className={isFuture ? 'disabled-card' : ''}
-                                                onClick={() => !isFuture && navigateToMonth(index)}
-                                                style={{ textAlign: 'center', cursor: isFuture ? 'not-allowed' : 'pointer' }}
-                                            >
-                                                <HistoryOutlined style={{ fontSize: 32, color: isFuture ? '#808080' : '#000080', marginBottom: 12 }} />
-                                                <Title level={4} style={{ color: isFuture ? '#808080' : '#000000' }}>{month}</Title>
-                                                <Text style={{ color: isFuture ? '#808080' : '#000000' }}>{currentYear}</Text>
-                                            </Card>
-                                        </Col>
-                                    );
-                                })}
+                                {months.map((month, index) => (
+                                    <Col span={6} key={month}>
+                                        <Card hoverable onClick={() => navigateToMonth(index)} style={{ textAlign: 'center' }}>
+                                            <HistoryOutlined style={{ fontSize: 24, marginBottom: 12, color: '#1890ff' }} />
+                                            <Title level={5}>{month}</Title>
+                                        </Card>
+                                    </Col>
+                                ))}
                             </Row>
                         )}
 
                         {reportViewMode === 'days' && (
-                            <div>
-                                <div style={{ marginBottom: 16 }}>
-                                    <Title level={4}>{months[selectedMonth]} {currentYear}</Title>
-                                    <Button onClick={() => setReportViewMode('months')}>Back to Months</Button>
-                                </div>
-                                <Row gutter={[8, 8]}>
-                                    {Array.from({ length: new Date(currentYear, selectedMonth + 1, 0).getDate() }, (_, i) => i + 1).map(day => {
-                                        const date = new Date(currentYear, selectedMonth, day);
-                                        const isFuture = date > new Date();
-                                        return (
-                                            <Col span={3} key={day}>
-                                                <Card
-                                                    hoverable={!isFuture}
-                                                    onClick={() => !isFuture && navigateToDay(day)}
-                                                    className={isFuture ? 'disabled-card' : ''}
-                                                    style={{
-                                                        textAlign: 'center',
-                                                        cursor: isFuture ? 'not-allowed' : 'pointer',
-                                                    }}
-                                                >
-                                                    <Title level={5} style={{ margin: 0, color: isFuture ? '#808080' : '#000000' }}>{day}</Title>
-                                                </Card>
-                                            </Col>
-                                        );
-                                    })}
-                                </Row>
-                            </div>
+                            <Row gutter={[8, 8]}>
+                                {Array.from({ length: 31 }, (_, i) => i + 1).map(day => (
+                                    <Col span={3} key={day}>
+                                        <Card hoverable onClick={() => navigateToDay(day)} style={{ textAlign: 'center' }}>
+                                            <Text strong>{day}</Text>
+                                        </Card>
+                                    </Col>
+                                ))}
+                            </Row>
                         )}
 
-                        {reportViewMode === 'details' && (
+                        {reportViewMode === 'details' && reportStats && (
                             <div>
-                                <div style={{ marginBottom: 16 }}>
-                                    <Title level={4}>Report for {months[selectedMonth]} {selectedDay}, {currentYear}</Title>
-                                    <Button onClick={() => setReportViewMode('days')}>Back to Days</Button>
-                                </div>
+                                <Row gutter={16} style={{ marginBottom: 24 }}>
+                                    <Col span={8}><Card size="small"><Statistic title="Total Sales" value={reportStats.canteen?.totalSales?.toFixed(2)} suffix="Pts" /></Card></Col>
+                                    <Col span={8}><Card size="small"><Statistic title="Points Collected" value={reportStats.canteen?.cashCollected?.toFixed(2)} suffix="Pts" valueStyle={{ color: '#2E7D32' }} /></Card></Col>
+                                    <Col span={8}><Card size="small"><Statistic title="Credit" value={reportStats.canteen?.totalCredit?.toFixed(2)} suffix="Pts" valueStyle={{ color: '#d32f2f' }} /></Card></Col>
+                                </Row>
 
-                                {reportStats ? (
-                                    <>
-                                        <Row gutter={16} style={{ marginBottom: 24 }}>
-                                            <Col span={8}>
-                                                <Card>
-                                                    <Statistic
-                                                        title="Total Sales"
-                                                        value={reportStats.canteen?.totalSales?.toFixed(2)}
-                                                        prefix={<ShoppingCartOutlined />}
-                                                        suffix="Pts"
-                                                    />
-                                                </Card>
-                                            </Col>
-                                            <Col span={8}>
-                                                <Card>
-                                                    <Statistic
-                                                        title="Points Collected"
-                                                        value={reportStats.canteen?.cashCollected?.toFixed(2)}
-                                                        prefix={<DollarOutlined />}
-                                                        suffix="Pts"
-                                                        valueStyle={{ color: '#2E7D32' }}
-                                                    />
-                                                </Card>
-                                            </Col>
-                                            <Col span={8}>
-                                                <Card>
-                                                    <Statistic
-                                                        title="Total Credit"
-                                                        value={reportStats.canteen?.totalCredit?.toFixed(2)}
-                                                        prefix={<CreditCardOutlined />}
-                                                        suffix="Pts"
-                                                        valueStyle={{ color: '#d32f2f' }}
-                                                    />
-                                                </Card>
-                                            </Col>
-                                        </Row>
-
-                                        <Card title={`Transactions List`}>
-                                            <Tabs defaultActiveKey="all" type="card">
-                                                <TabPane tab="All Transactions" key="all">
-                                                    <Table
-                                                        dataSource={reportTransactions}
-                                                        columns={reportColumns}
-                                                        rowKey={(record, index) => `rep-all-${index}`}
-                                                        pagination={{ pageSize: 10 }}
-                                                    />
-                                                </TabPane>
-                                                <TabPane tab="Purchases" key="purchases">
-                                                    <Table
-                                                        dataSource={reportTransactions.filter(t => t.type === 'PURCHASE' || !t.type)}
-                                                        columns={reportColumns}
-                                                        rowKey={(record, index) => `rep-pur-${index}`}
-                                                        pagination={{ pageSize: 10 }}
-                                                    />
-                                                </TabPane>
-                                                <TabPane tab="Top-ups" key="topups">
-                                                    <Table
-                                                        dataSource={reportTransactions.filter(t => t.type === 'TOPUP')}
-                                                        columns={reportColumns}
-                                                        rowKey={(record, index) => `rep-top-${index}`}
-                                                        pagination={{ pageSize: 10 }}
-                                                    />
-                                                </TabPane>
-                                                <TabPane tab="Credits" key="credits">
-                                                    <Table
-                                                        dataSource={reportTransactions.filter(t => t.creditAmount > 0)}
-                                                        columns={reportColumns}
-                                                        rowKey={(record, index) => `rep-cred-${index}`}
-                                                        pagination={{ pageSize: 10 }}
-                                                    />
-                                                </TabPane>
-                                            </Tabs>
-                                        </Card>
-                                    </>
-                                ) : (
-                                    <div style={{ padding: 40, textAlign: 'center', background: '#f5f5f5', borderRadius: 8 }}>
-                                        <Text>Loading report data...</Text>
-                                    </div>
-                                )}
+                                <Table dataSource={reportTransactions} columns={reportColumns} rowKey={(r, i) => i} pagination={{ pageSize: 10 }} size="middle" />
                             </div>
                         )}
                     </div>
@@ -845,241 +603,81 @@ export default function AdminDashboard({ onLogout }) {
     };
 
     return (
-        <Layout style={{ minHeight: '100vh' }}>
-            <Sider collapsible collapsed={collapsed} onCollapse={setCollapsed} theme="dark">
-                <div className="logo">
-                    <Title level={4} style={{ color: 'white', padding: '16px', margin: 0 }}>
-                        {collapsed ? 'FS' : 'FUGEN SmartPay'}
+        <Layout className="layout" style={{ minHeight: '100vh' }}>
+            <Header style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '0 20px', background: '#34495e', height: 64 }}>
+                <div style={{ display: 'flex', alignItems: 'center' }}>
+                    <Title level={4} style={{ color: 'white', margin: '0 40px 0 0', minWidth: 150 }}>
+                        FUGEN SmartPay
                     </Title>
+                    <Menu
+                        theme="dark"
+                        mode="horizontal"
+                        selectedKeys={[currentSection]}
+                        items={menuItems}
+                        onClick={({ key }) => setCurrentSection(key)}
+                        style={{ background: '#34495e', borderBottom: 'none', width: 500 }}
+                    />
                 </div>
-                <Menu
-                    theme="dark"
-                    selectedKeys={[currentSection]}
-                    mode="inline"
-                    items={menuItems}
-                    onClick={({ key }) => setCurrentSection(key)}
-                />
-                <div style={{ position: 'absolute', bottom: 20, width: '100%', padding: '0 16px' }}>
-                    <Button
-                        type="text"
-                        icon={<LogoutOutlined />}
-                        onClick={onLogout}
-                        style={{ color: 'white', width: '100%' }}
-                    >
-                        {!collapsed && 'Logout'}
+                <Space>
+                    <Text style={{ color: '#bdc3c7' }}>Admin</Text>
+                    <Button type="primary" danger icon={<LogoutOutlined />} onClick={onLogout}>
+                        Logout
                     </Button>
-                </div>
-            </Sider>
+                </Space>
+            </Header>
 
-            <Layout>
-                <Header style={{ background: '#fff', padding: '0 24px', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-                    <Title level={4} style={{ margin: 0 }}>Admin Dashboard</Title>
-                    <Text type="secondary">{new Date().toLocaleDateString()}</Text>
-                </Header>
-
-                <Content style={{ margin: '24px 16px', padding: 24, background: '#fff', minHeight: 280 }}>
+            <Content style={{ padding: '24px 50px', background: '#f0f2f5' }}>
+                <div style={{ background: '#fff', padding: 24, minHeight: '80vh', borderRadius: 8, boxShadow: '0 1px 3px rgba(0,0,0,0.1)' }}>
                     {renderContent()}
-                </Content>
-            </Layout>
-
-            {/* Add Student Modal */}
-            <Modal
-                title="Add New Student"
-                open={addModalVisible}
-                onCancel={() => {
-                    setAddModalVisible(false);
-                    form.resetFields();
-                    setGeneratedPasskey('');
-                }}
-                footer={null}
-                width={600}
-            >
-                <Form form={form} layout="vertical" onFinish={handleAddStudent}>
-                    <Form.Item
-                        label="Full Name"
-                        name="fullName"
-                        rules={[{ required: true, message: 'Please enter full name' }]}
-                    >
-                        <Input placeholder="e.g., Juan Dela Cruz" />
-                    </Form.Item>
-
-                    <Form.Item
-                        label="Grade & Section"
-                        name="gradeSection"
-                        rules={[{ required: true, message: 'Please enter grade and section' }]}
-                    >
-                        <Input placeholder="e.g., Grade 10 - A" />
-                    </Form.Item>
-
-                    <Form.Item
-                        label="LRN (12-digit number)"
-                        name="lrn"
-                        rules={[
-                            { required: true, message: 'Please enter LRN' },
-                            { len: 12, message: 'LRN must be exactly 12 digits' },
-                            { pattern: /^\d+$/, message: 'LRN must contain only numbers' }
-                        ]}
-                    >
-                        <Input
-                            placeholder="123456789012"
-                            maxLength={12}
-                            onChange={handleLRNChange}
-                        />
-                    </Form.Item>
-
-                    {generatedPasskey && (
-                        <Card style={{ marginBottom: 16, background: '#f0f2f5' }}>
-                            <Text strong>Generated Passkey: </Text>
-                            <Text code style={{ fontSize: 18, color: '#1A237E' }}>{generatedPasskey}</Text>
-                            <br />
-                            <Text type="secondary" style={{ fontSize: 12 }}>
-                                (Digits 3, 6, 9, 12 from LRN)
-                            </Text>
-                        </Card>
-                    )}
-
-                    <Form.Item>
-                        <Space>
-                            <Button type="primary" htmlType="submit">
-                                Add Student
-                            </Button>
-                            <Button onClick={() => {
-                                setAddModalVisible(false);
-                                form.resetFields();
-                                setGeneratedPasskey('');
-                            }}>
-                                Cancel
-                            </Button>
-                        </Space>
-                    </Form.Item>
-                </Form>
-            </Modal>
-
-            {/* Top Up / Withdraw Modal */}
-            <Modal
-                title={selectedStudent ? `Top Up: ${selectedStudent.fullName}` : 'Withdraw System Cash'}
-                open={topUpModalVisible}
-                onCancel={() => setTopUpModalVisible(false)}
-                footer={[
-                    <Button key="cancel" onClick={() => setTopUpModalVisible(false)}>
-                        Cancel
-                    </Button>,
-                    <Button key="submit" type="primary" danger={!selectedStudent} loading={topUpLoading} onClick={handleTopUp}>
-                        {selectedStudent ? 'Confirm Top Up' : 'Confirm Withdrawal'}
-                    </Button>,
-                ]}
-            >
-                <div style={{ marginBottom: 16 }}>
-                    <Text strong>{selectedStudent ? 'Amount to Load (SAR)' : 'Amount to Withdraw (SAR)'}</Text>
-                    <InputNumber
-                        style={{ width: '100%', marginTop: 8 }}
-                        size="large"
-                        min={1}
-                        value={topUpAmount}
-                        onChange={setTopUpAmount}
-                        prefix="SAR"
-                    />
                 </div>
-                <div>
-                    <Text strong>{selectedStudent ? 'Student Passkey' : 'Admin Password'}</Text>
-                    <Input.Password
-                        style={{ width: '100%', marginTop: 8 }}
-                        size="large"
-                        placeholder={selectedStudent ? "Enter 4-digit PIN" : "Enter Password"}
-                        maxLength={20}
-                        value={topUpPasskey}
-                        onChange={(e) => setTopUpPasskey(e.target.value)}
-                    />
-                </div>
-            </Modal>
+            </Content>
 
-            {/* QR Code Modal */}
-            <Modal
-                title="Student QR Code"
-                open={qrModalVisible}
-                onCancel={() => setQrModalVisible(false)}
-                footer={null}
-            >
+            {/* Hidden QR Canvas */}
+            <Modal title="Student QR Code" open={qrModalVisible} onCancel={() => setQrModalVisible(false)} footer={null}>
                 {selectedStudent && (
                     <div style={{ textAlign: 'center' }}>
                         <Title level={4}>{selectedStudent.fullName}</Title>
-                        <Text type="secondary">{selectedStudent.studentId}</Text>
                         <div style={{ margin: '20px 0' }}>
-                            <canvas
-                                id="qr-canvas"
-                                ref={(canvas) => {
-                                    if (canvas && selectedStudent) {
-                                        QRCode.toCanvas(
-                                            canvas,
-                                            `FUGEN:${selectedStudent.studentId}`,
-                                            { width: 300, margin: 2 }
-                                        );
-                                    }
-                                }}
-                            />
+                            <canvas id="qr-canvas" ref={(canvas) => {
+                                if (canvas && selectedStudent) {
+                                    QRCode.toCanvas(canvas, `FUGEN:${selectedStudent.studentId}`, { width: 250, margin: 2 });
+                                }
+                            }} />
                         </div>
-                        <Button type="primary" onClick={() => {
-                            const canvas = document.getElementById('qr-canvas');
-                            const url = canvas.toDataURL();
-                            const link = document.createElement('a');
-                            link.download = `${selectedStudent.studentId}_QR.png`;
-                            link.href = url;
-                            link.click();
-                        }}>
-                            Download QR Code
+                        <Button type="primary" onClick={downloadQRWithID} icon={<QrcodeOutlined />}>
+                            Download with ID
                         </Button>
                     </div>
                 )}
             </Modal>
 
-            {/* Student Profile Modal */}
-            <Modal
-                title="Student Profile"
-                open={profileModalVisible}
-                onCancel={() => setProfileModalVisible(false)}
-                footer={[<Button key="close" onClick={() => setProfileModalVisible(false)}>Close</Button>]}
-                width={800}
-            >
+            {/* Other Modals (Add, TopUp, Profile) - Simplified Rendering */}
+            <Modal title="Add New Student" open={addModalVisible} onCancel={() => setAddModalVisible(false)} footer={null}>
+                <Form form={form} layout="vertical" onFinish={handleAddStudent}>
+                    <Form.Item label="Full Name" name="fullName" rules={[{ required: true }]}><Input /></Form.Item>
+                    <Form.Item label="Grade & Section" name="gradeSection" rules={[{ required: true }]}><Input /></Form.Item>
+                    <Form.Item label="LRN (12-digit)" name="lrn" rules={[{ required: true, len: 12 }]}><Input maxLength={12} onChange={handleLRNChange} /></Form.Item>
+                    {generatedPasskey && <Text type="success">Passkey: {generatedPasskey}</Text>}
+                    <Button type="primary" htmlType="submit" style={{ marginTop: 16 }}>Add Student</Button>
+                </Form>
+            </Modal>
+
+            <Modal title={selectedStudent ? 'Top Up' : 'Withdraw'} open={topUpModalVisible} onCancel={() => setTopUpModalVisible(false)} footer={null}>
+                <InputNumber style={{ width: '100%', marginBottom: 16 }} size="large" min={1} value={topUpAmount} onChange={setTopUpAmount} prefix="SAR" placeholder="Amount" />
+                <Input.Password style={{ width: '100%', marginBottom: 16 }} size="large" value={topUpPasskey} onChange={(e) => setTopUpPasskey(e.target.value)} placeholder="Passkey/PIN" />
+                <Button type="primary" onClick={handleTopUp} loading={topUpLoading} block>Confirm</Button>
+            </Modal>
+
+            <Modal title="Profile" open={profileModalVisible} onCancel={() => setProfileModalVisible(false)} footer={null} width={700}>
                 {selectedStudent && (
                     <div>
-                        <div style={{ marginBottom: 24, padding: 16, background: '#f5f5f5', borderRadius: 8 }}>
-                            <Title level={4}>{selectedStudent.fullName}</Title>
-                            <Text>ID: {selectedStudent.studentId}</Text><br />
-                            <Text>Grade: {selectedStudent.gradeSection}</Text><br />
-                            <div style={{ marginTop: 12 }}>
-                                <Text strong>Credit Status: </Text>
-                                {parseFloat(selectedStudent.balance) < 0 ? (
-                                    <Tag color="red" style={{ fontSize: 14, padding: '4px 8px' }}>
-                                        PENDING CREDIT: SAR {Math.abs(parseFloat(selectedStudent.balance)).toFixed(2)}
-                                    </Tag>
-                                ) : (
-                                    <Tag color="green" style={{ fontSize: 14, padding: '4px 8px' }}>
-                                        No Pending Credits
-                                    </Tag>
-                                )}
-                            </div>
-                        </div>
-
-                        <Title level={5}>Transaction History</Title>
-                        <Table
-                            loading={transactionsLoading}
-                            dataSource={studentTransactions}
-                            rowKey="id"
-                            pagination={{ pageSize: 5 }}
-                            columns={[
-                                { title: 'Time', dataIndex: 'timestamp', render: t => new Date(t).toLocaleString() },
-                                {
-                                    title: 'Type', dataIndex: 'type', render: t => {
-                                        let color = 'blue';
-                                        if (t === 'PURCHASE') color = 'green';
-                                        if (t === 'WITHDRAWAL') color = 'orange';
-                                        return <Tag color={color}>{t}</Tag>;
-                                    }
-                                },
-                                { title: 'Amount', dataIndex: 'amount', render: a => `SAR ${parseFloat(a).toFixed(2)}` },
-                                { title: 'Balance After', dataIndex: 'newBalance', render: b => b ? `SAR ${parseFloat(b).toFixed(2)}` : '-' }
-                            ]}
-                        />
+                        <Title level={4}>{selectedStudent.fullName}</Title>
+                        <Text>ID: {selectedStudent.studentId}</Text>
+                        <Table dataSource={studentTransactions} columns={[
+                            { title: 'Time', dataIndex: 'timestamp', render: t => new Date(t).toLocaleString() },
+                            { title: 'Type', dataIndex: 'type' },
+                            { title: 'Amount', dataIndex: 'amount' }
+                        ]} rowKey="id" size="small" pagination={{ pageSize: 5 }} loading={transactionsLoading} />
                     </div>
                 )}
             </Modal>
