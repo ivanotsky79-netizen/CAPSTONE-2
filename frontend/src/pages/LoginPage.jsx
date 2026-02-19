@@ -1,8 +1,10 @@
 import React, { useState } from 'react';
-import { Form, Input, Button, Card, message, Radio } from 'antd';
-import { UserOutlined, LockOutlined, IdcardOutlined } from '@ant-design/icons';
+import { Form, Input, Button, Card, message, Typography, Space } from 'antd';
+import { UserOutlined, LockOutlined, IdcardOutlined, ArrowLeftOutlined, UserAddOutlined } from '@ant-design/icons';
 import { studentService } from '../services/api';
 import './LoginPage.css';
+
+const { Title, Text } = Typography;
 
 const ADMIN_CREDENTIALS = {
     username: 'grpfive',
@@ -11,105 +13,189 @@ const ADMIN_CREDENTIALS = {
 
 export default function LoginPage({ onLogin }) {
     const [loading, setLoading] = useState(false);
-    const [loginRole, setLoginRole] = useState('admin'); // 'admin' or 'student'
+    const [view, setView] = useState('landing'); // 'landing', 'admin', 'student-login', 'student-register'
 
-    const handleLogin = async (values) => {
+    // Admin Login Handler
+    const handleAdminLogin = async (values) => {
         setLoading(true);
-
-        if (loginRole === 'admin') {
-            // Admin Login (Static)
-            setTimeout(() => {
-                if (values.username === ADMIN_CREDENTIALS.username && values.password === ADMIN_CREDENTIALS.password) {
-                    message.success('Admin login successful!');
-                    onLogin('admin');
-                } else {
-                    message.error('Invalid admin credentials');
-                }
-                setLoading(false);
-            }, 500);
-        } else {
-            // Student Login (API)
-            try {
-                const response = await studentService.verifyPasskey(values.studentId, values.passkey);
-                message.success(`Welcome, ${response.data.student.fullName}!`);
-                onLogin('student', response.data.student);
-            } catch (err) {
-                message.error(err.response?.data?.error || 'Invalid Student ID or Passkey');
-            } finally {
-                setLoading(false);
+        setTimeout(() => {
+            if (values.username === ADMIN_CREDENTIALS.username && values.password === ADMIN_CREDENTIALS.password) {
+                message.success('Admin login successful!');
+                onLogin('admin');
+            } else {
+                message.error('Invalid admin credentials');
             }
+            setLoading(false);
+        }, 800);
+    };
+
+    // Student Login Handler
+    const handleStudentLogin = async (values) => {
+        setLoading(true);
+        try {
+            const response = await studentService.verifyPasskey(values.studentId, values.passkey);
+            message.success(`Welcome back, ${response.data.student.fullName}!`);
+            onLogin('student', response.data.student);
+        } catch (err) {
+            message.error(err.response?.data?.error || 'Invalid credentials');
+        } finally {
+            setLoading(false);
         }
     };
 
+    // Student Registration Handler
+    const handleRegister = async (values) => {
+        setLoading(true);
+        try {
+            // Include default balance and structure for new student
+            const studentData = {
+                studentId: values.studentId,
+                fullName: values.fullName,
+                gradeSection: values.gradeSection,
+                passkey: values.passkey,
+                balance: 0,
+                status: 'Active'
+            };
+
+            await studentService.createStudent(studentData);
+            message.success('Registration successful! Please login.');
+            setView('student-login');
+        } catch (err) {
+            message.error(err.response?.data?.error || 'Registration failed. ID might be taken.');
+        } finally {
+            setLoading(false);
+        }
+    };
+
+    // --- LANDING VIEW ---
+    if (view === 'landing') {
+        return (
+            <div className="login-container">
+                <div className="login-box landing-box">
+                    <div className="login-header">
+                        <h1 className="system-name">FUGEN <span className="accent">SmartPay</span></h1>
+                        <p className="system-subtitle">Select Access Portal</p>
+                    </div>
+
+                    <div className="portal-choices">
+                        <Card
+                            className="portal-card admin-choice"
+                            hoverable
+                            onClick={() => setView('admin')}
+                        >
+                            <UserOutlined className="portal-icon" />
+                            <h3>Admin Access</h3>
+                            <p>Manage system, students, and reports</p>
+                        </Card>
+
+                        <Card
+                            className="portal-card student-choice"
+                            hoverable
+                            onClick={() => setView('student-login')}
+                        >
+                            <IdcardOutlined className="portal-icon" />
+                            <h3>Student Portal</h3>
+                            <p>Check balance, history, and register</p>
+                        </Card>
+                    </div>
+
+                    <div className="login-footer">
+                        <p>FUGEN SmartPay © 2026 | Secure Transaction System</p>
+                    </div>
+                </div>
+            </div>
+        );
+    }
+
+    // --- GENERIC WRAPPER FOR FORMS ---
     return (
         <div className="login-container">
             <div className="login-box">
                 <div className="login-header">
                     <h1 className="system-name">FUGEN <span className="accent">SmartPay</span></h1>
-                    <p className="system-subtitle">{loginRole === 'admin' ? 'Admin Dashboard' : 'Student Portal'}</p>
+                    <p className="system-subtitle">
+                        {view === 'admin' ? 'Admin Dashboard' :
+                            view === 'student-register' ? 'Student Registration' : 'Student Login'}
+                    </p>
                 </div>
 
                 <Card className="login-card">
-                    <div style={{ marginBottom: 20, textAlign: 'center' }}>
-                        <Radio.Group
-                            value={loginRole}
-                            onChange={e => setLoginRole(e.target.value)}
-                            buttonStyle="solid"
+                    {/* Back Button */}
+                    <div className="card-nav">
+                        <Button
+                            type="text"
+                            icon={<ArrowLeftOutlined />}
+                            onClick={() => setView('landing')}
                         >
-                            <Radio.Button value="admin">Admin</Radio.Button>
-                            <Radio.Button value="student">Student</Radio.Button>
-                        </Radio.Group>
+                            Back to Home
+                        </Button>
                     </div>
 
-                    <Form
-                        name="login-form"
-                        onFinish={handleLogin}
-                        layout="vertical"
-                        size="large"
-                    >
-                        {loginRole === 'admin' ? (
-                            <>
-                                <Form.Item
-                                    name="username"
-                                    rules={[{ required: true, message: 'Please enter username' }]}
-                                >
-                                    <Input prefix={<UserOutlined />} placeholder="Username" autoFocus />
-                                </Form.Item>
-                                <Form.Item
-                                    name="password"
-                                    rules={[{ required: true, message: 'Please enter password' }]}
-                                >
-                                    <Input.Password prefix={<LockOutlined />} placeholder="Password" />
-                                </Form.Item>
-                            </>
-                        ) : (
-                            <>
-                                <Form.Item
-                                    name="studentId"
-                                    rules={[{ required: true, message: 'Please enter Student ID' }]}
-                                >
-                                    <Input prefix={<IdcardOutlined />} placeholder="Student ID (e.g. 2024-001)" autoFocus />
-                                </Form.Item>
-                                <Form.Item
-                                    name="passkey"
-                                    rules={[{ required: true, message: 'Please enter 4-digit Passkey' }]}
-                                >
-                                    <Input.Password prefix={<LockOutlined />} placeholder="Passkey" maxLength={4} />
-                                </Form.Item>
-                            </>
-                        )}
-
-                        <Form.Item>
+                    {/* ADMIN LOGIN FORM */}
+                    {view === 'admin' && (
+                        <Form onFinish={handleAdminLogin} layout="vertical" size="large">
+                            <Form.Item name="username" rules={[{ required: true, message: 'Required' }]}>
+                                <Input prefix={<UserOutlined />} placeholder="Username" autoFocus />
+                            </Form.Item>
+                            <Form.Item name="password" rules={[{ required: true, message: 'Required' }]}>
+                                <Input.Password prefix={<LockOutlined />} placeholder="Password" />
+                            </Form.Item>
                             <Button type="primary" htmlType="submit" block loading={loading} size="large">
-                                Login to {loginRole === 'admin' ? 'Dashboard' : 'Portal'}
+                                Access Dashboard
                             </Button>
-                        </Form.Item>
-                    </Form>
-                </Card>
+                        </Form>
+                    )}
 
-                <div className="login-footer">
-                    <p>FUGEN SmartPay © 2026 | {loginRole === 'admin' ? 'Secure Admin' : 'Student'} Access</p>
-                </div>
+                    {/* STUDENT LOGIN FORM */}
+                    {view === 'student-login' && (
+                        <Form onFinish={handleStudentLogin} layout="vertical" size="large">
+                            <Form.Item name="studentId" rules={[{ required: true, message: 'Enter Student ID' }]}>
+                                <Input prefix={<IdcardOutlined />} placeholder="Student ID (LRN)" autoFocus />
+                            </Form.Item>
+                            <Form.Item name="passkey" rules={[{ required: true, message: 'Enter 4-digit Passkey' }]}>
+                                <Input.Password prefix={<LockOutlined />} placeholder="Passkey" maxLength={4} />
+                            </Form.Item>
+                            <Button type="primary" htmlType="submit" block loading={loading} size="large">
+                                Login to Portal
+                            </Button>
+
+                            <div className="auth-switch">
+                                <Text type="secondary">New student? </Text>
+                                <Button type="link" onClick={() => setView('student-register')}>Register here</Button>
+                            </div>
+                        </Form>
+                    )}
+
+                    {/* STUDENT REGISTRATION FORM */}
+                    {view === 'student-register' && (
+                        <Form onFinish={handleRegister} layout="vertical" size="large">
+                            <Form.Item name="fullName" rules={[{ required: true, message: 'Enter Full Name' }]}>
+                                <Input prefix={<UserOutlined />} placeholder="Full Name (e.g., Juan Dela Cruz)" autoFocus />
+                            </Form.Item>
+                            <Form.Item name="studentId" rules={[{ required: true, message: 'Enter Student ID' }]}>
+                                <Input prefix={<IdcardOutlined />} placeholder="Student ID (LRN)" />
+                            </Form.Item>
+                            <Form.Item name="gradeSection" rules={[{ required: true, message: 'Enter Grade & Section' }]}>
+                                <Input prefix={<UserAddOutlined />} placeholder="Grade & Section (e.g., Grade 12 - A)" />
+                            </Form.Item>
+                            <Form.Item name="passkey" rules={[
+                                { required: true, message: 'Create a 4-digit Passkey' },
+                                { len: 4, message: 'Must be exactly 4 digits' }
+                            ]}>
+                                <Input.Password prefix={<LockOutlined />} placeholder="Create 4-digit Passkey" maxLength={4} />
+                            </Form.Item>
+
+                            <Button type="primary" htmlType="submit" block loading={loading} size="large">
+                                Create Account
+                            </Button>
+
+                            <div className="auth-switch">
+                                <Text type="secondary">Already registered? </Text>
+                                <Button type="link" onClick={() => setView('student-login')}>Login here</Button>
+                            </div>
+                        </Form>
+                    )}
+                </Card>
             </div>
         </div>
     );
