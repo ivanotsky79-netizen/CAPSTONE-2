@@ -16,5 +16,6 @@ router.get('/students', studentController.getAllStudents);
 router.get('/student/:studentId', studentController.getStudent);
 router.delete('/student/:studentId', studentController.deleteStudent);
 router.post('/verify-passkey', studentController.verifyPasskey);
+router.post('/student/update-passkey', studentController.updatePasskey);
 
 module.exports = router;

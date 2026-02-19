@@ -32,7 +32,7 @@ const AdminDashboard = () => {
         fetchDailyStats();
 
         // Socket connection for real-time updates
-        const socket = io('https://fugen-backend.onrender.com'); // Use your actual backend URL
+        const socket = io('https://0028afc3-f39b-496c-a4a7-0daee7c3afcc-00-28bvg4oui5u20.pike.replit.dev'); // Use your actual backend URL
 
         socket.on('balanceUpdate', (data) => {
             console.log('Real-time balance update:', data);

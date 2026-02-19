@@ -191,3 +191,41 @@ exports.deleteStudent = async (req, res) => {
         res.status(500).json({ status: 'error', message: error.message });
     }
 };
+
+exports.updatePasskey = async (req, res) => {
+    try {
+        const { studentId, currentPasskey, newPasskey } = req.body;
+
+        // Basic Validation
+        if (!newPasskey || newPasskey.length !== 4 || isNaN(newPasskey)) {
+            return res.status(400).json({ status: 'error', message: 'New Passkey must be exactly 4 digits.' });
+        }
+
+        const studentRef = db.collection('students').doc(studentId);
+        const doc = await studentRef.get();
+
+        if (!doc.exists) {
+            return res.status(404).json({ status: 'error', message: 'Student not found' });
+        }
+
+        const student = doc.data();
+
+        // Verify Current Passkey
+        const match = await bcrypt.compare(currentPasskey, student.passkeyHash);
+        if (!match) {
+            return res.status(401).json({ status: 'error', message: 'Current Passkey is incorrect' });
+        }
+
+        // Hash New Passkey (Cost 4)
+        const newHash = await bcrypt.hash(newPasskey, 4);
+
+        await studentRef.update({ passkeyHash: newHash });
+
+        console.log(`[UPDATE_PASSKEY] Success for student: ${studentId}`);
+        res.status(200).json({ status: 'success', message: 'Passkey updated successfully' });
+
+    } catch (error) {
+        console.error("[UPDATE_PASSKEY] Error:", error);
+        res.status(500).json({ status: 'error', message: error.message });
+    }
+};

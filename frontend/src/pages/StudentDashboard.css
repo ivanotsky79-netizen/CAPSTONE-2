@@ -305,3 +305,95 @@
     padding: 20px;
     border-radius: 15px;
 }
+
+/* --- New Features & Dark Mode --- */
+
+/* Chart Section */
+.chart-section {
+    background: white;
+    padding: 20px;
+    border-radius: 20px;
+    margin-bottom: 25px;
+    box-shadow: 0 4px 15px rgba(0, 0, 0, 0.03);
+}
+
+.chart-section h3 {
+    margin: 0 0 15px 0;
+    font-size: 16px;
+    font-weight: 600;
+    color: #333;
+}
+
+/* Dark Mode Theme */
+.student-app-container.dark-mode {
+    background-color: #121212;
+    color: white;
+}
+
+.student-app-container.dark-mode .app-header .greeting,
+.student-app-container.dark-mode .app-header .welcome-back {
+    color: white;
+}
+
+.student-app-container.dark-mode .icon-btn {
+    background-color: #1e1e1e;
+    color: white;
+}
+
+.student-app-container.dark-mode .chart-section,
+.student-app-container.dark-mode .action-btn,
+.student-app-container.dark-mode .history-item {
+    background-color: #1e1e1e;
+    border: 1px solid #333;
+    color: white;
+}
+
+.student-app-container.dark-mode .history-item .item-details .item-title,
+.student-app-container.dark-mode .chart-section h3,
+.student-app-container.dark-mode .action-btn span {
+    color: white;
+}
+
+.student-app-container.dark-mode .history-item .item-details .item-subtitle {
+    color: #aaa;
+}
+
+.student-app-container.dark-mode .bottom-nav {
+    background-color: #1e1e1e;
+    border-top: 1px solid #333;
+}
+
+.student-app-container.dark-mode .nav-item {
+    color: #aaa;
+}
+
+.student-app-container.dark-mode .balance-card.dark-card {
+    background: linear-gradient(135deg, #1A237E 0%, #0D47A1 100%);
+    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.4);
+}
+
+.student-app-container.dark-mode .action-btn.primary {
+    background-color: #3B5ED2;
+    border: none;
+    color: white;
+}
+
+.student-app-container.dark-mode .action-btn.primary span {
+    color: white;
+}
+
+/* Digital ID Modal */
+.digital-id-card {
+    border-radius: 20px;
+    box-shadow: 0 10px 40px rgba(0, 0, 0, 0.2);
+}
+
+/* Settings Modal Tweaks */
+.ant-modal-content {
+    border-radius: 15px;
+    overflow: hidden;
+}
+
+.ant-tabs-nav {
+    margin-bottom: 20px !important;
+}
