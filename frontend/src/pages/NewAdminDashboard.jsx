@@ -8,6 +8,7 @@ import './Windows98Dashboard.css';
 // Admin Dashboard - Windows 98 Style Recreation
 export default function AdminDashboard({ onLogout }) {
     const [view, setView] = useState('users'); // users, transactions, reports, system, logs
+    const [systemViewMode, setSystemViewMode] = useState('logs');
     const [students, setStudents] = useState([]);
     const [loading, setLoading] = useState(false);
     const [searchText, setSearchText] = useState('');
@@ -512,21 +513,47 @@ export default function AdminDashboard({ onLogout }) {
                                 </div>
                             </div>
                             <div className="win98-toolbar">
+                                <button className={`win98-btn ${systemViewMode === 'logs' ? 'active' : ''}`} onClick={() => setSystemViewMode('logs')}>System Logs</button>
+                                <button className={`win98-btn ${systemViewMode === 'debtors' ? 'active' : ''}`} onClick={() => setSystemViewMode('debtors')}>Students with Credit</button>
+                                <div style={{ flex: 1 }}></div>
                                 <button className="win98-btn" onClick={() => setShowWithdrawModal(true)}>Withdraw Cash</button>
                             </div>
                             <div className="win98-table-wrapper">
-                                <table className="win98-table">
-                                    <thead><tr><th>Time</th><th>Type</th><th>Amount</th></tr></thead>
-                                    <tbody>
-                                        {(dailyStats.system?.transactions || []).map((t, i) => (
-                                            <tr key={i}>
-                                                <td>{new Date(t.timestamp).toLocaleTimeString()}</td>
-                                                <td>{t.type}</td>
-                                                <td>SAR {parseFloat(t.amount).toFixed(2)}</td>
-                                            </tr>
-                                        ))}
-                                    </tbody>
-                                </table>
+                                {systemViewMode === 'logs' ? (
+                                    <table className="win98-table">
+                                        <thead><tr><th>Time</th><th>Type</th><th>Amount</th></tr></thead>
+                                        <tbody>
+                                            {(dailyStats.system?.transactions || []).map((t, i) => (
+                                                <tr key={i}>
+                                                    <td>{new Date(t.timestamp).toLocaleTimeString()}</td>
+                                                    <td>{t.type}</td>
+                                                    <td>SAR {parseFloat(t.amount).toFixed(2)}</td>
+                                                </tr>
+                                            ))}
+                                        </tbody>
+                                    </table>
+                                ) : (
+                                    <table className="win98-table">
+                                        <thead><tr><th>ID</th><th>Name</th><th>Grade</th><th>Debt Amount</th><th>Action</th></tr></thead>
+                                        <tbody>
+                                            {students.filter(s => parseFloat(s.balance) < 0).length === 0 ? (
+                                                <tr><td colSpan={5} style={{ textAlign: 'center' }}>No students with credit found.</td></tr>
+                                            ) : (
+                                                students.filter(s => parseFloat(s.balance) < 0).map(s => (
+                                                    <tr key={s.studentId}>
+                                                        <td>{s.studentId}</td>
+                                                        <td style={{ fontWeight: 'bold' }}>{s.fullName}</td>
+                                                        <td>{s.gradeSection}</td>
+                                                        <td style={{ color: 'red', fontWeight: 'bold' }}>SAR {Math.abs(parseFloat(s.balance)).toFixed(2)}</td>
+                                                        <td>
+                                                            <button className="win98-btn" style={{ padding: '2px 5px' }} onClick={() => { setSelectedStudent(s); setShowTopUpModal(true); }}>Pay Debt</button>
+                                                        </td>
+                                                    </tr>
+                                                ))
+                                            )}
+                                        </tbody>
+                                    </table>
+                                )}
                             </div>
                         </div>
                     </div>
