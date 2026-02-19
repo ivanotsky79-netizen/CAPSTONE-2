@@ -240,12 +240,12 @@ export default function StudentDashboard({ user, onLogout }) {
             {/* Digital ID Modal */}
             <Modal
                 title={null}
-                visible={qrModalVisible}
+                open={qrModalVisible}
                 onCancel={() => setQrModalVisible(false)}
                 footer={null}
                 centered
                 className="digital-id-modal"
-                bodyStyle={{ padding: 0, borderRadius: 20, overflow: 'hidden' }}
+                styles={{ body: { padding: 0, borderRadius: 20, overflow: 'hidden' } }}
             >
                 <div className="digital-id-card" style={{ background: 'linear-gradient(135deg, #1A237E 0%, #3949AB 100%)', color: 'white', padding: 30, textAlign: 'center' }}>
                     <div style={{ marginBottom: 20 }}>
@@ -278,50 +278,61 @@ export default function StudentDashboard({ user, onLogout }) {
             {/* Settings Modal */}
             <Modal
                 title="Settings"
-                visible={settingsVisible}
+                open={settingsVisible}
                 onCancel={() => setSettingsVisible(false)}
                 footer={null}
             >
-                <Tabs defaultActiveKey="1">
-                    <TabPane tab={<span><UserOutlined />Profile</span>} key="1">
-                        <List>
-                            <List.Item>
-                                <List.Item.Meta title="Full Name" description={studentData.fullName} />
-                            </List.Item>
-                            <List.Item>
-                                <List.Item.Meta title="Student ID" description={studentData.studentId} />
-                            </List.Item>
-                            <List.Item>
-                                <List.Item.Meta title="Grade & Section" description={studentData.gradeSection} />
-                            </List.Item>
-                        </List>
+                <Tabs defaultActiveKey="1" items={[
+                    {
+                        key: '1',
+                        label: <span><UserOutlined />Profile</span>,
+                        children: (
+                            <>
+                                <List>
+                                    <List.Item>
+                                        <List.Item.Meta title="Full Name" description={studentData.fullName} />
+                                    </List.Item>
+                                    <List.Item>
+                                        <List.Item.Meta title="Student ID" description={studentData.studentId} />
+                                    </List.Item>
+                                    <List.Item>
+                                        <List.Item.Meta title="Grade & Section" description={studentData.gradeSection} />
+                                    </List.Item>
+                                </List>
 
-                        <div style={{ marginTop: 20, display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '15px 0', borderTop: '1px solid #eee' }}>
-                            <span><BulbOutlined /> Dark Mode</span>
-                            <Switch checked={darkMode} onChange={(val) => { console.log('Dark Mode: ', val); setDarkMode(val); }} />
-                        </div>
-                    </TabPane>
-
-                    <TabPane tab={<span><LockOutlined />Security</span>} key="2">
-                        <div style={{ marginBottom: 15 }}>
-                            <p>Change your 4-digit Passkey</p>
-                        </div>
-                        <Form form={passkeyForm} layout="vertical" onFinish={handleUpdatePasskey}>
-                            <Form.Item name="currentPasskey" label="Current Passkey" rules={[{ required: true, len: 4 }]}>
-                                <Input.Password maxLength={4} placeholder="Enter current PIN" />
-                            </Form.Item>
-                            <Form.Item name="newPasskey" label="New Passkey" rules={[{ required: true, len: 4, message: 'Must be 4 digits', pattern: /^[0-9]+$/ }]}>
-                                <Input.Password maxLength={4} placeholder="Enter new 4-digit PIN" />
-                            </Form.Item>
-                            <Form.Item name="confirmPasskey" label="Confirm New Passkey" rules={[{ required: true, len: 4 }]}>
-                                <Input.Password maxLength={4} placeholder="Confirm new PIN" />
-                            </Form.Item>
-                            <Button type="primary" htmlType="submit" block style={{ background: '#3B5ED2' }}>
-                                Update Passkey
-                            </Button>
-                        </Form>
-                    </TabPane>
-                </Tabs>
+                                <div style={{ marginTop: 20, display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '15px 0', borderTop: '1px solid #eee' }}>
+                                    <span><BulbOutlined /> Dark Mode</span>
+                                    <Switch checked={darkMode} onChange={(val) => { console.log('Dark Mode: ', val); setDarkMode(val); }} />
+                                </div>
+                            </>
+                        )
+                    },
+                    {
+                        key: '2',
+                        label: <span><LockOutlined />Security</span>,
+                        children: (
+                            <>
+                                <div style={{ marginBottom: 15 }}>
+                                    <p>Change your 4-digit Passkey</p>
+                                </div>
+                                <Form form={passkeyForm} layout="vertical" onFinish={handleUpdatePasskey}>
+                                    <Form.Item name="currentPasskey" label="Current Passkey" rules={[{ required: true, len: 4 }]}>
+                                        <Input.Password maxLength={4} placeholder="Enter current PIN" />
+                                    </Form.Item>
+                                    <Form.Item name="newPasskey" label="New Passkey" rules={[{ required: true, len: 4, message: 'Must be 4 digits', pattern: /^[0-9]+$/ }]}>
+                                        <Input.Password maxLength={4} placeholder="Enter new 4-digit PIN" />
+                                    </Form.Item>
+                                    <Form.Item name="confirmPasskey" label="Confirm New Passkey" rules={[{ required: true, len: 4 }]}>
+                                        <Input.Password maxLength={4} placeholder="Confirm new PIN" />
+                                    </Form.Item>
+                                    <Button type="primary" htmlType="submit" block style={{ background: '#3B5ED2' }}>
+                                        Update Passkey
+                                    </Button>
+                                </Form>
+                            </>
+                        )
+                    }
+                ]} />
             </Modal>
         </div>
     );
