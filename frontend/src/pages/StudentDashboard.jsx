@@ -119,7 +119,7 @@ export default function StudentDashboard({ user, onLogout }) {
                     </div>
                 </div>
                 <div style={{ display: 'flex', gap: 10 }}>
-                    <div className="icon-btn" onClick={() => setSettingsVisible(true)}>
+                    <div className="icon-btn" onClick={() => { console.log('Opening Settings'); setSettingsVisible(true); }}>
                         <SettingOutlined className="notification-icon" />
                     </div>
                     {/* <Badge dot color="red">
@@ -154,7 +154,7 @@ export default function StudentDashboard({ user, onLogout }) {
 
             {/* Action Buttons */}
             <div className="action-grid">
-                <button className="action-btn primary" onClick={() => setQrModalVisible(true)}>
+                <button className="action-btn primary" onClick={() => { console.log('Opening QR Modal'); setQrModalVisible(true); }}>
                     <div className="btn-icon"><QrcodeOutlined /></div>
                     <span>Show ID</span>
                 </button>
@@ -298,7 +298,7 @@ export default function StudentDashboard({ user, onLogout }) {
 
                         <div style={{ marginTop: 20, display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '15px 0', borderTop: '1px solid #eee' }}>
                             <span><BulbOutlined /> Dark Mode</span>
-                            <Switch checked={darkMode} onChange={setDarkMode} />
+                            <Switch checked={darkMode} onChange={(val) => { console.log('Dark Mode: ', val); setDarkMode(val); }} />
                         </div>
                     </TabPane>
 
