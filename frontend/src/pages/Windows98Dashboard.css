@@ -1,0 +1,282 @@
+/* Windows 98 / Classic Theme CSS */
+@import url('https://fonts.googleapis.com/css2?family=VT323&display=swap');
+/* Optional retro font */
+
+body {
+    background-color: #008080;
+    /* Teal Desktop */
+    font-family: 'Segoe UI', Tahoma, sans-serif;
+    /* Modern fallback, or 'MS Sans Serif' */
+    color: black;
+    margin: 0;
+    overflow: hidden;
+}
+
+/* Layout Container */
+.win98-container {
+    display: flex;
+    height: 100vh;
+    width: 100vw;
+}
+
+/* Sidebar (Start Menu Style or Explorer Tree) */
+.win98-sidebar {
+    width: 200px;
+    background-color: #c0c0c0;
+    border-right: 2px solid #fff;
+    border-right-color: #404040 #fff #fff #404040;
+    /* 3D Bevel Logic */
+    border: 2px outset #fff;
+    display: flex;
+    flex-direction: column;
+    padding: 2px;
+}
+
+.win98-sidebar-header {
+    background: linear-gradient(90deg, #000080, #1084d0);
+    color: white;
+    padding: 5px;
+    font-weight: bold;
+    display: flex;
+    align-items: center;
+    gap: 5px;
+    margin-bottom: 5px;
+}
+
+.win98-menu-item {
+    padding: 8px 10px;
+    margin: 2px;
+    cursor: pointer;
+    border: 1px dotted transparent;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    color: black;
+    font-size: 14px;
+}
+
+.win98-menu-item:hover {
+    background-color: #000080;
+    color: white;
+}
+
+.win98-menu-item.active {
+    background-color: #000080;
+    color: white;
+    border: 1px dotted #fff;
+}
+
+/* Main Content Area */
+.win98-main {
+    flex: 1;
+    background-color: #008080;
+    /* Teal Background */
+    padding: 10px;
+    display: flex;
+    flex-direction: column;
+    overflow-y: auto;
+    position: relative;
+    /* For stacking windows */
+}
+
+/* Windows / Boxes */
+.win98-window {
+    background-color: #c0c0c0;
+    border: 2px solid;
+    border-color: #fff #404040 #404040 #fff;
+    /* Classic 3D Outset */
+    box-shadow: 1px 1px 0px #000;
+    margin-bottom: 20px;
+    display: flex;
+    flex-direction: column;
+}
+
+.win98-title-bar {
+    background: linear-gradient(90deg, #000080, #1084d0);
+    color: white;
+    padding: 3px 5px;
+    font-weight: bold;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    font-size: 14px;
+    height: 20px;
+}
+
+.win98-title-controls {
+    display: flex;
+    gap: 2px;
+}
+
+.win98-control-btn {
+    width: 16px;
+    height: 14px;
+    background: #c0c0c0;
+    border: 1px outset #fff;
+    font-size: 10px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: black;
+    font-weight: bold;
+    cursor: pointer;
+    line-height: 1;
+    padding-bottom: 2px;
+}
+
+.win98-control-btn:active {
+    border-style: inset;
+    padding-top: 2px;
+    padding-bottom: 0;
+}
+
+.win98-content {
+    padding: 10px;
+}
+
+/* Stats Row */
+.win98-stats-row {
+    display: flex;
+    gap: 10px;
+    margin-bottom: 10px;
+}
+
+.win98-card {
+    flex: 1;
+    background: #fff;
+    border: 2px inset #fff;
+    border-color: #808080 #fff #fff #808080;
+    padding: 10px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+}
+
+.win98-card-label {
+    font-size: 12px;
+    color: #444;
+}
+
+.win98-card-value {
+    font-size: 20px;
+    font-weight: bold;
+    color: black;
+}
+
+/* Toolbar */
+.win98-toolbar {
+    display: flex;
+    gap: 5px;
+    background: #c0c0c0;
+    border-bottom: 1px solid #808080;
+    border-top: 1px solid #fff;
+    padding: 5px;
+    align-items: center;
+    margin-bottom: 10px;
+}
+
+.win98-btn {
+    background: #c0c0c0;
+    border: 2px outset #fff;
+    border-color: #fff #404040 #404040 #fff;
+    padding: 4px 10px;
+    cursor: pointer;
+    color: black;
+    font-size: 13px;
+    display: flex;
+    align-items: center;
+    gap: 5px;
+}
+
+.win98-btn:active {
+    border: 2px inset #fff;
+    border-color: #404040 #fff #fff #404040;
+    padding-top: 5px;
+    /* Shift text */
+    padding-bottom: 3px;
+}
+
+.win98-input {
+    border: 2px inset #fff;
+    border-color: #404040 #e0e0e0 #e0e0e0 #404040;
+    padding: 3px 5px;
+    background: white;
+    font-family: inherit;
+    font-size: 13px;
+}
+
+/* Table */
+.win98-table-wrapper {
+    background: white;
+    border: 2px inset #fff;
+    border-color: #404040 #fff #fff #404040;
+    overflow: auto;
+    height: 100%;
+    /* Fill remaining space */
+}
+
+.win98-table {
+    width: 100%;
+    border-collapse: collapse;
+}
+
+.win98-table th {
+    background: #c0c0c0;
+    border: 1px outset #fff;
+    border-color: #fff #404040 #404040 #fff;
+    padding: 5px;
+    text-align: left;
+    font-weight: normal;
+    color: black;
+    font-size: 13px;
+}
+
+.win98-table td {
+    border: 1px dotted #ccc;
+    padding: 2px 5px;
+    font-size: 13px;
+    color: black;
+}
+
+.win98-table tr:hover {
+    background-color: #000080;
+    color: white;
+}
+
+.win98-table tr:hover td {
+    color: white !important;
+}
+
+/* Modals */
+.win98-modal-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: rgba(0, 0, 0, 0.5);
+    /* Or check-board pattern */
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    z-index: 9999;
+}
+
+.win98-modal {
+    width: 400px;
+    background: #c0c0c0;
+    border: 2px outset #fff;
+    border-color: #fff #404040 #404040 #fff;
+    box-shadow: 2px 2px 10px rgba(0, 0, 0, 0.5);
+    display: flex;
+    flex-direction: column;
+}
+
+/* Graph Bars */
+.win98-bar {
+    background: #000080;
+    border: 1px solid #fff;
+    border-right-color: #404040;
+    border-bottom-color: #404040;
+}

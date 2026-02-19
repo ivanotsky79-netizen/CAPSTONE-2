@@ -3,11 +3,11 @@ import { message } from 'antd';
 import { studentService, transactionService } from '../services/api';
 import { io } from 'socket.io-client';
 import QRCode from 'qrcode';
-import './VisualBasicDashboard.css';
+import './Windows98Dashboard.css';
 
-// Admin Dashboard - Visual Basic Look Recreation
+// Admin Dashboard - Windows 98 Style Recreation
 export default function AdminDashboard({ onLogout }) {
-    const [view, setView] = useState('users'); // users, transactions, reports, system
+    const [view, setView] = useState('users'); // users, transactions, reports, system, logs
     const [students, setStudents] = useState([]);
     const [loading, setLoading] = useState(false);
     const [searchText, setSearchText] = useState('');
@@ -25,6 +25,10 @@ export default function AdminDashboard({ onLogout }) {
     const [showQrModal, setShowQrModal] = useState(false);
     const [showWithdrawModal, setShowWithdrawModal] = useState(false);
     const [showProfileModal, setShowProfileModal] = useState(false);
+
+    // Import/Export State
+    const [isImporting, setIsImporting] = useState(false);
+    const [importProgress, setImportProgress] = useState({ current: 0, total: 0 });
 
     const [selectedStudent, setSelectedStudent] = useState(null);
     const [userTransactions, setUserTransactions] = useState([]);
@@ -102,18 +106,80 @@ export default function AdminDashboard({ onLogout }) {
 
     const fetchUserTransactions = async (id) => {
         try {
-            const res = await transactionService.getTransactions(id); // Ensure this API call exists or mock it
-            // Fallback: filter from dailyStats if full history not available, but ideally we fetch from backend
+            const res = await transactionService.getTransactions(id);
             if (res.data && res.data.data) {
                 setUserTransactions(res.data.data);
             } else {
-                // If endpoint doesn't return list, fallback empty
                 setUserTransactions([]);
             }
         } catch (e) {
-            // Mock data for demo if API fails
             setUserTransactions([]);
         }
+    };
+
+    // --- Bulk Import Logic ---
+    const handleFileUpload = (e) => {
+        const file = e.target.files[0];
+        if (!file) return;
+
+        const reader = new FileReader();
+        reader.onload = async (evt) => {
+            const text = evt.target.result;
+            const lines = text.split('\n');
+            const data = [];
+            // Skip header if present (Assuming: Name, Grade, LRN)
+            for (let i = 1; i < lines.length; i++) {
+                const cols = lines[i].split(',');
+                if (cols.length >= 3) {
+                    const name = cols[0].trim();
+                    const grade = cols[1].trim();
+                    const lrn = cols[2].trim();
+                    if (name && lrn) data.push({ fullName: name, gradeSection: grade, lrn });
+                }
+            }
+
+            if (data.length === 0) { message.error('No valid data found in CSV'); return; }
+            if (!confirm(`Import ${data.length} students?`)) return;
+
+            setIsImporting(true);
+            setImportProgress({ current: 0, total: data.length });
+
+            let successCount = 0;
+            for (let i = 0; i < data.length; i++) {
+                try {
+                    const item = data[i];
+                    // Auto-passkey logic
+                    const passkey = item.lrn.length >= 12 ? (item.lrn[2] + item.lrn[5] + item.lrn[8] + item.lrn[11]) : '1234';
+                    await studentService.createStudent({ ...item, passkey });
+                    successCount++;
+                } catch (err) { console.error('Failed to import', data[i], err); }
+                setImportProgress({ current: i + 1, total: data.length });
+            }
+
+            setIsImporting(false);
+            message.success(`Imported ${successCount} of ${data.length} students`);
+            loadData();
+        };
+        reader.readAsText(file);
+    };
+
+    // --- Export Logic ---
+    const handleExportData = () => {
+        // Export current daily report or transactions
+        const data = reportData?.canteen?.transactions || dailyStats.canteen?.transactions || [];
+        if (data.length === 0) { message.warning('No data to export'); return; }
+
+        let csv = 'Date,Time,Student,Type,Amount\n';
+        data.forEach(t => {
+            csv += `${new Date(t.timestamp).toLocaleDateString()},${new Date(t.timestamp).toLocaleTimeString()},"${t.studentName}",${t.type},${t.amount}\n`;
+        });
+
+        const blob = new Blob([csv], { type: 'text/csv' });
+        const url = window.URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `Transactions_${new Date().toISOString().split('T')[0]}.csv`;
+        a.click();
     };
 
     // Actions
@@ -133,7 +199,6 @@ export default function AdminDashboard({ onLogout }) {
             await transactionService.topUp(selectedStudent.studentId, topUpForm.amount);
             message.success('Success');
             setShowTopUpModal(false); setTopUpForm({ amount: '', passkey: '' }); loadData();
-            // Refresh profile if open
             if (showProfileModal) fetchUserTransactions(selectedStudent.studentId);
         } catch (e) { message.error('Failed'); }
     };
@@ -174,7 +239,7 @@ export default function AdminDashboard({ onLogout }) {
 
     const handleOpenProfile = (student) => {
         setSelectedStudent(student);
-        setUserTransactions([]); // Reset
+        setUserTransactions([]);
         fetchUserTransactions(student.studentId);
         setShowProfileModal(true);
     };
@@ -189,328 +254,373 @@ export default function AdminDashboard({ onLogout }) {
         }
     };
 
+    // Helper for rendering Title Bar controls
+    const WindowControls = () => (
+        <div className="win98-title-controls">
+            <div className="win98-control-btn">_</div>
+            <div className="win98-control-btn">□</div>
+            <div className="win98-control-btn">×</div>
+        </div>
+    );
+
     // Rendering Helpers
     const filtered = students.filter(s => s.fullName.toLowerCase().includes(searchText.toLowerCase()) || s.studentId.includes(searchText));
 
     return (
-        <div className="vb-container">
-            {/* Sidebar */}
-            <div className="vb-sidebar">
-                <div className="vb-logo-area">
-                    <div className="vb-logo-text">FUGEN<br />SmartPay</div>
+        <div className="win98-container">
+            {/* Sidebar (Start Menu Style) */}
+            <div className="win98-sidebar">
+                <div className="win98-sidebar-header">
+                    <span>Menu</span>
                 </div>
-                <div className="vb-menu">
-                    <div className={`vb-menu-item ${view === 'users' ? 'active' : ''}`} onClick={() => setView('users')}>
+                <div className="win98-menu">
+                    <div className={`win98-menu-item ${view === 'users' ? 'active' : ''}`} onClick={() => setView('users')}>
                         <span>👤</span> Users
                     </div>
-                    <div className={`vb-menu-item ${view === 'transactions' ? 'active' : ''}`} onClick={() => setView('transactions')}>
-                        <span>🕒</span> Transaction History
+                    <div className={`win98-menu-item ${view === 'transactions' ? 'active' : ''}`} onClick={() => setView('transactions')}>
+                        <span>🕒</span> History
                     </div>
-                    <div className={`vb-menu-item ${view === 'reports' ? 'active' : ''}`} onClick={() => { setView('reports'); fetchReport(); }}>
+                    <div className={`win98-menu-item ${view === 'reports' ? 'active' : ''}`} onClick={() => { setView('reports'); fetchReport(); }}>
                         <span>📄</span> Reports
                     </div>
-                    <div className={`vb-menu-item ${view === 'system' ? 'active' : ''}`} onClick={() => setView('system')}>
-                        <span>⚙️</span> System Data
+                    <div className={`win98-menu-item ${view === 'system' ? 'active' : ''}`} onClick={() => setView('system')}>
+                        <span>⚙️</span> System
+                    </div>
+                    <div className={`win98-menu-item ${view === 'logs' ? 'active' : ''}`} onClick={() => setView('logs')}>
+                        <span>🛡️</span> Logs
                     </div>
                 </div>
-                <div className="vb-menu-item" onClick={onLogout} style={{ marginTop: 'auto', borderTop: '1px solid #ffffff55' }}>
+                <div className="win98-menu-item" onClick={onLogout} style={{ marginTop: 'auto' }}>
                     <span>🚪</span> Logout
                 </div>
             </div>
 
-            {/* Main Content */}
-            <div className="vb-main">
-                <div className="vb-header">
-                    <div className="vb-header-title">Admin Dashboard</div>
-                    <div className="vb-date">{new Date().toLocaleDateString()}</div>
-                </div>
+            {/* Main Content (Desktop) */}
+            <div className="win98-main">
 
                 {view === 'users' && (
-                    <>
-                        <div className="vb-page-title">Student Management</div>
-
-                        <div className="vb-stats-row">
-                            <div className="vb-card">
-                                <div className="vb-card-label">Total Students</div>
-                                <div className="vb-card-value">{students.length}</div>
-                            </div>
-                            <div className="vb-card">
-                                <div className="vb-card-label">Total Balance</div>
-                                <div className="vb-card-value">SAR {totalBal.toFixed(2)}</div>
-                            </div>
-                            <div className="vb-card">
-                                <div className="vb-card-label">Total Credit (Debt)</div>
-                                <div className="vb-card-value">SAR {totalCredit.toFixed(2)}</div>
-                            </div>
+                    <div className="win98-window" style={{ flex: 1 }}>
+                        <div className="win98-title-bar">
+                            <span>Student Management</span>
+                            <WindowControls />
                         </div>
+                        <div className="win98-content" style={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
 
-                        <div className="vb-toolbar">
-                            <input className="vb-search" placeholder="Search by name, ID, or grade..." value={searchText} onChange={e => setSearchText(e.target.value)} />
-                            <button className="vb-btn vb-btn-blue" onClick={() => setShowAddModal(true)}>+ Add Student</button>
-                            <button className="vb-btn vb-btn-grey" onClick={handleDeleteSelected}>Remove Selected ({selectedIds.size})</button>
-                        </div>
+                            <div className="win98-stats-row">
+                                <div className="win98-card">
+                                    <div className="win98-card-label">Total Students</div>
+                                    <div className="win98-card-value">{students.length}</div>
+                                </div>
+                                <div className="win98-card">
+                                    <div className="win98-card-label">Total Balance</div>
+                                    <div className="win98-card-value">SAR {totalBal.toFixed(2)}</div>
+                                </div>
+                                <div className="win98-card">
+                                    <div className="win98-card-label">Total Debt</div>
+                                    <div className="win98-card-value">{totalCredit.toFixed(2)}</div>
+                                </div>
+                            </div>
 
-                        <div className="vb-table-container">
-                            <table className="vb-table">
-                                <thead>
-                                    <tr>
-                                        <th style={{ width: 30 }}><input type="checkbox" onChange={handleSelectAll} checked={selectedIds.size === students.length && students.length > 0} /></th>
-                                        <th>Student ID</th>
-                                        <th>Full Name</th>
-                                        <th>Grade & Section</th>
-                                        <th>Balance</th>
-                                        <th>Actions</th>
-                                    </tr>
-                                </thead>
-                                <tbody>
-                                    {filtered.map(s => (
-                                        <tr key={s.studentId} style={{ backgroundColor: selectedIds.has(s.studentId) ? '#e6f7ff' : 'white' }}>
-                                            <td><input type="checkbox" checked={selectedIds.has(s.studentId)} onChange={() => handleToggleSelect(s.studentId)} /></td>
-                                            <td>{s.studentId}</td>
-                                            <td>
-                                                <span
-                                                    onClick={() => handleOpenProfile(s)}
-                                                    style={{ color: '#000080', textDecoration: 'underline', cursor: 'pointer', fontWeight: 'bold' }}
-                                                >
-                                                    {s.fullName}
-                                                </span>
-                                            </td>
-                                            <td>{s.gradeSection}</td>
-                                            <td style={{ color: parseFloat(s.balance) < 0 ? 'red' : 'green', fontWeight: 'bold' }}>SAR {parseFloat(s.balance).toFixed(2)}</td>
-                                            <td>
-                                                <button className="vb-action-btn" onClick={() => { setSelectedStudent(s); setShowQrModal(true); }}>QR Code</button>
-                                                <button className="vb-action-btn" onClick={() => { setSelectedStudent(s); setShowTopUpModal(true); }}>Top Up</button>
-                                            </td>
+                            <div className="win98-toolbar">
+                                <input className="win98-input" placeholder="Search..." value={searchText} onChange={e => setSearchText(e.target.value)} />
+                                <button className="win98-btn" onClick={() => setShowAddModal(true)}>+ Add</button>
+                                <label className="win98-btn">
+                                    📂 Import CSV
+                                    <input type="file" accept=".csv" style={{ display: 'none' }} onChange={handleFileUpload} />
+                                </label>
+                                <button className="win98-btn" onClick={handleDeleteSelected}>Delete ({selectedIds.size})</button>
+                            </div>
+
+                            <div className="win98-table-wrapper">
+                                <table className="win98-table">
+                                    <thead>
+                                        <tr>
+                                            <th style={{ width: 30 }}><input type="checkbox" onChange={handleSelectAll} checked={selectedIds.size === students.length && students.length > 0} /></th>
+                                            <th>ID</th>
+                                            <th>Name</th>
+                                            <th>Grade</th>
+                                            <th>Balance</th>
+                                            <th>Actions</th>
                                         </tr>
-                                    ))}
-                                </tbody>
-                            </table>
+                                    </thead>
+                                    <tbody>
+                                        {filtered.map(s => (
+                                            <tr key={s.studentId}>
+                                                <td><input type="checkbox" checked={selectedIds.has(s.studentId)} onChange={() => handleToggleSelect(s.studentId)} /></td>
+                                                <td>{s.studentId}</td>
+                                                <td>
+                                                    <span
+                                                        onClick={() => handleOpenProfile(s)}
+                                                        style={{ textDecoration: 'underline', cursor: 'pointer', fontWeight: 'bold' }}
+                                                    >
+                                                        {s.fullName}
+                                                    </span>
+                                                </td>
+                                                <td>{s.gradeSection}</td>
+                                                <td style={{ color: parseFloat(s.balance) < 0 ? 'red' : 'green' }}>SAR {parseFloat(s.balance).toFixed(2)}</td>
+                                                <td>
+                                                    <button className="win98-btn" style={{ padding: '2px 5px', fontSize: 11 }} onClick={() => { setSelectedStudent(s); setShowQrModal(true); }}>QR</button>
+                                                    <button className="win98-btn" style={{ padding: '2px 5px', fontSize: 11 }} onClick={() => { setSelectedStudent(s); setShowTopUpModal(true); }}>TopUp</button>
+                                                </td>
+                                            </tr>
+                                        ))}
+                                    </tbody>
+                                </table>
+                            </div>
                         </div>
-                    </>
+                    </div>
                 )}
 
                 {view === 'transactions' && (
-                    <>
-                        <div className="vb-page-title">Transaction History</div>
-                        <div style={{ background: '#f0f0f0', padding: 20, marginBottom: 20, border: '1px solid #ccc', borderRadius: 10 }}>
-                            <h3 style={{ marginTop: 0, color: '#333' }}>Hourly Sales Trend (Today)</h3>
-                            <div style={{ display: 'flex', alignItems: 'flex-end', height: 150, gap: 10, paddingBottom: 20, borderBottom: '1px solid #999' }}>
-                                {graphData.map(d => (
-                                    <div key={d.hour} style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'flex-end', height: '100%' }}>
-                                        <div style={{ width: '60%', background: '#000080', height: `${Math.min(d.total * 2, 120)}px`, minHeight: d.total > 0 ? 2 : 0, transition: 'height 0.3s' }}></div>
-                                        <div style={{ fontSize: 10, marginTop: 5 }}>{d.hour}:00</div>
-                                    </div>
-                                ))}
+                    <div className="win98-window" style={{ flex: 1 }}>
+                        <div className="win98-title-bar"><span>Transaction History</span><WindowControls /></div>
+                        <div className="win98-content" style={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
+
+                            <div style={{ border: '2px inset #fff', background: '#ccc', padding: 5, marginBottom: 10 }}>
+                                <h3 style={{ marginTop: 0, fontSize: 14 }} color="black">Hourly Sales</h3>
+                                <div style={{ display: 'flex', alignItems: 'flex-end', height: 100, gap: 5 }}>
+                                    {graphData.map(d => (
+                                        <div key={d.hour} style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'flex-end', height: '100%' }}>
+                                            <div className="win98-bar" style={{ width: '60%', height: `${Math.min(d.total * 2, 80)}px` }}></div>
+                                            <div style={{ fontSize: 10 }}>{d.hour}</div>
+                                        </div>
+                                    ))}
+                                </div>
+                            </div>
+
+                            <div className="win98-table-wrapper">
+                                <table className="win98-table">
+                                    <thead><tr><th>Time</th><th>Student</th><th>Type</th><th>Amount</th><th>Method</th></tr></thead>
+                                    <tbody>
+                                        {(dailyStats.canteen?.transactions || []).map((t, i) => (
+                                            <tr key={i}>
+                                                <td>{new Date(t.timestamp).toLocaleTimeString()}</td>
+                                                <td>{t.studentName}</td>
+                                                <td>{t.type}</td>
+                                                <td>SAR {parseFloat(t.amount).toFixed(2)}</td>
+                                                <td>{t.cashAmount > 0 ? 'Cash' : ''}{t.creditAmount > 0 ? 'Credit' : ''}</td>
+                                            </tr>
+                                        ))}
+                                    </tbody>
+                                </table>
                             </div>
                         </div>
-                        <div className="vb-table-container">
-                            <table className="vb-table">
-                                <thead><tr><th>Time</th><th>Student</th><th>Type</th><th>Amount</th><th>Method</th></tr></thead>
-                                <tbody>
-                                    {(dailyStats.canteen?.transactions || []).map((t, i) => (
-                                        <tr key={i}>
-                                            <td>{new Date(t.timestamp).toLocaleTimeString()}</td>
-                                            <td>{t.studentName}</td>
-                                            <td>{t.type}</td>
-                                            <td>SAR {parseFloat(t.amount).toFixed(2)}</td>
-                                            <td>{t.cashAmount > 0 ? 'Cash' : ''}{t.creditAmount > 0 ? 'Credit' : ''}</td>
-                                        </tr>
-                                    ))}
-                                </tbody>
-                            </table>
-                        </div>
-                    </>
+                    </div>
                 )}
 
                 {view === 'reports' && (
-                    <>
-                        <div className="vb-page-title">Daily Financial Reports</div>
-                        <div className="vb-toolbar">
-                            <input type="date" className="vb-search" value={reportDate} onChange={e => setReportDate(e.target.value)} />
-                            <button className="vb-btn vb-btn-blue" onClick={fetchReport}>Load Report</button>
+                    <div className="win98-window" style={{ flex: 1 }}>
+                        <div className="win98-title-bar"><span>Daily Financial Reports</span><WindowControls /></div>
+                        <div className="win98-content" style={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
+                            <div className="win98-toolbar">
+                                <input type="date" className="win98-input" value={reportDate} onChange={e => setReportDate(e.target.value)} />
+                                <button className="win98-btn" onClick={fetchReport}>Load Report</button>
+                                <button className="win98-btn" onClick={handleExportData}>Export Excel</button>
+                            </div>
+                            {reportData && (
+                                <>
+                                    <div className="win98-stats-row">
+                                        <div className="win98-card">
+                                            <div className="win98-card-label">Total Sales</div>
+                                            <div className="win98-card-value">SAR {reportData.canteen?.totalSales?.toFixed(2)}</div>
+                                        </div>
+                                        <div className="win98-card">
+                                            <div className="win98-card-label">Cash</div>
+                                            <div className="win98-card-value">SAR {reportData.canteen?.cashCollected?.toFixed(2)}</div>
+                                        </div>
+                                        <div className="win98-card">
+                                            <div className="win98-card-label">Credit</div>
+                                            <div className="win98-card-value">SAR {reportData.canteen?.totalCredit?.toFixed(2)}</div>
+                                        </div>
+                                    </div>
+                                    <div className="win98-table-wrapper">
+                                        <table className="win98-table">
+                                            <thead><tr><th>Time</th><th>Student</th><th>Type</th><th>Amount</th></tr></thead>
+                                            <tbody>
+                                                {(reportData.canteen?.transactions || []).map((t, i) => (
+                                                    <tr key={i}>
+                                                        <td>{new Date(t.timestamp).toLocaleTimeString()}</td>
+                                                        <td>{t.studentName}</td>
+                                                        <td>{t.type}</td>
+                                                        <td>SAR {parseFloat(t.amount).toFixed(2)}</td>
+                                                    </tr>
+                                                ))}
+                                            </tbody>
+                                        </table>
+                                    </div>
+                                </>
+                            )}
                         </div>
-                        {reportData && (
-                            <>
-                                <div className="vb-stats-row">
-                                    <div className="vb-card">
-                                        <div className="vb-card-label">Total Sales</div>
-                                        <div className="vb-card-value" style={{ color: '#000080' }}>SAR {reportData.canteen?.totalSales?.toFixed(2)}</div>
-                                    </div>
-                                    <div className="vb-card">
-                                        <div className="vb-card-label">Cash Collected</div>
-                                        <div className="vb-card-value" style={{ color: 'green' }}>SAR {reportData.canteen?.cashCollected?.toFixed(2)}</div>
-                                    </div>
-                                    <div className="vb-card">
-                                        <div className="vb-card-label">Credit Issued</div>
-                                        <div className="vb-card-value" style={{ color: 'orange' }}>SAR {reportData.canteen?.totalCredit?.toFixed(2)}</div>
-                                    </div>
-                                </div>
-                                <div className="vb-table-container">
-                                    <table className="vb-table">
-                                        <thead><tr><th>Time</th><th>Student</th><th>Type</th><th>Amount</th></tr></thead>
-                                        <tbody>
-                                            {(reportData.canteen?.transactions || []).map((t, i) => (
-                                                <tr key={i}>
-                                                    <td>{new Date(t.timestamp).toLocaleTimeString()}</td>
-                                                    <td>{t.studentName}</td>
-                                                    <td>{t.type}</td>
-                                                    <td>SAR {parseFloat(t.amount).toFixed(2)}</td>
-                                                </tr>
-                                            ))}
-                                        </tbody>
-                                    </table>
-                                </div>
-                            </>
-                        )}
-                    </>
+                    </div>
                 )}
 
                 {view === 'system' && (
-                    <>
-                        <div className="vb-page-title">System Overview</div>
-                        <div className="vb-stats-row">
-                            <div className="vb-card">
-                                <div className="vb-card-label">System Cash on Hand</div>
-                                <div className="vb-card-value" style={{ color: 'green' }}>SAR {dailyStats.system?.totalCashOnHand?.toFixed(2)}</div>
+                    <div className="win98-window" style={{ flex: 1 }}>
+                        <div className="win98-title-bar"><span>System Data</span><WindowControls /></div>
+                        <div className="win98-content" style={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
+                            <div className="win98-stats-row">
+                                <div className="win98-card">
+                                    <div className="win98-card-label">Cash on Hand</div>
+                                    <div className="win98-card-value" style={{ color: 'green' }}>SAR {dailyStats.system?.totalCashOnHand?.toFixed(2)}</div>
+                                </div>
+                                <div className="win98-card">
+                                    <div className="win98-card-label">Total Debt</div>
+                                    <div className="win98-card-value" style={{ color: 'red' }}>SAR {totalCredit.toFixed(2)}</div>
+                                </div>
+                                <div className="win98-card">
+                                    <div className="win98-card-label">Withdrawals</div>
+                                    <div className="win98-card-value" style={{ color: 'orange' }}>SAR {dailyStats.system?.todayWithdrawals?.toFixed(2)}</div>
+                                </div>
                             </div>
-                            <div className="vb-card">
-                                <div className="vb-card-label">Total Debt (Pending)</div>
-                                <div className="vb-card-value" style={{ color: 'red' }}>SAR {totalCredit.toFixed(2)}</div>
+                            <div className="win98-toolbar">
+                                <button className="win98-btn" onClick={() => setShowWithdrawModal(true)}>Withdraw Cash</button>
                             </div>
-                            <div className="vb-card">
-                                <div className="vb-card-label">Today's Withdrawals</div>
-                                <div className="vb-card-value" style={{ color: 'orange' }}>SAR {dailyStats.system?.todayWithdrawals?.toFixed(2)}</div>
+                            <div className="win98-table-wrapper">
+                                <table className="win98-table">
+                                    <thead><tr><th>Time</th><th>Type</th><th>Amount</th></tr></thead>
+                                    <tbody>
+                                        {(dailyStats.system?.transactions || []).map((t, i) => (
+                                            <tr key={i}>
+                                                <td>{new Date(t.timestamp).toLocaleTimeString()}</td>
+                                                <td>{t.type}</td>
+                                                <td>SAR {parseFloat(t.amount).toFixed(2)}</td>
+                                            </tr>
+                                        ))}
+                                    </tbody>
+                                </table>
                             </div>
                         </div>
-                        <div className="vb-toolbar">
-                            <button className="vb-btn vb-btn-blue" onClick={() => setShowWithdrawModal(true)}>Withdraw Cash</button>
+                    </div>
+                )}
+
+                {view === 'logs' && (
+                    <div className="win98-window" style={{ flex: 1 }}>
+                        <div className="win98-title-bar"><span>Security Logs</span><WindowControls /></div>
+                        <div className="win98-content" style={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
+                            <div className="win98-toolbar">
+                                <span>Role Management: <b>Admin</b> vs <b>Cashier</b></span>
+                            </div>
+                            <div className="win98-table-wrapper">
+                                <table className="win98-table">
+                                    <thead><tr><th>Time</th><th>Role</th><th>Action</th><th>Details</th></tr></thead>
+                                    <tbody>
+                                        {[...(dailyStats.system?.transactions || []), ...(dailyStats.canteen?.transactions || [])]
+                                            .sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp))
+                                            .map((t, i) => (
+                                                <tr key={i}>
+                                                    <td>{new Date(t.timestamp).toLocaleString()}</td>
+                                                    <td style={{ fontWeight: 'bold' }}>
+                                                        {t.location === 'ADMIN' ? 'Admin' : 'Cashier'}
+                                                    </td>
+                                                    <td>{t.type}</td>
+                                                    <td>{parseFloat(t.amount).toFixed(2)}</td>
+                                                </tr>
+                                            ))}
+                                    </tbody>
+                                </table>
+                            </div>
                         </div>
-                        <div className="vb-table-container">
-                            <table className="vb-table">
-                                <thead><tr><th>Time</th><th>Type</th><th>Amount</th></tr></thead>
-                                <tbody>
-                                    {(dailyStats.system?.transactions || []).map((t, i) => (
-                                        <tr key={i}>
-                                            <td>{new Date(t.timestamp).toLocaleTimeString()}</td>
-                                            <td>{t.type}</td>
-                                            <td>SAR {parseFloat(t.amount).toFixed(2)}</td>
-                                        </tr>
-                                    ))}
-                                </tbody>
-                            </table>
-                        </div>
-                    </>
+                    </div>
                 )}
             </div>
 
             {/* Modals */}
             {showAddModal && (
-                <div className="vb-modal-overlay">
-                    <div className="vb-modal">
-                        <div className="vb-modal-header">Add New Student</div>
-                        <div className="vb-form-group"><label>Name</label><input value={addForm.fullName} onChange={e => setAddForm({ ...addForm, fullName: e.target.value })} /></div>
-                        <div className="vb-form-group"><label>Grade (e.g. 10 - Newton)</label><input value={addForm.gradeSection} onChange={e => setAddForm({ ...addForm, gradeSection: e.target.value })} /></div>
-                        <div className="vb-form-group"><label>LRN (12 Digits)</label><input value={addForm.lrn} onChange={e => setAddForm({ ...addForm, lrn: e.target.value })} maxLength={12} placeholder="xxxxxxxxxxxx" /></div>
-                        <div className="vb-form-group"><label>Auto-Generated Passkey</label><input value={generatedPasskey} disabled style={{ background: '#eee', color: '#000080', fontWeight: 'bold' }} /></div>
-                        <div style={{ display: 'flex', gap: 10, justifyContent: 'flex-end' }}>
-                            <button className="vb-btn vb-btn-grey" onClick={() => setShowAddModal(false)}>Cancel</button>
-                            <button className="vb-btn vb-btn-blue" onClick={handleAddStudent}>Save Student</button>
+                <div className="win98-modal-overlay">
+                    <div className="win98-modal">
+                        <div className="win98-title-bar"><span>Add New Student</span><div className="win98-control-btn" onClick={() => setShowAddModal(false)}>×</div></div>
+                        <div className="win98-content">
+                            <div className="vb-form-group"><label>Name</label><input className="win98-input" value={addForm.fullName} onChange={e => setAddForm({ ...addForm, fullName: e.target.value })} style={{ width: '95%' }} /></div>
+                            <div className="vb-form-group"><label>Grade</label><input className="win98-input" value={addForm.gradeSection} onChange={e => setAddForm({ ...addForm, gradeSection: e.target.value })} style={{ width: '95%' }} /></div>
+                            <div className="vb-form-group"><label>LRN</label><input className="win98-input" value={addForm.lrn} onChange={e => setAddForm({ ...addForm, lrn: e.target.value })} maxLength={12} placeholder="12 digits" style={{ width: '95%' }} /></div>
+                            <div className="vb-form-group"><label>Passkey</label><input className="win98-input" value={generatedPasskey} disabled style={{ background: '#eee', width: '95%' }} /></div>
+                            <div style={{ display: 'flex', gap: 10, justifyContent: 'flex-end', marginTop: 10 }}>
+                                <button className="win98-btn" onClick={() => setShowAddModal(false)}>Cancel</button>
+                                <button className="win98-btn" onClick={handleAddStudent}>Save</button>
+                            </div>
                         </div>
                     </div>
                 </div>
             )}
 
             {showTopUpModal && (
-                <div className="vb-modal-overlay">
-                    <div className="vb-modal">
-                        <div className="vb-modal-header">Top Up / Withdraw</div>
-                        <p>Student: {selectedStudent?.fullName}</p>
-                        <div className="vb-form-group"><label>Amount (SAR)</label><input type="number" value={topUpForm.amount} onChange={e => setTopUpForm({ ...topUpForm, amount: e.target.value })} /></div>
-                        <div className="vb-form-group"><label>Passkey</label><input type="password" value={topUpForm.passkey} onChange={e => setTopUpForm({ ...topUpForm, passkey: e.target.value })} /></div>
-                        <div style={{ display: 'flex', gap: 10, justifyContent: 'flex-end' }}>
-                            <button className="vb-btn vb-btn-grey" onClick={() => setShowTopUpModal(false)}>Cancel</button>
-                            <button className="vb-btn vb-btn-blue" onClick={handleTopUp}>Confirm</button>
+                <div className="win98-modal-overlay">
+                    <div className="win98-modal">
+                        <div className="win98-title-bar"><span>Top Up / Withdraw</span><div className="win98-control-btn" onClick={() => setShowTopUpModal(false)}>×</div></div>
+                        <div className="win98-content">
+                            <p>Student: <b>{selectedStudent?.fullName}</b></p>
+                            <div className="vb-form-group"><label>Amount</label><input type="number" className="win98-input" value={topUpForm.amount} onChange={e => setTopUpForm({ ...topUpForm, amount: e.target.value })} style={{ width: '95%' }} /></div>
+                            <div className="vb-form-group"><label>Passkey</label><input type="password" className="win98-input" value={topUpForm.passkey} onChange={e => setTopUpForm({ ...topUpForm, passkey: e.target.value })} style={{ width: '95%' }} /></div>
+                            <div style={{ display: 'flex', gap: 10, justifyContent: 'flex-end', marginTop: 10 }}>
+                                <button className="win98-btn" onClick={() => setShowTopUpModal(false)}>Cancel</button>
+                                <button className="win98-btn" onClick={handleTopUp}>Confirm</button>
+                            </div>
                         </div>
                     </div>
                 </div>
             )}
 
             {showQrModal && (
-                <div className="vb-modal-overlay">
-                    <div className="vb-modal" style={{ textAlign: 'center' }}>
-                        <div className="vb-modal-header">Student QR Code</div>
-                        <h3>{selectedStudent?.fullName}</h3>
-                        <canvas id="qr-canvas" ref={c => { if (c && selectedStudent) QRCode.toCanvas(c, `FUGEN:${selectedStudent.studentId}`, { width: 200 }); }} />
-                        <br />
-                        <button className="vb-btn vb-btn-blue" style={{ marginTop: 10 }} onClick={downloadQR}>Download</button>
-                        <button className="vb-btn vb-btn-grey" style={{ marginTop: 10, marginLeft: 10 }} onClick={() => setShowQrModal(false)}>Close</button>
+                <div className="win98-modal-overlay">
+                    <div className="win98-modal" style={{ width: 300 }}>
+                        <div className="win98-title-bar"><span>QR Code</span><div className="win98-control-btn" onClick={() => setShowQrModal(false)}>×</div></div>
+                        <div className="win98-content" style={{ textAlign: 'center' }}>
+                            <h3>{selectedStudent?.fullName}</h3>
+                            <canvas id="qr-canvas" ref={c => { if (c && selectedStudent) QRCode.toCanvas(c, `FUGEN:${selectedStudent.studentId}`, { width: 150 }); }} />
+                            <br />
+                            <button className="win98-btn" style={{ marginTop: 10 }} onClick={downloadQR}>Download</button>
+                        </div>
                     </div>
                 </div>
             )}
 
             {showWithdrawModal && (
-                <div className="vb-modal-overlay">
-                    <div className="vb-modal">
-                        <div className="vb-modal-header">System Withdrawal</div>
-                        <div className="vb-form-group"><label>Amount (SAR)</label><input type="number" value={withdrawForm.amount} onChange={e => setWithdrawForm({ ...withdrawForm, amount: e.target.value })} /></div>
-                        <div className="vb-form-group"><label>Admin PIN (170206)</label><input type="password" value={withdrawForm.passkey} onChange={e => setWithdrawForm({ ...withdrawForm, passkey: e.target.value })} /></div>
-                        <div style={{ display: 'flex', gap: 10, justifyContent: 'flex-end' }}>
-                            <button className="vb-btn vb-btn-grey" onClick={() => setShowWithdrawModal(false)}>Cancel</button>
-                            <button className="vb-btn vb-btn-blue" onClick={handleWithdraw}>Confirm</button>
+                <div className="win98-modal-overlay">
+                    <div className="win98-modal">
+                        <div className="win98-title-bar"><span>System Withdrawal</span><div className="win98-control-btn" onClick={() => setShowWithdrawModal(false)}>×</div></div>
+                        <div className="win98-content">
+                            <div className="vb-form-group"><label>Amount</label><input type="number" className="win98-input" value={withdrawForm.amount} onChange={e => setWithdrawForm({ ...withdrawForm, amount: e.target.value })} style={{ width: '95%' }} /></div>
+                            <div className="vb-form-group"><label>PIN</label><input type="password" className="win98-input" value={withdrawForm.passkey} onChange={e => setWithdrawForm({ ...withdrawForm, passkey: e.target.value })} style={{ width: '95%' }} /></div>
+                            <div style={{ display: 'flex', gap: 10, justifyContent: 'flex-end', marginTop: 10 }}>
+                                <button className="win98-btn" onClick={() => setShowWithdrawModal(false)}>Cancel</button>
+                                <button className="win98-btn" onClick={handleWithdraw}>Confirm</button>
+                            </div>
                         </div>
                     </div>
                 </div>
             )}
 
             {showProfileModal && (
-                <div className="vb-modal-overlay">
-                    <div className="vb-modal" style={{ width: '900px', maxWidth: '95%', height: '80vh', display: 'flex', flexDirection: 'column' }}>
-                        <div className="vb-modal-header" style={{ display: 'flex', justifyContent: 'space-between' }}>
-                            <span>Student Profile</span>
-                            <button onClick={() => setShowProfileModal(false)} style={{ border: 'none', background: 'none', fontSize: 20, cursor: 'pointer' }}>×</button>
-                        </div>
-                        <div style={{ display: 'flex', flex: 1, overflow: 'hidden', gap: 20 }}>
-                            {/* Left Panel: Info */}
-                            <div style={{ width: '300px', background: '#f5f5f5', padding: 20, borderRadius: 10, border: '1px solid #ccc' }}>
-
+                <div className="win98-modal-overlay">
+                    <div className="win98-modal" style={{ width: '800px', height: '500px' }}>
+                        <div className="win98-title-bar"><span>Student Profile</span><div className="win98-control-btn" onClick={() => setShowProfileModal(false)}>×</div></div>
+                        <div className="win98-content" style={{ display: 'flex', flex: 1, overflow: 'hidden', gap: 10 }}>
+                            <div style={{ width: '250px', background: '#fff', border: '2px inset #fff', padding: 10 }}>
                                 <div style={{ textAlign: 'center', marginBottom: 20 }}>
-                                    <div style={{ width: 100, height: 100, background: '#e0e0e0', borderRadius: '50%', margin: '0 auto', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 40, color: '#999' }}>👤</div>
-                                    <h3>{selectedStudent?.fullName}</h3>
-                                    <div style={{ color: '#666' }}>{selectedStudent?.studentId}</div>
+                                    <h2>{selectedStudent?.fullName}</h2>
+                                    <div>{selectedStudent?.studentId}</div>
                                 </div>
-
-                                <div className="vb-form-group">
-                                    <label>Grade & Section</label>
-                                    <div style={{ padding: 8, background: '#fff', border: '1px solid #ccc' }}>{selectedStudent?.gradeSection}</div>
-                                </div>
-                                <div className="vb-form-group">
-                                    <label>Current Balance</label>
-                                    <div style={{ padding: 8, background: '#fff', border: '1px solid #ccc', color: selectedStudent?.balance < 0 ? 'red' : 'green', fontWeight: 'bold' }}>
-                                        SAR {parseFloat(selectedStudent?.balance || 0).toFixed(2)}
-                                    </div>
-                                </div>
-
-                                <div style={{ display: 'flex', flexDirection: 'column', gap: 10, marginTop: 20 }}>
-                                    <button className="vb-btn vb-btn-blue" onClick={() => { setShowTopUpModal(true); }}>Top Up / Withdraw</button>
-                                    <button className="vb-btn vb-btn-blue" onClick={() => { setShowQrModal(true); }}>View QR Code</button>
+                                <hr />
+                                <div>Balance: <b>SAR {parseFloat(selectedStudent?.balance || 0).toFixed(2)}</b></div>
+                                <div style={{ marginTop: 20 }}>
+                                    <button className="win98-btn" style={{ width: '100%', marginBottom: 5 }} onClick={() => { setShowTopUpModal(true); }}>Top Up</button>
+                                    <button className="win98-btn" style={{ width: '100%' }} onClick={() => { setShowQrModal(true); }}>QR Code</button>
                                 </div>
                             </div>
 
-                            {/* Right Panel: History */}
                             <div style={{ flex: 1, display: 'flex', flexDirection: 'column' }}>
-                                <h4>Transaction History</h4>
-                                <div className="vb-table-container" style={{ flex: 1, overflowY: 'auto' }}>
-                                    <table className="vb-table">
+                                <div className="win98-table-wrapper" style={{ flex: 1 }}>
+                                    <table className="win98-table">
                                         <thead><tr><th>Time</th><th>Type</th><th>Amount</th></tr></thead>
                                         <tbody>
                                             {userTransactions.length === 0 ? (
-                                                <tr><td colSpan={3} style={{ textAlign: 'center', padding: 20 }}>No transactions found.</td></tr>
+                                                <tr><td colSpan={3}>No transactions found.</td></tr>
                                             ) : (
                                                 userTransactions.map((t, i) => (
                                                     <tr key={i}>
                                                         <td>{new Date(t.timestamp).toLocaleString()}</td>
                                                         <td>{t.type}</td>
-                                                        <td style={{ fontWeight: 'bold' }}>SAR {parseFloat(t.amount).toFixed(2)}</td>
+                                                        <td>SAR {parseFloat(t.amount).toFixed(2)}</td>
                                                     </tr>
                                                 ))
                                             )}
