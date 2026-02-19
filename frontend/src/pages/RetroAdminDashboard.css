@@ -1,217 +1,193 @@
-@import url('https://fonts.googleapis.com/css2?family=Tahoma:wght@400;700&display=swap');
+/* Professional ERP Style - FUGEN SmartPay */
+@import url('https://fonts.googleapis.com/css2?family=Segoe+UI:wght@400;600&display=swap');
 
 body {
-    background-color: #d4d0c8;
-    font-family: 'Tahoma', sans-serif;
-    font-size: 11px;
+    background-color: #f0f2f5;
+    font-family: 'Segoe UI', 'Roboto', 'Helvetica Neue', sans-serif;
     margin: 0;
+    font-size: 13px;
+    color: #333;
     overflow: hidden;
 }
 
-.retro-window {
+.erp-layout {
     display: flex;
     flex-direction: column;
     height: 100vh;
-    background-color: #d4d0c8;
+    background: #fff;
 }
 
-/* Menu Bar */
-.retro-menu-bar {
-    display: flex;
-    border-bottom: 1px solid #808080;
-    padding: 2px 5px;
-    background: #d4d0c8;
-}
-
-.retro-menu-item {
-    padding: 2px 8px;
-    cursor: pointer;
-    user-select: none;
-}
-
-.retro-menu-item:hover,
-.retro-menu-item.active {
-    background-color: #000080;
+/* Top Title Bar - Dark & Professional */
+.erp-titlebar {
+    background: #001529;
+    /* Enterprise Blue */
     color: white;
-}
-
-/* Toolbar */
-.retro-toolbar {
-    display: flex;
-    align-items: center;
-    padding: 2px 5px;
-    border-top: 1px solid #fff;
-    border-bottom: 1px solid #808080;
-    gap: 2px;
-    margin-bottom: 2px;
-}
-
-.retro-icon-btn {
-    border: 1px solid #808080;
-    border-top: 1px solid #fff;
-    border-left: 1px solid #fff;
-    background: #d4d0c8;
-    width: 24px;
-    height: 24px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    cursor: pointer;
-    font-size: 14px;
-}
-
-.retro-icon-btn:active {
-    border: 1px solid #fff;
-    border-top: 1px solid #808080;
-    border-left: 1px solid #808080;
-    transform: translate(1px, 1px);
-}
-
-/* Split Panes */
-.retro-panel {
-    border: 1px solid #808080;
-    border-right: 1px solid #fff;
-    border-bottom: 1px solid #fff;
-    box-shadow: -1px -1px 0 #808080 inset, 1px 1px 0 #fff inset;
-    display: flex;
-    flex-direction: column;
-    background: #d4d0c8;
-    margin: 1px;
-}
-
-.retro-panel-header {
-    background: linear-gradient(to right, #808080, #d4d0c8);
-    /* Active Title Bar look */
-    /* Screenshot: Grey header with 'x' close button style */
-    background: #d4d0c8;
-    border-bottom: 1px solid #808080;
-    padding: 1px 4px;
-    font-size: 10px;
+    padding: 0 15px;
+    height: 48px;
     display: flex;
     justify-content: space-between;
     align-items: center;
-    font-weight: bold;
-    color: #404040;
-}
-
-.retro-panel-content {
-    flex: 1;
-    background: #fff;
-    border: 2px inset #d4d0c8;
-    /* Inset look for content area */
-    overflow: auto;
-    position: relative;
-}
-
-/* Tabs */
-.retro-tabs-bottom {
-    display: flex;
-    margin-top: 2px;
-    padding-left: 2px;
-    border-top: 1px solid #fff;
-}
-
-.retro-tab {
-    border: 1px solid #808080;
-    border-bottom: none;
-    border-right: 1px solid #404040;
-    background: #d4d0c8;
-    padding: 2px 8px;
-    margin-right: -1px;
-    border-top-left-radius: 3px;
-    border-top-right-radius: 3px;
-    cursor: pointer;
-    font-size: 10px;
-    user-select: none;
-}
-
-.retro-tab.active {
-    background: #fff;
-    border-bottom: 2px solid #fff;
-    /* Connect to content */
-    font-weight: bold;
-    position: relative;
-    top: -2px;
-    /* Move up to cover border */
-    padding-top: 3px;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
     z-index: 10;
 }
 
-/* Form Grid */
-.retro-form-grid {
-    display: grid;
-    grid-template-columns: auto 1fr;
-    gap: 4px;
-    padding: 8px;
+.app-name {
+    font-size: 16px;
+    font-weight: 600;
+    letter-spacing: 0.5px;
 }
 
-.retro-field-row {
-    display: contents;
+.user-info {
+    font-size: 12px;
+    color: #bfbfbf;
 }
 
-.retro-field-row label {
-    text-align: right;
-    padding-right: 5px;
-    align-self: center;
-    color: #404040;
+/* Menu Bar - Classic Windows Style but Cleaner */
+.erp-menubar {
+    background: #ffffff;
+    border-bottom: 1px solid #e8e8e8;
+    display: flex;
+    padding: 0 10px;
+    height: 40px;
+    align-items: center;
 }
 
-.retro-input {
-    border: 2px inset #d4d0c8;
-    padding: 1px 3px;
-    font-family: 'Tahoma', sans-serif;
-    font-size: 11px;
-    background: white;
-    width: 100%;
+.menu-item {
+    padding: 0 20px;
+    height: 40px;
+    display: flex;
+    align-items: center;
+    cursor: pointer;
+    font-weight: 500;
+    color: #595959;
+    border-bottom: 2px solid transparent;
+    transition: all 0.2s;
 }
 
-/* Table */
-.retro-table {
-    width: 100%;
-    border-collapse: collapse;
-    font-size: 11px;
+.menu-item:hover {
+    color: #1890ff;
+    background: #f0f5ff;
 }
 
-.retro-table th {
-    background: #d4d0c8;
-    border: 1px solid #fff;
-    border-right: 1px solid #404040;
-    border-bottom: 1px solid #404040;
-    padding: 2px 4px;
-    text-align: left;
-    font-weight: normal;
+.menu-item.active {
+    color: #1890ff;
+    border-bottom: 2px solid #1890ff;
+    background: #f0f5ff;
 }
 
-.retro-table td {
-    border: 1px solid #e0e0e0;
-    padding: 1px 4px;
-    cursor: default;
+/* Toolbar - Icons & Actions */
+.erp-toolbar {
+    padding: 5px 15px;
+    background: #fafafa;
+    border-bottom: 1px solid #e8e8e8;
+    display: flex;
+    align-items: center;
+    gap: 8px;
 }
 
-.retro-table tr.selected td {
-    background: #000080;
-    color: white;
+.erp-separator {
+    width: 1px;
+    height: 20px;
+    background: #d9d9d9;
+    margin: 0 8px;
 }
 
-.retro-table tr:hover td {
-    background-color: #000080;
-    color: white;
+/* Main Workspace */
+.erp-main {
+    flex: 1;
+    background: #f0f2f5;
+    padding: 15px;
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+}
+
+.erp-workspace {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    height: 100%;
+}
+
+/* Form / Filter Area - Top of Grid */
+.erp-form-header {
+    background: #fff;
+    padding: 15px 20px;
+    border: 1px solid #d9d9d9;
+    border-radius: 4px;
+    box-shadow: 0 1px 2px rgba(0, 0, 0, 0.03);
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+}
+
+.erp-form-header label {
+    font-weight: 600;
+    margin-right: 8px;
+    color: #262626;
+}
+
+/* Data Grid Container */
+.erp-grid-container {
+    flex: 1;
+    background: #fff;
+    border: 1px solid #d9d9d9;
+    border-radius: 4px;
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+}
+
+/* Footer Totals Bar */
+.erp-footer-panel {
+    background: #fff;
+    border: 1px solid #d9d9d9;
+    padding: 10px 20px;
+    border-radius: 4px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    box-shadow: 0 -2px 8px rgba(0, 0, 0, 0.03);
+}
+
+.erp-stat-box {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 5px 15px;
+    background: #f9f9f9;
+    border: 1px solid #f0f0f0;
+    border-radius: 4px;
+}
+
+.erp-stat-box .label {
+    color: #8c8c8c;
+    font-size: 12px;
+    text-transform: uppercase;
+    font-weight: 600;
+}
+
+.erp-stat-box .value {
+    color: #001529;
+    font-weight: 700;
+    font-size: 16px;
+}
+
+/* Table Customization */
+.erp-table .ant-table-thead>tr>th {
+    background: #fafafa;
+    color: #595959;
+    font-weight: 600;
+    border-bottom: 2px solid #e8e8e8;
+}
+
+.erp-row-selected td {
+    background-color: #e6f7ff !important;
 }
 
 /* Buttons */
-.retro-btn {
-    border: 1px solid #fff;
-    border-right: 1px solid #404040;
-    border-bottom: 1px solid #404040;
-    background: #d4d0c8;
-    padding: 1px 6px;
-    font-size: 11px;
-    cursor: pointer;
-}
-
-.retro-btn:active {
-    border: 1px solid #404040;
-    border-right: 1px solid #fff;
-    border-bottom: 1px solid #fff;
-    transform: translate(1px, 1px);
+.erp-actions {
+    display: flex;
+    gap: 10px;
 }
