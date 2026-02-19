@@ -13,7 +13,7 @@ import {
     ShoppingOutlined,
     DollarOutlined
 } from '@ant-design/icons';
-import QRCode from 'qrcode.react';
+import { QRCodeCanvas } from 'qrcode.react';
 import { transactionService, studentService } from '../services/api';
 import './StudentDashboard.css';
 
@@ -159,7 +159,7 @@ export default function StudentDashboard({ user, onLogout }) {
                 bodyStyle={{ textAlign: 'center', padding: '40px 20px' }}
             >
                 <div className="qr-card">
-                    <QRCode value={studentData.studentId} size={200} level="H" includeMargin={true} />
+                    <QRCodeCanvas value={studentData.studentId} size={200} level="H" includeMargin={true} />
                     <h2 style={{ marginTop: 20, marginBottom: 5 }}>{studentData.fullName}</h2>
                     <p style={{ color: '#888' }}>ID: {studentData.studentId}</p>
                     <p style={{ fontWeight: 'bold', color: '#3B5ED2', fontSize: 18 }}>{studentData.gradeSection}</p>
