@@ -1,0 +1,307 @@
+.student-app-container {
+    max-width: 480px;
+    margin: 0 auto;
+    background-color: #f8f9fe;
+    min-height: 100vh;
+    padding: 20px;
+    padding-bottom: 100px;
+    /* Space for bottom nav */
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+    color: #1a1a1a;
+}
+
+/* Header */
+.app-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 25px;
+}
+
+.user-profile {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+}
+
+.avatar {
+    width: 45px;
+    height: 45px;
+    background-color: #ffe8e8;
+    color: #ff4d4f;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 20px;
+}
+
+.user-info {
+    display: flex;
+    flex-direction: column;
+}
+
+.greeting {
+    font-size: 18px;
+    font-weight: 700;
+}
+
+.welcome-back {
+    font-size: 13px;
+    color: #888;
+}
+
+.notification-icon {
+    font-size: 22px;
+    color: #333;
+}
+
+/* Balance Card */
+.balance-card {
+    background: linear-gradient(135deg, #3B5ED2 0%, #2A48B0 100%);
+    border-radius: 20px;
+    padding: 24px;
+    color: white;
+    box-shadow: 0 10px 20px rgba(59, 94, 210, 0.2);
+    margin-bottom: 25px;
+    position: relative;
+    overflow: hidden;
+}
+
+.balance-card::after {
+    content: '';
+    position: absolute;
+    bottom: -30px;
+    right: -30px;
+    width: 150px;
+    height: 150px;
+    background: rgba(255, 255, 255, 0.05);
+    border-radius: 50%;
+}
+
+.card-top .label {
+    font-size: 15px;
+    opacity: 0.8;
+}
+
+.balance-amount-row {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin-top: 5px;
+}
+
+.currency {
+    font-size: 20px;
+    font-weight: 600;
+    opacity: 0.9;
+}
+
+.amount {
+    font-size: 36px;
+    font-weight: 700;
+}
+
+.toggle-visibility {
+    margin-left: auto;
+    cursor: pointer;
+    font-size: 20px;
+    opacity: 0.7;
+}
+
+.card-bottom {
+    margin-top: 30px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.card-number {
+    font-family: 'Courier New', Courier, monospace;
+    font-size: 16px;
+    letter-spacing: 2px;
+    opacity: 0.8;
+}
+
+.chip {
+    width: 40px;
+    height: 30px;
+    background: linear-gradient(135deg, #ffd700 0%, #e6be00 100%);
+    border-radius: 5px;
+    position: relative;
+}
+
+/* Action Grid */
+.action-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 15px;
+    margin-bottom: 30px;
+}
+
+.action-btn {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    background: white;
+    border: none;
+    border-radius: 12px;
+    padding: 12px 15px;
+    cursor: pointer;
+    transition: all 0.2s;
+    box-shadow: 0 2px 5px rgba(0, 0, 0, 0.02);
+}
+
+.action-btn:active {
+    transform: scale(0.98);
+}
+
+.action-btn.primary {
+    background-color: #eff3ff;
+    color: #3B5ED2;
+}
+
+.btn-icon {
+    width: 35px;
+    height: 35px;
+    border-radius: 10px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 18px;
+}
+
+.action-btn.primary .btn-icon {
+    background-color: white;
+}
+
+.action-btn span {
+    font-weight: 600;
+    font-size: 14px;
+}
+
+/* History Section */
+.history-section {
+    background: white;
+    border-radius: 20px 20px 0 0;
+    margin: 0 -20px;
+    padding: 24px 20px;
+    flex: 1;
+}
+
+.section-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 20px;
+}
+
+.section-header h3 {
+    margin: 0;
+    font-size: 18px;
+    font-weight: 700;
+}
+
+.section-header a {
+    font-size: 13px;
+    color: #3B5ED2;
+    font-weight: 600;
+}
+
+.history-item {
+    display: flex !important;
+    justify-content: space-between !important;
+    align-items: center !important;
+    padding: 15px 0 !important;
+    border-bottom: 1px solid #f0f2f5 !important;
+}
+
+.item-left {
+    display: flex;
+    align-items: center;
+    gap: 15px;
+}
+
+.item-icon-bg {
+    width: 45px;
+    height: 45px;
+    background-color: #f8f9fe;
+    border-radius: 15px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 20px;
+}
+
+.item-details {
+    display: flex;
+    flex-direction: column;
+}
+
+.item-title {
+    font-weight: 600;
+    font-size: 15px;
+}
+
+.item-subtitle {
+    font-size: 12px;
+    color: #999;
+}
+
+.item-amount {
+    font-weight: 700;
+    font-size: 16px;
+}
+
+.item-amount.positive {
+    color: #52c41a;
+}
+
+.item-amount.negative {
+    color: #333;
+}
+
+/* Bottom Nav */
+.bottom-nav {
+    position: fixed;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    background: white;
+    display: flex;
+    justify-content: space-around;
+    padding: 15px 0 25px 0;
+    border-top: 1px solid #f0f2f5;
+    z-index: 100;
+}
+
+.nav-item {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 5px;
+    color: #bbb;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+.nav-item span {
+    font-size: 11px;
+    font-weight: 500;
+}
+
+.nav-item active {
+    color: #3B5ED2;
+}
+
+.nav-item.logout {
+    color: #ff4d4f;
+    opacity: 0.8;
+}
+
+/* QR Modal Card */
+.qr-card {
+    background: white;
+    padding: 20px;
+    border-radius: 15px;
+}
