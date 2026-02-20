@@ -11,6 +11,11 @@ router.get('/stats/daily', transactionController.getDailyStats);
 router.get('/stats/weekly', transactionController.getWeeklyStats);
 router.post('/withdraw', transactionController.withdraw);
 
+// Topup Requests
+router.post('/request-topup', transactionController.requestTopup);
+router.get('/topup-requests', transactionController.getTopupRequests);
+router.put('/topup-requests/:id/resolve', transactionController.resolveTopupRequest);
+
 // Student Routes
 router.post('/student', studentController.createStudent);
 router.get('/students', studentController.getAllStudents);

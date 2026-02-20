@@ -29,7 +29,11 @@ export const transactionService = {
     purchase: (studentId, amount, passkey) => api.post('/purchase', { studentId, amount, passkey }),
     getTransactions: (studentId) => api.get('/transactions', { params: { studentId } }),
     getDailyStats: (date, includeGlobal = false) => api.get('/stats/daily', { params: { date, includeGlobal } }),
+    getWeeklyStats: () => api.get('/stats/weekly'),
     withdraw: (amount, passkey) => api.post('/withdraw', { amount, passkey }),
+    requestTopup: (studentId, amount, date) => api.post('/request-topup', { studentId, amount, date }),
+    getTopupRequests: () => api.get('/topup-requests'),
+    resolveTopupRequest: (id) => api.put(`/topup-requests/${id}/resolve`),
 };
 
 export default api;

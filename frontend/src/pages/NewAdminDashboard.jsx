@@ -3,6 +3,7 @@ import { message } from 'antd';
 import { studentService, transactionService } from '../services/api';
 import { io } from 'socket.io-client';
 import QRCode from 'qrcode';
+import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
 import './Windows98Dashboard.css';
 
 // Admin Dashboard - Windows 98 Style Recreation
@@ -20,6 +21,7 @@ export default function AdminDashboard({ onLogout }) {
     // Stats
     const [totalBal, setTotalBal] = useState(0);
     const [totalCredit, setTotalCredit] = useState(0);
+    const [topupRequests, setTopupRequests] = useState([]);
 
     // Modals
     const [showAddModal, setShowAddModal] = useState(false);
@@ -104,19 +106,41 @@ export default function AdminDashboard({ onLogout }) {
 
             if (dRes.data.status === 'success') {
                 setDailyStats(dRes.data.data);
-                generateGraph(dRes.data.data.canteen?.transactions || []);
             }
 
-        } catch (e) { console.error(e); } finally { setLoading(false); }
-    };
+            try {
+                const wRes = await transactionService.getWeeklyStats();
+                if (wRes.data.status === 'success') {
+                    setGraphData(wRes.data.data);
+                }
+            } catch (err) {
+                console.log('Weekly stats not available yet server-side, computing via dailies fallback...');
+                try {
+                    const days = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+                    const promises = [];
+                    for (let i = 0; i < 7; i++) {
+                        const d = new Date();
+                        d.setDate(d.getDate() - i);
+                        const dateStr = d.toISOString().split('T')[0];
+                        promises.push(transactionService.getDailyStats(dateStr, true).then(r => ({ dateStr, dayName: days[d.getDay()], data: r.data })));
+                    }
+                    const results = await Promise.all(promises);
 
-    const generateGraph = (txns) => {
-        const hours = [7, 8, 9, 10, 11, 12, 13, 14, 15, 16]; // School hours
-        const data = hours.map(h => {
-            const total = txns.filter(t => new Date(t.timestamp).getHours() === h).reduce((a, c) => a + parseFloat(c.amount), 0);
-            return { hour: h, total };
-        });
-        setGraphData(data);
+                    const fallbackData = results.map(r => {
+                        let totalSales = 0;
+                        if (r.data && r.data.status === 'success' && r.data.data.canteen) {
+                            totalSales = r.data.data.canteen.totalSales || 0;
+                        }
+                        return { name: r.dayName, date: r.dateStr, sales: totalSales };
+                    }).sort((a, b) => a.date.localeCompare(b.date));
+
+                    setGraphData(fallbackData);
+                } catch (e2) {
+                    console.log('Error computing fallback graph data:', e2.message);
+                }
+            }
+
+        } catch (e) { console.error('Error loading main data:', e); } finally { setLoading(false); }
     };
 
     const fetchReport = async () => {
@@ -139,6 +163,24 @@ export default function AdminDashboard({ onLogout }) {
         } catch (e) {
             setUserTransactions([]);
         }
+    };
+
+    const fetchRequests = async () => {
+        try {
+            const res = await transactionService.getTopupRequests();
+            if (res.data && res.data.data) {
+                setTopupRequests(res.data.data);
+            }
+        } catch (e) { }
+    };
+
+    const handleResolveRequest = async (id) => {
+        try {
+            await transactionService.resolveTopupRequest(id);
+            message.success('Request Resolved');
+            addAuditLog('RESOLVE_REQUEST', `Resolved top-up request ${id}`);
+            fetchRequests();
+        } catch (e) { message.error('Failed to resolve'); }
     };
 
     // --- Bulk Import Logic ---
@@ -322,6 +364,9 @@ export default function AdminDashboard({ onLogout }) {
                     <div className={`win98-menu-item ${view === 'system' ? 'active' : ''}`} onClick={() => setView('system')}>
                         System
                     </div>
+                    <div className={`win98-menu-item ${view === 'requests' ? 'active' : ''}`} onClick={() => { setView('requests'); fetchRequests(); }}>
+                        Requests
+                    </div>
                     <div className={`win98-menu-item ${view === 'logs' ? 'active' : ''}`} onClick={() => setView('logs')}>
                         Logs
                     </div>
@@ -481,6 +526,23 @@ export default function AdminDashboard({ onLogout }) {
                                 <button className="win98-btn" onClick={fetchReport}>Load Report</button>
                                 <button className="win98-btn" onClick={handleExportData}>Export Excel</button>
                             </div>
+
+                            {/* Weekly Sales Graph */}
+                            {graphData && graphData.length > 0 && (
+                                <div style={{ marginBottom: '20px', padding: '10px', background: 'white', border: '2px solid', borderColor: '#dfdfdf #000 #000 #dfdfdf' }}>
+                                    <h4 style={{ marginTop: 0, marginBottom: '10px', fontSize: '14px' }}>Weekly Sales Overview</h4>
+                                    <ResponsiveContainer width="100%" height={250}>
+                                        <BarChart data={graphData} margin={{ top: 10, right: 30, left: 0, bottom: 0 }}>
+                                            <CartesianGrid strokeDasharray="3 3" vertical={false} opacity={0.5} />
+                                            <XAxis dataKey="name" fontSize={12} />
+                                            <YAxis fontSize={12} />
+                                            <Tooltip cursor={{ fill: 'rgba(0,0,0,0.1)' }} />
+                                            <Bar dataKey="sales" fill="#000080" />
+                                        </BarChart>
+                                    </ResponsiveContainer>
+                                </div>
+                            )}
+
                             {reportData && (
                                 <>
                                     <div className="win98-stats-row">
@@ -580,6 +642,38 @@ export default function AdminDashboard({ onLogout }) {
                                                     </td>
                                                     <td>{t.type}</td>
                                                     <td>{t.description ? t.description : `Amount: ${parseFloat(t.amount).toFixed(2)}`}</td>
+                                                </tr>
+                                            ))
+                                        )}
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+                    </div>
+                )}
+
+                {view === 'requests' && (
+                    <div className="win98-window" style={{ flex: 1 }}>
+                        <div className="win98-title-bar"><span>Top Up Requests</span><WindowControls /></div>
+                        <div className="win98-content" style={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
+                            <div className="win98-toolbar">
+                                <button className="win98-btn" onClick={fetchRequests}>Refresh Inbox</button>
+                            </div>
+                            <div className="win98-table-wrapper">
+                                <table className="win98-table">
+                                    <thead><tr><th>Date Request</th><th>Student</th><th>Amount to Collect</th><th>Action</th></tr></thead>
+                                    <tbody>
+                                        {topupRequests.length === 0 ? (
+                                            <tr><td colSpan={4} style={{ textAlign: 'center' }}>No pending top-up requests.</td></tr>
+                                        ) : (
+                                            topupRequests.map((req, i) => (
+                                                <tr key={i}>
+                                                    <td>{req.date}</td>
+                                                    <td style={{ fontWeight: 'bold' }}>{req.studentName} ({req.studentId})</td>
+                                                    <td style={{ color: 'green', fontWeight: 'bold' }}>SAR {req.amount.toFixed(2)}</td>
+                                                    <td>
+                                                        <button className="win98-btn" style={{ padding: '2px 5px' }} onClick={() => handleResolveRequest(req.id)}>Mark Collected</button>
+                                                    </td>
                                                 </tr>
                                             ))
                                         )}

@@ -366,3 +366,119 @@ exports.getDailyStats = async (req, res) => {
         res.status(500).json({ status: 'error', message: error.message });
     }
 };
+
+exports.requestTopup = async (req, res) => {
+    try {
+        const { studentId, amount, date } = req.body;
+
+        // Fetch student name real quick to store in request
+        const studentRef = db.collection('students').doc(studentId);
+        const studentDoc = await studentRef.get();
+        let studentName = 'Unknown';
+        if (studentDoc.exists) {
+            studentName = studentDoc.data().fullName || 'Unknown';
+        } else {
+            // Check studentId field fallback
+            const querySnapshot = await db.collection('students').where('studentId', '==', studentId).limit(1).get();
+            if (!querySnapshot.empty) {
+                studentName = querySnapshot.docs[0].data().fullName || 'Unknown';
+            }
+        }
+
+        const requestDoc = {
+            studentId,
+            studentName,
+            amount: parseFloat(amount),
+            date, // e.g., '2026-02-23'
+            status: 'PENDING',
+            timestamp: new Date().toISOString()
+        };
+
+        const docRef = await db.collection('topUpRequests').add(requestDoc);
+        res.status(200).json({ status: 'success', data: { id: docRef.id, ...requestDoc } });
+    } catch (error) {
+        res.status(500).json({ status: 'error', message: error.message });
+    }
+};
+
+exports.getTopupRequests = async (req, res) => {
+    try {
+        const snapshot = await db.collection('topUpRequests')
+            .where('status', '==', 'PENDING')
+            .get(); // We sort in memory to avoid index issues on Firestore
+
+        let requests = [];
+        snapshot.forEach(doc => {
+            requests.push({ id: doc.id, ...doc.data() });
+        });
+
+        requests.sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp));
+
+        res.status(200).json({ status: 'success', data: requests });
+    } catch (error) {
+        res.status(500).json({ status: 'error', message: error.message });
+    }
+};
+
+exports.resolveTopupRequest = async (req, res) => {
+    try {
+        const { id } = req.params;
+        await db.collection('topUpRequests').doc(id).update({
+            status: 'RESOLVED',
+            resolvedAt: new Date().toISOString()
+        });
+        res.status(200).json({ status: 'success', message: 'Request resolved' });
+    } catch (error) {
+        res.status(500).json({ status: 'error', message: error.message });
+    }
+};
+
+exports.getWeeklyStats = async (req, res) => {
+    try {
+        if (!db) throw new Error("Database not initialized.");
+
+        // Get date 7 days ago
+        let startOfPeriod = new Date();
+        startOfPeriod.setDate(startOfPeriod.getDate() - 6);
+        startOfPeriod.setHours(0, 0, 0, 0);
+
+        const snapshot = await db.collection('transactions')
+            .where('timestamp', '>=', startOfPeriod.toISOString())
+            .get();
+
+        // Group by day (YYYY-MM-DD)
+        const dailyData = {};
+        for (let i = 0; i < 7; i++) {
+            const d = new Date();
+            d.setDate(d.getDate() - i);
+            const dateStr = d.toISOString().split('T')[0];
+            dailyData[dateStr] = 0;
+        }
+
+        snapshot.forEach(doc => {
+            const data = doc.data();
+            if (data.type === 'PURCHASE') {
+                const dateStr = data.timestamp.split('T')[0];
+                if (dailyData[dateStr] !== undefined) {
+                    dailyData[dateStr] += parseFloat(data.amount || 0);
+                }
+            }
+        });
+
+        // Convert to array format for Recharts
+        const chartData = Object.keys(dailyData).sort().map(dateStr => {
+            const d = new Date(dateStr);
+            const days = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+            return {
+                name: days[d.getDay()],
+                date: dateStr,
+                sales: dailyData[dateStr]
+            };
+        });
+
+        res.status(200).json({ status: 'success', data: chartData });
+    } catch (error) {
+        console.error('❌ Weekly Stats Error:', error);
+        res.status(500).json({ status: 'error', message: error.message });
+    }
+};
