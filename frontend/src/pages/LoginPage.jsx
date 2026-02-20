@@ -152,7 +152,6 @@ export default function LoginPage({ onLogin }) {
             minHeight: '100vh',
             background: 'linear-gradient(135deg, #1A237E 0%, #283593 100%)',
             padding: '5vh 20px 40px',
-            overflowY: 'auto',
         }}>
             <div style={{ width: '100%', maxWidth: 450, margin: '0 auto' }}>
                 <div className="login-header">
