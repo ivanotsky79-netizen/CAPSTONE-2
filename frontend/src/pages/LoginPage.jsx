@@ -65,7 +65,8 @@ export default function LoginPage({ onLogin }) {
             const studentData = {
                 lrn: lrn,
                 fullName: values.fullName,
-                gradeSection: values.gradeSection,
+                grade: values.grade,
+                section: values.section,
                 passkey: generatedPasskey
             };
 
@@ -217,8 +218,11 @@ export default function LoginPage({ onLogin }) {
                             ]}>
                                 <Input prefix={<IdcardOutlined />} placeholder="12-Digit LRN (Student ID)" maxLength={12} />
                             </Form.Item>
-                            <Form.Item name="gradeSection" rules={[{ required: true, message: 'Enter Grade & Section' }]}>
-                                <Input prefix={<UserAddOutlined />} placeholder="Grade & Section (e.g., Grade 12 - A)" />
+                            <Form.Item name="grade" rules={[{ required: true, message: 'Enter Grade Level' }]}>
+                                <Input type="number" prefix={<UserAddOutlined />} placeholder="Grade (e.g., 8, 9, 10, 11, 12)" min={1} max={12} />
+                            </Form.Item>
+                            <Form.Item name="section" rules={[{ required: true, message: 'Enter Section' }]}>
+                                <Input prefix={<UserAddOutlined />} placeholder="Section (e.g., A, B, Rizal)" />
                             </Form.Item>
 
                             <Button type="primary" htmlType="submit" block loading={loading} size="large">
