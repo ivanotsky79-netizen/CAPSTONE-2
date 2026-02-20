@@ -54,6 +54,10 @@ export default function AdminDashboard({ onLogout }) {
     // Local Audit Log Implementation
     const [localAuditLogs, setLocalAuditLogs] = useState([]);
 
+    // Logs Filter
+    const [logDate, setLogDate] = useState(new Date().toISOString().split('T')[0]);
+    const [logData, setLogData] = useState(null);
+
     useEffect(() => {
         loadData();
         loadLocalLogs(); // Load audit logs from localStorage
@@ -337,11 +341,24 @@ export default function AdminDashboard({ onLogout }) {
     // Rendering Helpers
     const filtered = students.filter(s => s.fullName.toLowerCase().includes(searchText.toLowerCase()) || s.studentId.includes(searchText));
 
+    const fetchLogs = async (dateStr) => {
+        try {
+            const res = await transactionService.getDailyStats(dateStr || logDate);
+            if (res.data.status === 'success') {
+                setLogData(res.data.data);
+            }
+        } catch (e) { console.error('Failed to load logs:', e); }
+    };
+
     // Combine Logs: Server Transactions + Local Audit Logs
+    const logSource = logData || dailyStats;
     const combinedLogs = [
-        ...localAuditLogs.map(l => ({ ...l, isLocal: true })),
-        ...(dailyStats.system?.transactions || []).map(t => ({ ...t, location: 'ADMIN' })),
-        ...(dailyStats.canteen?.transactions || []).map(t => ({ ...t, location: 'CASHIER' }))
+        ...localAuditLogs.filter(l => {
+            if (!l.timestamp) return true;
+            return l.timestamp.startsWith(logDate);
+        }).map(l => ({ ...l, isLocal: true })),
+        ...(logSource.system?.transactions || []).map(t => ({ ...t, location: 'ADMIN' })),
+        ...(logSource.canteen?.transactions || []).map(t => ({ ...t, location: 'CASHIER' }))
     ].sort((a, b) => new Date(b.timestamp || 0) - new Date(a.timestamp || 0));
 
     return (
@@ -623,9 +640,11 @@ export default function AdminDashboard({ onLogout }) {
                     <div className="win98-window" style={{ flex: 1 }}>
                         <div className="win98-title-bar"><span>Security & Activity Logs</span><WindowControls /></div>
                         <div className="win98-content" style={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
-                            <div className="win98-toolbar" style={{ display: 'block' }}>
-                                <div><b>Roles:</b> <span style={{ color: 'blue' }}>Admin</span> (This Dashboard) vs <span style={{ color: 'green' }}>Cashier</span> (Mobile App)</div>
-                                <div style={{ fontSize: 10, marginTop: 5 }}>System tracks: Purchases, TopUps, Withdrawals, Student Deletions.</div>
+                            <div className="win98-toolbar" style={{ display: 'flex', alignItems: 'center', gap: '10px', flexWrap: 'wrap' }}>
+                                <input type="date" className="win98-input" value={logDate} onChange={e => setLogDate(e.target.value)} />
+                                <button className="win98-btn" onClick={() => fetchLogs()}>Load Logs</button>
+                                <div style={{ flex: 1 }}></div>
+                                <div style={{ fontSize: 10 }}><b>Roles:</b> <span style={{ color: 'blue' }}>Admin</span> vs <span style={{ color: 'green' }}>Cashier</span></div>
                             </div>
                             <div className="win98-table-wrapper">
                                 <table className="win98-table">

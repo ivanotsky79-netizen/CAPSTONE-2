@@ -218,16 +218,19 @@ exports.getDailyStats = async (req, res) => {
         }
 
         const { date, location } = req.query;
-        let startOfDay = new Date();
+        let startOfDay, endOfDay;
 
         if (date) {
-            startOfDay = new Date(date);
+            // Parse date string as UTC to avoid timezone shifts
+            const [year, month, day] = date.split('-').map(Number);
+            startOfDay = new Date(Date.UTC(year, month - 1, day, 0, 0, 0, 0));
+            endOfDay = new Date(Date.UTC(year, month - 1, day, 23, 59, 59, 999));
+        } else {
+            // Today in UTC
+            const now = new Date();
+            startOfDay = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate(), 0, 0, 0, 0));
+            endOfDay = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate(), 23, 59, 59, 999));
         }
-
-        startOfDay.setHours(0, 0, 0, 0);
-
-        let endOfDay = new Date(startOfDay);
-        endOfDay.setHours(23, 59, 59, 999);
 
         // Fetch transactions for the DAY
         const snapshot = await db.collection('transactions')
