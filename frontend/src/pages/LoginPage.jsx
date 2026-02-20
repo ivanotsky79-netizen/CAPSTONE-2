@@ -208,21 +208,21 @@ export default function LoginPage({ onLogin }) {
                     {/* STUDENT REGISTRATION FORM */}
                     {view === 'student-register' && (
                         <Form onFinish={handleRegister} layout="vertical" size="large">
-                            <Form.Item name="fullName" rules={[{ required: true, message: 'Enter Full Name' }]}>
-                                <Input prefix={<UserOutlined />} placeholder="Full Name (e.g., Juan Dela Cruz)" autoFocus />
+                            <Form.Item name="fullName" label="Full Name" rules={[{ required: true, message: 'Enter Full Name' }]}>
+                                <Input prefix={<UserOutlined />} placeholder="e.g., Samuel Ivan B. Malavi" autoFocus />
                             </Form.Item>
-                            <Form.Item name="studentId" rules={[
+                            <Form.Item name="studentId" label="12-Digit LRN (Student ID)" rules={[
                                 { required: true, message: 'Enter 12-digit LRN' },
                                 { len: 12, message: 'LRN must be exactly 12 digits' },
                                 { pattern: /^\d+$/, message: 'LRN must contain only numbers' }
                             ]}>
-                                <Input prefix={<IdcardOutlined />} placeholder="12-Digit LRN (Student ID)" maxLength={12} />
+                                <Input prefix={<IdcardOutlined />} placeholder="e.g., 123456789012" maxLength={12} />
                             </Form.Item>
-                            <Form.Item name="grade" rules={[{ required: true, message: 'Enter Grade Level' }]}>
-                                <Input type="number" prefix={<UserAddOutlined />} placeholder="Grade (e.g., 8, 9, 10, 11, 12)" min={1} max={12} />
+                            <Form.Item name="grade" label="Grade Level" rules={[{ required: true, message: 'Enter Grade Level' }]}>
+                                <Input type="number" prefix={<UserAddOutlined />} placeholder="e.g., 12" min={1} max={12} />
                             </Form.Item>
-                            <Form.Item name="section" rules={[{ required: true, message: 'Enter Section' }]}>
-                                <Input prefix={<UserAddOutlined />} placeholder="Section (e.g., A, B, Rizal)" />
+                            <Form.Item name="section" label="Section" rules={[{ required: true, message: 'Enter Section' }]}>
+                                <Input prefix={<UserAddOutlined />} placeholder="e.g., Olivera, Fabella, Tesla" />
                             </Form.Item>
 
                             <Button type="primary" htmlType="submit" block loading={loading} size="large">
