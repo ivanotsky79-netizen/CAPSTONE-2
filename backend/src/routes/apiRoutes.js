@@ -8,6 +8,7 @@ router.post('/topup', transactionController.topUp);
 router.post('/purchase', transactionController.purchase);
 router.get('/transactions', transactionController.getTransactions);
 router.get('/stats/daily', transactionController.getDailyStats);
+router.get('/stats/weekly', transactionController.getWeeklyStats);
 router.post('/withdraw', transactionController.withdraw);
 
 // Student Routes

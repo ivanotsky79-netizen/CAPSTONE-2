@@ -1,13 +1,28 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { StyleSheet, Text, View, TextInput, TouchableOpacity, Alert, ActivityIndicator, Image, KeyboardAvoidingView, ScrollView, Platform } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 
 export default function LoginScreen({ navigation }) {
     const [username, setUsername] = useState('');
     const [password, setPassword] = useState('');
     const [loading, setLoading] = useState(false);
     const [showPassword, setShowPassword] = useState(false);
+    const [keepSignedIn, setKeepSignedIn] = useState(false);
+
+    useEffect(() => {
+        const checkLogin = async () => {
+            setLoading(true);
+            const auth = await AsyncStorage.getItem('fugen_pos_auth');
+            if (auth === 'true') {
+                navigation.replace('Home');
+            } else {
+                setLoading(false);
+            }
+        };
+        checkLogin();
+    }, []);
 
     const handleLogin = () => {
         if (!username || !password) {
@@ -18,13 +33,16 @@ export default function LoginScreen({ navigation }) {
         setLoading(true);
 
         // Simulate network delay
-        setTimeout(() => {
+        setTimeout(async () => {
             if (username === 'grpfive' && password === '170206') {
+                if (keepSignedIn) {
+                    await AsyncStorage.setItem('fugen_pos_auth', 'true');
+                }
                 navigation.replace('Home');
             } else {
                 Alert.alert('Login Failed', 'Invalid username or password.');
+                setLoading(false);
             }
-            setLoading(false);
         }, 800);
     };
 
@@ -70,6 +88,11 @@ export default function LoginScreen({ navigation }) {
                                 <MaterialCommunityIcons name={showPassword ? "eye-off-outline" : "eye-outline"} size={24} color="#666" />
                             </TouchableOpacity>
                         </View>
+
+                        <TouchableOpacity style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 15 }} onPress={() => setKeepSignedIn(!keepSignedIn)}>
+                            <MaterialCommunityIcons name={keepSignedIn ? "checkbox-marked" : "checkbox-blank-outline"} size={24} color="#333" />
+                            <Text style={{ marginLeft: 10, color: '#333', fontSize: 16 }}>Keep me Signed in</Text>
+                        </TouchableOpacity>
 
                         <TouchableOpacity
                             style={styles.loginButton}

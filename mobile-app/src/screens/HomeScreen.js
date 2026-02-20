@@ -2,6 +2,7 @@ import React from 'react';
 import { StyleSheet, Text, View, TouchableOpacity, Dimensions } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 
 const { width } = Dimensions.get('window');
 
@@ -10,6 +11,15 @@ export default function HomeScreen({ navigation }) {
         <SafeAreaView style={styles.container}>
             <View style={styles.header}>
                 <Text style={styles.headerTitle}>FUGEN <Text style={styles.accentText}>SmartPay</Text></Text>
+                <TouchableOpacity
+                    style={{ position: 'absolute', right: 20 }}
+                    onPress={async () => {
+                        await AsyncStorage.removeItem('fugen_pos_auth');
+                        navigation.replace('Login');
+                    }}
+                >
+                    <MaterialCommunityIcons name="logout" size={28} color="white" />
+                </TouchableOpacity>
             </View>
 
             <View style={styles.buttonGrid}>

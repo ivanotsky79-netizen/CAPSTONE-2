@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
 import { Card, List, Button, Modal, message, Badge, Tabs, Form, Input, Switch, Statistic } from 'antd';
 import {
     HomeOutlined,
@@ -128,7 +129,7 @@ export default function StudentDashboard({ user, onLogout }) {
             <div className="app-header">
                 <div className="user-profile">
                     <div className="avatar">
-                        <UserOutlined />
+                        prefix={<DollarOutlined />}
                     </div>
                     <div className="user-info">
                         <span className="greeting">Hi, {(studentData.fullName || 'User').split(' ')[0]}</span>

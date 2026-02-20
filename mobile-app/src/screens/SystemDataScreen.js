@@ -74,7 +74,7 @@ export default function SystemDataScreen() {
 
                 <View style={styles.creditorHeader}>
                     <MaterialCommunityIcons name="account-alert" size={24} color="#d32f2f" />
-                    <Text style={styles.headerText}>ACTIVE OVERDUE ACCOUNTS</Text>
+                    <Text style={styles.headerText}>ACTIVE ACCOUNTS WITH CREDITS</Text>
                 </View>
 
                 {loading && !refreshing ? (

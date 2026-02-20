@@ -8,37 +8,36 @@ export default function PurchaseScreen({ route, navigation }) {
     const { passkey } = route.params;
     const [amount, setAmount] = useState('');
     const [loading, setLoading] = useState(false);
-    const soundRef = useRef(null);
 
-    // Load success sound on mount
     useEffect(() => {
-        const loadSound = async () => {
+        // Just configure audio mode once
+        const configureAudio = async () => {
             try {
-                await Audio.setAudioModeAsync({ playsInSilentModeIOS: true });
-                const { sound } = await Audio.Sound.createAsync(
-                    require('../../assets/success.mp3')
-                );
-                soundRef.current = sound;
+                await Audio.setAudioModeAsync({
+                    playsInSilentModeIOS: true,
+                    allowsRecordingIOS: false,
+                    staysActiveInBackground: false,
+                    shouldDuckAndroid: true,
+                });
             } catch (e) {
-                console.log('Sound load error:', e);
+                console.log('Audio config error:', e);
             }
         };
-        loadSound();
-
-        return () => {
-            // Unload sound on unmount to free memory
-            if (soundRef.current) {
-                soundRef.current.unloadAsync();
-            }
-        };
+        configureAudio();
     }, []);
 
     const playSuccessSound = async () => {
         try {
-            if (soundRef.current) {
-                await soundRef.current.setPositionAsync(0); // rewind to start
-                await soundRef.current.playAsync();
-            }
+            const { sound } = await Audio.Sound.createAsync(
+                require('../../assets/success.mp3')
+            );
+            await sound.playAsync();
+
+            sound.setOnPlaybackStatusUpdate((status) => {
+                if (status.didJustFinish) {
+                    sound.unloadAsync();
+                }
+            });
         } catch (e) {
             console.log('Sound play error:', e);
         }
