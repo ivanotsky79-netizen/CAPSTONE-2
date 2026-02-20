@@ -97,10 +97,11 @@ const styles = StyleSheet.create({
     container: {
         flexGrow: 1,
         backgroundColor: '#1A237E', // Deep Blue
-        justifyContent: 'center',
+        justifyContent: 'flex-start',
         alignItems: 'center',
         padding: 20,
-        paddingVertical: 50,
+        paddingTop: 80,
+        paddingBottom: 50,
     },
     header: {
         marginBottom: 40,

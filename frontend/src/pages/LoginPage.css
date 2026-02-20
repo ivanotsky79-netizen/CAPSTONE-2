@@ -1,17 +1,17 @@
 .login-container {
     min-height: 100vh;
-    display: flex;
     background: linear-gradient(135deg, #1A237E 0%, #283593 100%);
-    padding: 20px;
-    padding-top: 5vh;
-    padding-bottom: 5vh;
-    overflow-y: auto;
+    padding: 10vh 20px 40px;
+    /* Use padding to act as vertical centering */
+    display: block;
+    /* Removed flex to stop clipping */
 }
 
 .login-box {
     width: 100%;
-    margin: auto;
     max-width: 450px;
+    margin: 0 auto;
+    /* Only horizontal center */
 }
 
 .landing-box {
