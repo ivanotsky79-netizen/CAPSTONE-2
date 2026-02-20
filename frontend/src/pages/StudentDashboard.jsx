@@ -279,7 +279,15 @@ export default function StudentDashboard({ user, onLogout }) {
                 centered
             >
                 <div style={{ marginBottom: 20 }}>
-                    <p style={{ color: '#666' }}>Schedule a time to give cash to the admin to top up your account balance.</p>
+                    <p style={{ color: '#666', fontSize: '14px', lineHeight: '1.5' }}>
+                        Schedule a time to give cash to the admin to top up your account balance.
+                        Please prepare the exact amount you wish to load and bring it to the admin
+                        (<strong>Room 12 - Olivera Classroom</strong>) at the scheduled time.
+                    </p>
+                    <p style={{ color: '#888', fontSize: '13px', fontStyle: 'italic', marginTop: '10px' }}>
+                        * Note: This is only a <strong>schedule request</strong>. Your balance will be updated
+                        once the physical payment is collected by the admin.
+                    </p>
                 </div>
 
                 <div style={{ marginBottom: 15 }}>
