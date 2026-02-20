@@ -131,7 +131,7 @@ export default function DayDetailsScreen({ route, navigation }) {
                                 styles.txnAmount,
                                 { color: item.type === 'REFUND' || item.type === 'PURCHASE' ? '#D32F2F' : '#388E3C' }
                             ]}>
-                                {item.type === 'REFUND' || item.type === 'PURCHASE' ? '-' : '+'}{formatCurrency(item.amount)}
+                                {formatCurrency(Math.abs(item.amount))}
                             </Text>
                             {item.studentId ? <Text style={styles.studentId}>{item.studentId}</Text> : null}
                         </View>

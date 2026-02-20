@@ -1,12 +1,48 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { StyleSheet, Text, View, TextInput, TouchableOpacity, Alert, ActivityIndicator } from 'react-native';
+import { Audio } from 'expo-av';
 import { transactionService, studentService } from '../services/api';
 
 export default function PurchaseScreen({ route, navigation }) {
-    const { student: initialStudent, passkey } = route.params;
-    const [student, setStudent] = useState(initialStudent);
+    const [student, setStudent] = useState(route.params.student);
+    const { passkey } = route.params;
     const [amount, setAmount] = useState('');
     const [loading, setLoading] = useState(false);
+    const soundRef = useRef(null);
+
+    // Load success sound on mount
+    useEffect(() => {
+        const loadSound = async () => {
+            try {
+                await Audio.setAudioModeAsync({ playsInSilentModeIOS: true });
+                const { sound } = await Audio.Sound.createAsync(
+                    require('../../assets/success.mp3')
+                );
+                soundRef.current = sound;
+            } catch (e) {
+                console.log('Sound load error:', e);
+            }
+        };
+        loadSound();
+
+        return () => {
+            // Unload sound on unmount to free memory
+            if (soundRef.current) {
+                soundRef.current.unloadAsync();
+            }
+        };
+    }, []);
+
+    const playSuccessSound = async () => {
+        try {
+            if (soundRef.current) {
+                await soundRef.current.setPositionAsync(0); // rewind to start
+                await soundRef.current.playAsync();
+            }
+        } catch (e) {
+            console.log('Sound play error:', e);
+        }
+    };
 
     const refreshBalance = async () => {
         try {
@@ -23,11 +59,10 @@ export default function PurchaseScreen({ route, navigation }) {
 
         const currentBal = parseFloat(student.balance);
 
-        // Client-side pre-check for user friendliness
         if (currentBal < val) {
             Alert.alert(
                 'Insufficient Balance',
-                `Balance is SAR ${currentBal.toFixed(2)}. This will result in negative balance. Proceed with Credit?`,
+                `Balance is ${currentBal.toFixed(2)} Points. This will result in negative balance. Proceed with Credit?`,
                 [
                     { text: 'Cancel', style: 'cancel' },
                     { text: 'Use Credit', onPress: () => processTransaction() }
@@ -42,7 +77,9 @@ export default function PurchaseScreen({ route, navigation }) {
         setLoading(true);
         try {
             await transactionService.purchase(student.studentId, amount, passkey);
-            Alert.alert('Success', 'Transaction Completed', [
+            // Play success sound before showing the alert
+            await playSuccessSound();
+            Alert.alert('✅ Success', 'Transaction Completed!', [
                 { text: 'New Sale', onPress: () => navigation.navigate('Scan') }
             ]);
             setAmount('');
@@ -59,12 +96,12 @@ export default function PurchaseScreen({ route, navigation }) {
                 <Text style={styles.studentName}>{student.fullName}</Text>
                 <Text style={styles.grade}>{student.grade} - {student.section}</Text>
                 <Text style={[styles.balance, { color: student.balance < 0 ? 'red' : 'green' }]}>
-                    SAR {parseFloat(student.balance).toFixed(2)}
+                    {parseFloat(student.balance).toFixed(2)} Points
                 </Text>
             </View>
 
             <View style={styles.inputContainer}>
-                <Text style={styles.inputLabel}>Enter Amount (SAR)</Text>
+                <Text style={styles.inputLabel}>Enter Amount (Points)</Text>
                 <TextInput
                     style={styles.amountInput}
                     value={amount}
