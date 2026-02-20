@@ -1,5 +1,5 @@
 import React, { useState } from 'react'; // Force Vercel Build
-import { Form, Input, Button, Card, message, Typography, Space, Modal } from 'antd';
+import { Form, Input, Button, Card, message, Typography, Space, Modal, Row, Col } from 'antd';
 import { UserOutlined, LockOutlined, IdcardOutlined, ArrowLeftOutlined, UserAddOutlined } from '@ant-design/icons';
 import { studentService } from '../services/api';
 import './LoginPage.css';
@@ -153,7 +153,7 @@ export default function LoginPage({ onLogin }) {
             background: 'linear-gradient(135deg, #1A237E 0%, #283593 100%)',
             padding: '5vh 20px 40px',
         }}>
-            <div style={{ width: '100%', maxWidth: 450, margin: '0 auto' }}>
+            <div style={{ width: '100%', maxWidth: view === 'student-register' ? 700 : 450, margin: '0 auto', transition: 'max-width 0.3s ease' }}>
                 <div className="login-header">
                     <h1 className="system-name">FUGEN <span className="accent">SmartPay</span></h1>
                     <p className="system-subtitle">
@@ -212,24 +212,37 @@ export default function LoginPage({ onLogin }) {
                     {/* STUDENT REGISTRATION FORM */}
                     {view === 'student-register' && (
                         <Form onFinish={handleRegister} layout="vertical" size="large">
-                            <Form.Item name="fullName" label="Full Name" rules={[{ required: true, message: 'Enter Full Name' }]}>
-                                <Input prefix={<UserOutlined />} placeholder="e.g., Samuel Ivan B. Malavi" autoFocus />
-                            </Form.Item>
-                            <Form.Item name="studentId" label="12-Digit LRN (Student ID)" rules={[
-                                { required: true, message: 'Enter 12-digit LRN' },
-                                { len: 12, message: 'LRN must be exactly 12 digits' },
-                                { pattern: /^\d+$/, message: 'LRN must contain only numbers' }
-                            ]}>
-                                <Input prefix={<IdcardOutlined />} placeholder="e.g., 123456789012" maxLength={12} />
-                            </Form.Item>
-                            <Form.Item name="grade" label="Grade Level" rules={[{ required: true, message: 'Enter Grade Level' }]}>
-                                <Input type="number" prefix={<UserAddOutlined />} placeholder="e.g., 12" min={1} max={12} />
-                            </Form.Item>
-                            <Form.Item name="section" label="Section" rules={[{ required: true, message: 'Enter Section' }]}>
-                                <Input prefix={<UserAddOutlined />} placeholder="e.g., Olivera, Fabella, Tesla" />
-                            </Form.Item>
+                            <Row gutter={24}>
+                                <Col xs={24} sm={12}>
+                                    <Form.Item name="fullName" label="Full Name" rules={[{ required: true, message: 'Enter Full Name' }]}>
+                                        <Input prefix={<UserOutlined />} placeholder="e.g., Samuel Ivan B. Malavi" autoFocus />
+                                    </Form.Item>
+                                </Col>
+                                <Col xs={24} sm={12}>
+                                    <Form.Item name="studentId" label="12-Digit LRN (Student ID)" rules={[
+                                        { required: true, message: 'Enter 12-digit LRN' },
+                                        { len: 12, message: 'LRN must be exactly 12 digits' },
+                                        { pattern: /^\d+$/, message: 'LRN must contain only numbers' }
+                                    ]}>
+                                        <Input prefix={<IdcardOutlined />} placeholder="e.g., 123456789012" maxLength={12} />
+                                    </Form.Item>
+                                </Col>
+                            </Row>
 
-                            <Button type="primary" htmlType="submit" block loading={loading} size="large">
+                            <Row gutter={24}>
+                                <Col xs={24} sm={12}>
+                                    <Form.Item name="grade" label="Grade Level" rules={[{ required: true, message: 'Enter Grade Level' }]}>
+                                        <Input type="number" prefix={<UserAddOutlined />} placeholder="e.g., 12" min={1} max={12} />
+                                    </Form.Item>
+                                </Col>
+                                <Col xs={24} sm={12}>
+                                    <Form.Item name="section" label="Section" rules={[{ required: true, message: 'Enter Section' }]}>
+                                        <Input prefix={<UserAddOutlined />} placeholder="e.g., Olivera, Fabella, Tesla" />
+                                    </Form.Item>
+                                </Col>
+                            </Row>
+
+                            <Button type="primary" htmlType="submit" block loading={loading} size="large" style={{ marginTop: 10 }}>
                                 Create Account
                             </Button>
 
