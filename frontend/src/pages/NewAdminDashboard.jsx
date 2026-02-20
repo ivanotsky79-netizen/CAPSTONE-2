@@ -452,18 +452,6 @@ export default function AdminDashboard({ onLogout }) {
                         <div className="win98-title-bar"><span>Transaction History</span><WindowControls /></div>
                         <div className="win98-content" style={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
 
-                            <div style={{ border: '2px inset #fff', background: '#ccc', padding: 5, marginBottom: 10 }}>
-                                <h3 style={{ marginTop: 0, fontSize: 14 }} color="black">Hourly Sales</h3>
-                                <div style={{ display: 'flex', alignItems: 'flex-end', height: 100, gap: 5 }}>
-                                    {graphData.map(d => (
-                                        <div key={d.hour} style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'flex-end', height: '100%' }}>
-                                            <div className="win98-bar" style={{ width: '60%', height: `${Math.min(d.total * 2, 80)}px` }}></div>
-                                            <div style={{ fontSize: 10 }}>{d.hour}</div>
-                                        </div>
-                                    ))}
-                                </div>
-                            </div>
-
                             <div className="win98-table-wrapper">
                                 <table className="win98-table">
                                     <thead><tr><th>Time</th><th>Student</th><th>Type</th><th>Amount</th><th>Method</th></tr></thead>

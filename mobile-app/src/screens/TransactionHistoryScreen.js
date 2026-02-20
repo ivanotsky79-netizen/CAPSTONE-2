@@ -82,10 +82,10 @@ export default function UsersScreen() {
             </View>
             <View>
                 <Text style={[styles.balanceText, { color: parseFloat(item.balance) < 0 ? '#d32f2f' : '#2E7D32' }]}>
-                    {parseFloat(item.balance) < 0 ? 'Owning' : 'Balance'}
+                    Balance
                 </Text>
                 <Text style={[styles.balanceValue, { color: parseFloat(item.balance) < 0 ? '#d32f2f' : '#2E7D32' }]}>
-                    SAR {Math.abs(parseFloat(item.balance)).toFixed(2)}
+                    SAR {parseFloat(item.balance).toFixed(2)}
                 </Text>
             </View>
         </TouchableOpacity>
@@ -167,7 +167,7 @@ export default function UsersScreen() {
                                         <Text style={[styles.txnAmount, { color: item.type === 'PURCHASE' ? '#d32f2f' : '#2E7D32' }]}>
                                             {item.type === 'PURCHASE' ? '-' : '+'}{parseFloat(item.amount || 0).toFixed(2)}
                                         </Text>
-                                        {item.newBalance && <Text style={styles.txnBalance}>Bal: {parseFloat(item.newBalance).toFixed(2)}</Text>}
+                                        {item.newBalance != null && <Text style={styles.txnBalance}>Bal: {parseFloat(item.newBalance).toFixed(2)}</Text>}
                                     </View>
                                 </View>
                             )}
