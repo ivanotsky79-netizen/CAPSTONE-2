@@ -1,15 +1,26 @@
 @import 'antd/dist/reset.css';
 
 :root {
-  --primary-color: #1A237E; /* Deep Indigo */
-  --secondary-color: #FFD700; /* Gold */
-  --accent-color: #00E676; /* Bright Green for Success */
+  --primary-color: #1A237E;
+  /* Deep Indigo */
+  --secondary-color: #FFD700;
+  /* Gold */
+  --accent-color: #00E676;
+  /* Bright Green for Success */
   --danger-color: #FF1744;
   --bg-color: #F5F7FA;
   --text-primary: #1F2937;
   --text-secondary: #6B7280;
   --glass-bg: rgba(255, 255, 255, 0.85);
   --glass-border: rgba(255, 255, 255, 0.3);
+}
+
+html,
+body,
+#root {
+  height: auto;
+  min-height: 100%;
+  overflow-x: hidden;
 }
 
 body {
@@ -56,7 +67,7 @@ body {
 
 .ant-card {
   border-radius: 16px !important;
-  overflow: hidden;
+  /* overflow: hidden removed — was blocking scroll on login/register forms */
 }
 
 .page-container {
