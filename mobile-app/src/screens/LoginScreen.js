@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { StyleSheet, Text, View, TextInput, TouchableOpacity, Alert, ActivityIndicator, Image } from 'react-native';
+import { StyleSheet, Text, View, TextInput, TouchableOpacity, Alert, ActivityIndicator, Image, KeyboardAvoidingView, ScrollView, Platform } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 
@@ -29,67 +29,78 @@ export default function LoginScreen({ navigation }) {
     };
 
     return (
-        <SafeAreaView style={styles.container}>
-            <View style={styles.header}>
-                <Text style={styles.title}>FUGEN <Text style={styles.accentText}>SmartPay</Text></Text>
-                <Text style={styles.subtitle}>Admin Dashboard</Text>
-            </View>
-
-            <View style={styles.card}>
-                <View style={styles.inputContainer}>
-                    <MaterialCommunityIcons name="account-outline" size={24} color="#666" style={styles.icon} />
-                    <TextInput
-                        style={styles.input}
-                        placeholder="Username"
-                        placeholderTextColor="#999"
-                        value={username}
-                        onChangeText={setUsername}
-                        autoCapitalize="none"
-                    />
-                </View>
-
-                <View style={styles.inputContainer}>
-                    <MaterialCommunityIcons name="lock-outline" size={24} color="#666" style={styles.icon} />
-                    <TextInput
-                        style={styles.input}
-                        placeholder="Password"
-                        placeholderTextColor="#999"
-                        secureTextEntry={!showPassword}
-                        value={password}
-                        onChangeText={setPassword}
-                    />
-                    <TouchableOpacity onPress={() => setShowPassword(!showPassword)}>
-                        <MaterialCommunityIcons name={showPassword ? "eye-off-outline" : "eye-outline"} size={24} color="#666" />
-                    </TouchableOpacity>
-                </View>
-
-                <TouchableOpacity
-                    style={styles.loginButton}
-                    onPress={handleLogin}
-                    disabled={loading}
+        <SafeAreaView style={{ flex: 1, backgroundColor: '#1A237E' }}>
+            <KeyboardAvoidingView
+                behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+                style={{ flex: 1 }}
+            >
+                <ScrollView
+                    contentContainerStyle={styles.container}
+                    keyboardShouldPersistTaps="handled"
                 >
-                    {loading ? (
-                        <ActivityIndicator color="#fff" />
-                    ) : (
-                        <Text style={styles.loginButtonText}>Login to Dashboard</Text>
-                    )}
-                </TouchableOpacity>
-            </View>
+                    <View style={styles.header}>
+                        <Text style={styles.title}>FUGEN <Text style={styles.accentText}>SmartPay</Text></Text>
+                        <Text style={styles.subtitle}>Admin Dashboard</Text>
+                    </View>
 
-            <View style={styles.footer}>
-                <Text style={styles.footerText}>FUGEN SmartPay © 2026 | Secure Admin Access</Text>
-            </View>
+                    <View style={styles.card}>
+                        <View style={styles.inputContainer}>
+                            <MaterialCommunityIcons name="account-outline" size={24} color="#666" style={styles.icon} />
+                            <TextInput
+                                style={styles.input}
+                                placeholder="Username"
+                                placeholderTextColor="#999"
+                                value={username}
+                                onChangeText={setUsername}
+                                autoCapitalize="none"
+                            />
+                        </View>
+
+                        <View style={styles.inputContainer}>
+                            <MaterialCommunityIcons name="lock-outline" size={24} color="#666" style={styles.icon} />
+                            <TextInput
+                                style={styles.input}
+                                placeholder="Password"
+                                placeholderTextColor="#999"
+                                secureTextEntry={!showPassword}
+                                value={password}
+                                onChangeText={setPassword}
+                            />
+                            <TouchableOpacity onPress={() => setShowPassword(!showPassword)}>
+                                <MaterialCommunityIcons name={showPassword ? "eye-off-outline" : "eye-outline"} size={24} color="#666" />
+                            </TouchableOpacity>
+                        </View>
+
+                        <TouchableOpacity
+                            style={styles.loginButton}
+                            onPress={handleLogin}
+                            disabled={loading}
+                        >
+                            {loading ? (
+                                <ActivityIndicator color="#fff" />
+                            ) : (
+                                <Text style={styles.loginButtonText}>Login to Dashboard</Text>
+                            )}
+                        </TouchableOpacity>
+                    </View>
+
+                    <View style={styles.footer}>
+                        <Text style={styles.footerText}>FUGEN SmartPay © 2026 | Secure Admin Access</Text>
+                    </View>
+                </ScrollView>
+            </KeyboardAvoidingView>
         </SafeAreaView>
     );
 }
 
 const styles = StyleSheet.create({
     container: {
-        flex: 1,
+        flexGrow: 1,
         backgroundColor: '#1A237E', // Deep Blue
         justifyContent: 'center',
         alignItems: 'center',
         padding: 20,
+        paddingVertical: 50,
     },
     header: {
         marginBottom: 40,
@@ -160,8 +171,7 @@ const styles = StyleSheet.create({
         color: '#333',
     },
     footer: {
-        position: 'absolute',
-        bottom: 30,
+        marginTop: 40,
     },
     footerText: {
         color: '#B0BEC5',
