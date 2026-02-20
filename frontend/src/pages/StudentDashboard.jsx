@@ -37,15 +37,13 @@ export default function StudentDashboard({ user, onLogout }) {
     // Forms
     const [passkeyForm] = Form.useForm();
 
-    if (!studentData) {
-        return <div style={{ padding: 20, textAlign: 'center', color: darkMode ? '#fff' : '#333' }}>Loading user data...</div>;
-    }
-
+    // ALL hooks must be called before any conditional returns
     useEffect(() => {
+        if (!user?.studentId) return;
         loadData();
 
         // Real-time Updates
-        const socket = io('https://fugen-backend.onrender.com'); // Or use API_BASE_URL from a config if available
+        const socket = io('https://fugen-backend.onrender.com');
         socket.on('balanceUpdate', (data) => {
             if (data.studentId === user.studentId) {
                 console.log('Real-time update received', data);
@@ -62,11 +60,12 @@ export default function StudentDashboard({ user, onLogout }) {
         if (darkMode) {
             document.body.style.backgroundColor = '#121212';
         } else {
-            document.body.style.backgroundColor = '#f5f5f5'; // Mobile POS default
+            document.body.style.backgroundColor = '#f5f5f5';
         }
     }, [darkMode]);
 
     const loadData = async () => {
+        if (!user?.studentId) return;
         setLoading(true);
         try {
             const [tRes, sRes] = await Promise.all([
@@ -76,7 +75,18 @@ export default function StudentDashboard({ user, onLogout }) {
 
             const transList = tRes.data.data || [];
             setTransactions(transList);
-            setStudentData(sRes.data.data || sRes.data);
+            const freshStudent = sRes.data.data || sRes.data;
+            setStudentData(freshStudent);
+
+            // Keep localStorage in sync with fresh student data
+            const savedAuth = localStorage.getItem('fugen_auth');
+            if (savedAuth) {
+                try {
+                    const parsed = JSON.parse(savedAuth);
+                    parsed.user = freshStudent;
+                    localStorage.setItem('fugen_auth', JSON.stringify(parsed));
+                } catch (e) { /* ignore */ }
+            }
 
         } catch (err) {
             message.error('Failed to load student data');
@@ -84,6 +94,11 @@ export default function StudentDashboard({ user, onLogout }) {
             setLoading(false);
         }
     };
+
+    // Safe early return AFTER all hooks
+    if (!studentData) {
+        return <div style={{ padding: 20, textAlign: 'center', color: darkMode ? '#fff' : '#333' }}>Loading user data...</div>;
+    }
 
     const handleUpdatePasskey = async (values) => {
         try {
