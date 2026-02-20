@@ -9,6 +9,7 @@ import './Windows98Dashboard.css';
 export default function AdminDashboard({ onLogout }) {
     const [view, setView] = useState('users'); // users, transactions, reports, system, logs
     const [systemViewMode, setSystemViewMode] = useState('logs');
+    const [usersViewMode, setUsersViewMode] = useState('all'); // 'all' or 'debtors'
     const [students, setStudents] = useState([]);
     const [loading, setLoading] = useState(false);
     const [searchText, setSearchText] = useState('');
@@ -357,56 +358,90 @@ export default function AdminDashboard({ onLogout }) {
                             </div>
 
                             <div className="win98-toolbar">
-                                <input className="win98-input" placeholder="Search..." value={searchText} onChange={e => setSearchText(e.target.value)} />
-                                <button className="win98-btn" onClick={() => setShowAddModal(true)}>+ Add</button>
-                                <button className="win98-btn" onClick={() => {
-                                    if (selectedIds.size === 0) { message.warning('Please select a student to Top Up.'); return; }
-                                    if (selectedIds.size > 1) { message.warning('Please select only one student.'); return; }
-                                    const id = Array.from(selectedIds)[0];
-                                    const student = students.find(s => s.studentId === id);
-                                    if (student) { setSelectedStudent(student); setShowTopUpModal(true); }
-                                }}>Top Up</button>
-                                <label className="win98-btn">
-                                    📂 Import CSV
-                                    <input type="file" accept=".csv" style={{ display: 'none' }} onChange={handleFileUpload} />
-                                </label>
-                                <button className="win98-btn" onClick={handleDeleteSelected}>Delete ({selectedIds.size})</button>
+                                <button className={`win98-btn ${usersViewMode === 'all' ? 'active' : ''}`} onClick={() => setUsersViewMode('all')}>All Students</button>
+                                <button className={`win98-btn ${usersViewMode === 'debtors' ? 'active' : ''}`} onClick={() => setUsersViewMode('debtors')}>Students with Credit</button>
+                                <div style={{ flex: 1 }}></div>
+                                {usersViewMode === 'all' && (
+                                    <>
+                                        <input className="win98-input" placeholder="Search..." value={searchText} onChange={e => setSearchText(e.target.value)} />
+                                        <button className="win98-btn" onClick={() => setShowAddModal(true)}>+ Add</button>
+                                        <button className="win98-btn" onClick={() => {
+                                            if (selectedIds.size === 0) { message.warning('Please select a student to Top Up.'); return; }
+                                            if (selectedIds.size > 1) { message.warning('Please select only one student.'); return; }
+                                            const id = Array.from(selectedIds)[0];
+                                            const student = students.find(s => s.studentId === id);
+                                            if (student) { setSelectedStudent(student); setShowTopUpModal(true); }
+                                        }}>Top Up</button>
+                                        <label className="win98-btn">
+                                            📂 Import CSV
+                                            <input type="file" accept=".csv" style={{ display: 'none' }} onChange={handleFileUpload} />
+                                        </label>
+                                        <button className="win98-btn" onClick={handleDeleteSelected}>Delete ({selectedIds.size})</button>
+                                    </>
+                                )}
                             </div>
 
                             <div className="win98-table-wrapper">
-                                <table className="win98-table">
-                                    <thead>
-                                        <tr>
-                                            <th style={{ width: 30 }}><input type="checkbox" onChange={handleSelectAll} checked={selectedIds.size === students.length && students.length > 0} /></th>
-                                            <th>ID</th>
-                                            <th>Name</th>
-                                            <th>Grade</th>
-                                            <th>Balance</th>
-                                            <th>Actions</th>
-                                        </tr>
-                                    </thead>
-                                    <tbody>
-                                        {filtered.map(s => (
-                                            <tr key={s.studentId}>
-                                                <td><input type="checkbox" checked={selectedIds.has(s.studentId)} onChange={() => handleToggleSelect(s.studentId)} /></td>
-                                                <td>{s.studentId}</td>
-                                                <td>
-                                                    <span
-                                                        onClick={() => handleOpenProfile(s)}
-                                                        style={{ textDecoration: 'underline', cursor: 'pointer', fontWeight: 'bold' }}
-                                                    >
-                                                        {s.fullName}
-                                                    </span>
-                                                </td>
-                                                <td>{s.gradeSection}</td>
-                                                <td style={{ color: parseFloat(s.balance) < 0 ? 'red' : 'green' }}>SAR {parseFloat(s.balance).toFixed(2)}</td>
-                                                <td>
-                                                    <button className="win98-btn" style={{ padding: '2px 5px', fontSize: 11 }} onClick={() => { setSelectedStudent(s); setShowQrModal(true); }}>QR</button>
-                                                </td>
+                                {usersViewMode === 'all' ? (
+                                    <table className="win98-table">
+                                        <thead>
+                                            <tr>
+                                                <th style={{ width: 30 }}><input type="checkbox" onChange={handleSelectAll} checked={selectedIds.size === students.length && students.length > 0} /></th>
+                                                <th>ID</th>
+                                                <th>Name</th>
+                                                <th>Grade</th>
+                                                <th>Balance</th>
+                                                <th>Actions</th>
                                             </tr>
-                                        ))}
-                                    </tbody>
-                                </table>
+                                        </thead>
+                                        <tbody>
+                                            {filtered.map(s => (
+                                                <tr key={s.studentId}>
+                                                    <td><input type="checkbox" checked={selectedIds.has(s.studentId)} onChange={() => handleToggleSelect(s.studentId)} /></td>
+                                                    <td>{s.studentId}</td>
+                                                    <td>
+                                                        <span
+                                                            onClick={() => handleOpenProfile(s)}
+                                                            style={{ textDecoration: 'underline', cursor: 'pointer', fontWeight: 'bold' }}
+                                                        >
+                                                            {s.fullName}
+                                                        </span>
+                                                    </td>
+                                                    <td>{s.gradeSection}</td>
+                                                    <td style={{ color: parseFloat(s.balance) < 0 ? 'red' : 'green' }}>SAR {parseFloat(s.balance).toFixed(2)}</td>
+                                                    <td>
+                                                        <button className="win98-btn" style={{ padding: '2px 5px', fontSize: 11 }} onClick={() => { setSelectedStudent(s); setShowQrModal(true); }}>QR</button>
+                                                    </td>
+                                                </tr>
+                                            ))}
+                                        </tbody>
+                                    </table>
+                                ) : (
+                                    <table className="win98-table">
+                                        <thead><tr><th>ID</th><th>Name</th><th>Grade</th><th>Debt Amount</th><th>Action</th></tr></thead>
+                                        <tbody>
+                                            {students.filter(s => parseFloat(s.balance) < 0).length === 0 ? (
+                                                <tr><td colSpan={5} style={{ textAlign: 'center' }}>✅ No students with outstanding credit.</td></tr>
+                                            ) : (
+                                                students.filter(s => parseFloat(s.balance) < 0).map(s => (
+                                                    <tr key={s.studentId}>
+                                                        <td>{s.studentId}</td>
+                                                        <td style={{ fontWeight: 'bold' }}>
+                                                            <span onClick={() => handleOpenProfile(s)} style={{ textDecoration: 'underline', cursor: 'pointer' }}>
+                                                                {s.fullName}
+                                                            </span>
+                                                        </td>
+                                                        <td>{s.gradeSection}</td>
+                                                        <td style={{ color: 'red', fontWeight: 'bold' }}>{Math.abs(parseFloat(s.balance)).toFixed(2)} Points</td>
+                                                        <td>
+                                                            <button className="win98-btn" style={{ padding: '2px 5px' }} onClick={() => { setSelectedStudent(s); setShowTopUpModal(true); }}>Pay Debt</button>
+                                                        </td>
+                                                    </tr>
+                                                ))
+                                            )}
+                                        </tbody>
+                                    </table>
+                                )}
                             </div>
                         </div>
                     </div>
@@ -514,47 +549,21 @@ export default function AdminDashboard({ onLogout }) {
                                 </div>
                             </div>
                             <div className="win98-toolbar">
-                                <button className={`win98-btn ${systemViewMode === 'logs' ? 'active' : ''}`} onClick={() => setSystemViewMode('logs')}>System Logs</button>
-                                <button className={`win98-btn ${systemViewMode === 'debtors' ? 'active' : ''}`} onClick={() => setSystemViewMode('debtors')}>Students with Credit</button>
-                                <div style={{ flex: 1 }}></div>
                                 <button className="win98-btn" onClick={() => setShowWithdrawModal(true)}>Withdraw Cash</button>
                             </div>
                             <div className="win98-table-wrapper">
-                                {systemViewMode === 'logs' ? (
-                                    <table className="win98-table">
-                                        <thead><tr><th>Time</th><th>Type</th><th>Amount</th></tr></thead>
-                                        <tbody>
-                                            {(dailyStats.system?.transactions || []).map((t, i) => (
-                                                <tr key={i}>
-                                                    <td>{new Date(t.timestamp).toLocaleTimeString()}</td>
-                                                    <td>{t.type}</td>
-                                                    <td>SAR {parseFloat(t.amount).toFixed(2)}</td>
-                                                </tr>
-                                            ))}
-                                        </tbody>
-                                    </table>
-                                ) : (
-                                    <table className="win98-table">
-                                        <thead><tr><th>ID</th><th>Name</th><th>Grade</th><th>Debt Amount</th><th>Action</th></tr></thead>
-                                        <tbody>
-                                            {students.filter(s => parseFloat(s.balance) < 0).length === 0 ? (
-                                                <tr><td colSpan={5} style={{ textAlign: 'center' }}>No students with credit found.</td></tr>
-                                            ) : (
-                                                students.filter(s => parseFloat(s.balance) < 0).map(s => (
-                                                    <tr key={s.studentId}>
-                                                        <td>{s.studentId}</td>
-                                                        <td style={{ fontWeight: 'bold' }}>{s.fullName}</td>
-                                                        <td>{s.gradeSection}</td>
-                                                        <td style={{ color: 'red', fontWeight: 'bold' }}>SAR {Math.abs(parseFloat(s.balance)).toFixed(2)}</td>
-                                                        <td>
-                                                            <button className="win98-btn" style={{ padding: '2px 5px' }} onClick={() => { setSelectedStudent(s); setShowTopUpModal(true); }}>Pay Debt</button>
-                                                        </td>
-                                                    </tr>
-                                                ))
-                                            )}
-                                        </tbody>
-                                    </table>
-                                )}
+                                <table className="win98-table">
+                                    <thead><tr><th>Time</th><th>Type</th><th>Amount</th></tr></thead>
+                                    <tbody>
+                                        {(dailyStats.system?.transactions || []).map((t, i) => (
+                                            <tr key={i}>
+                                                <td>{new Date(t.timestamp).toLocaleTimeString()}</td>
+                                                <td>{t.type}</td>
+                                                <td>SAR {parseFloat(t.amount).toFixed(2)}</td>
+                                            </tr>
+                                        ))}
+                                    </tbody>
+                                </table>
                             </div>
                         </div>
                     </div>
