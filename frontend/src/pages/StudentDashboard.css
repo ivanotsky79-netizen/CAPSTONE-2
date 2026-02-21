@@ -336,12 +336,17 @@
 /* Dark Mode Theme */
 .student-app-container.dark-mode {
     background-color: #121212;
-    color: white;
+    color: #e0e0e0;
 }
 
 .student-app-container.dark-mode .app-header .greeting,
-.student-app-container.dark-mode .app-header .welcome-back {
-    color: white;
+.student-app-container.dark-mode .app-header .welcome-back,
+.student-app-container.dark-mode .title-dashboard {
+    color: #e0e0e0;
+}
+
+.student-app-container.dark-mode .notification-icon {
+    color: #e0e0e0;
 }
 
 .student-app-container.dark-mode .icon-btn {
@@ -349,36 +354,118 @@
     color: white;
 }
 
-.student-app-container.dark-mode .chart-section,
-.student-app-container.dark-mode .action-btn,
-.student-app-container.dark-mode .history-item {
-    background-color: #1e1e1e;
-    border: 1px solid #333;
-    color: white;
+/* Balance Card (non-gradient default) */
+.student-app-container.dark-mode .balance-card {
+    background: #1e1e1e;
+    color: #e0e0e0;
+    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3);
 }
 
-.student-app-container.dark-mode .history-item .item-details .item-title,
-.student-app-container.dark-mode .chart-section h3,
-.student-app-container.dark-mode .action-btn span {
-    color: white;
-}
-
-.student-app-container.dark-mode .history-item .item-details .item-subtitle {
-    color: #aaa;
-}
-
-.student-app-container.dark-mode .bottom-nav {
-    background-color: #1e1e1e;
-    border-top: 1px solid #333;
-}
-
-.student-app-container.dark-mode .nav-item {
+.student-app-container.dark-mode .balance-card .label {
     color: #aaa;
 }
 
 .student-app-container.dark-mode .balance-card.dark-card {
     background: linear-gradient(135deg, #1A237E 0%, #0D47A1 100%);
     box-shadow: 0 10px 30px rgba(0, 0, 0, 0.4);
+    color: white;
+}
+
+/* Card Action Buttons */
+.student-app-container.dark-mode .card-btn {
+    background: #2a2a2a;
+    border: 1px solid #444;
+    color: #e0e0e0;
+    box-shadow: 0 2px 5px rgba(0, 0, 0, 0.2);
+}
+
+.student-app-container.dark-mode .card-btn:active {
+    background: #333;
+}
+
+.student-app-container.dark-mode .card-btn span {
+    color: #e0e0e0;
+}
+
+/* Chart Section */
+.student-app-container.dark-mode .chart-section {
+    background-color: #1e1e1e;
+    border: 1px solid #333;
+    color: white;
+}
+
+.student-app-container.dark-mode .chart-section h3 {
+    color: white;
+}
+
+/* History Section */
+.student-app-container.dark-mode .history-section {
+    background: #1a1a1a;
+}
+
+.student-app-container.dark-mode .section-header h3 {
+    color: #e0e0e0;
+}
+
+.student-app-container.dark-mode .section-header a {
+    color: #5c7cfa;
+}
+
+.student-app-container.dark-mode .history-item {
+    background-color: transparent;
+    border-bottom: 1px solid #333 !important;
+    color: #e0e0e0;
+}
+
+.student-app-container.dark-mode .history-item .item-details .item-title {
+    color: #e0e0e0;
+}
+
+.student-app-container.dark-mode .history-item .item-details .item-subtitle {
+    color: #888;
+}
+
+.student-app-container.dark-mode .item-amount.negative {
+    color: #ccc;
+}
+
+.student-app-container.dark-mode .item-icon-bg {
+    background-color: #2a2a2a;
+}
+
+.student-app-container.dark-mode .item-icon-bg.purchase {
+    background-color: #3d2010;
+    color: #fa541c;
+}
+
+.student-app-container.dark-mode .item-icon-bg.topup {
+    background-color: #1a3010;
+    color: #52c41a;
+}
+
+/* Bottom Nav */
+.student-app-container.dark-mode .bottom-nav {
+    background-color: #1e1e1e;
+    border-top: 1px solid #333;
+}
+
+.student-app-container.dark-mode .nav-item {
+    color: #777;
+}
+
+.student-app-container.dark-mode .nav-item.active {
+    color: #5c7cfa;
+}
+
+.student-app-container.dark-mode .nav-item.logout {
+    color: #ff6b6b;
+}
+
+/* Action Buttons */
+.student-app-container.dark-mode .action-btn {
+    background-color: #1e1e1e;
+    border: 1px solid #333;
+    color: white;
 }
 
 .student-app-container.dark-mode .action-btn.primary {
@@ -387,6 +474,7 @@
     color: white;
 }
 
+.student-app-container.dark-mode .action-btn span,
 .student-app-container.dark-mode .action-btn.primary span {
     color: white;
 }
@@ -405,4 +493,10 @@
 
 .ant-tabs-nav {
     margin-bottom: 20px !important;
+}
+
+/* QR Modal Card */
+.student-app-container.dark-mode .qr-card {
+    background: #1e1e1e;
+    color: #e0e0e0;
 }

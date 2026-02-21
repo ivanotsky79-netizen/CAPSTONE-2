@@ -8,12 +8,16 @@ import './Windows98Dashboard.css';
 
 // Admin Dashboard - Windows 98 Style Recreation
 export default function AdminDashboard({ onLogout }) {
-    const [view, setView] = useState('users'); // users, transactions, reports, system, logs
+    const [view, setView] = useState('users');
     const [systemViewMode, setSystemViewMode] = useState('logs');
-    const [usersViewMode, setUsersViewMode] = useState('all'); // 'all' or 'debtors'
+    const [usersViewMode, setUsersViewMode] = useState('all');
     const [students, setStudents] = useState([]);
     const [loading, setLoading] = useState(false);
     const [searchText, setSearchText] = useState('');
+
+    // Activity Tab (merged History + Logs)
+    const [activityFilter, setActivityFilter] = useState('all'); // all, purchases, topups, system
+    const [activitySearch, setActivitySearch] = useState('');
 
     // Selection for Delete
     const [selectedIds, setSelectedIds] = useState(new Set());
@@ -58,15 +62,39 @@ export default function AdminDashboard({ onLogout }) {
     const [logDate, setLogDate] = useState(new Date().toISOString().split('T')[0]);
     const [logData, setLogData] = useState(null);
 
+    // Online/Offline Status
+    const [isOnline, setIsOnline] = useState(navigator.onLine);
+
+    // Bulk Top-Up
+    const [showBulkTopUpModal, setShowBulkTopUpModal] = useState(false);
+    const [bulkTopUpAmount, setBulkTopUpAmount] = useState('');
+
     useEffect(() => {
         loadData();
-        loadLocalLogs(); // Load audit logs from localStorage
+        loadLocalLogs();
+        fetchRequests(); // load count for badge
         const socket = io('https://fugen-backend.onrender.com');
         socket.on('balanceUpdate', loadData);
         socket.on('studentCreated', loadData);
         socket.on('studentDeleted', loadData);
         return () => socket.disconnect();
     }, []);
+
+    // Online/Offline listener
+    useEffect(() => {
+        const goOnline = () => setIsOnline(true);
+        const goOffline = () => setIsOnline(false);
+        window.addEventListener('online', goOnline);
+        window.addEventListener('offline', goOffline);
+        return () => { window.removeEventListener('online', goOnline); window.removeEventListener('offline', goOffline); };
+    }, []);
+
+    // Auto-refresh Activity tab every 30s
+    useEffect(() => {
+        if (view !== 'activity') return;
+        const interval = setInterval(() => fetchLogs(), 30000);
+        return () => clearInterval(interval);
+    }, [view, logDate]);
 
     useEffect(() => {
         if (addForm.lrn.length === 12) {
@@ -283,6 +311,7 @@ export default function AdminDashboard({ onLogout }) {
     const handleWithdraw = async () => {
         try {
             if (withdrawForm.passkey !== '170206') { message.error('Invalid Admin PIN'); return; }
+            if (!confirm(`Withdraw SAR ${withdrawForm.amount} from the system?`)) return;
             await transactionService.withdraw(withdrawForm.amount, withdrawForm.passkey);
             addAuditLog('WITHDRAW_CASH', `Admin withdrew SAR ${withdrawForm.amount} from system`);
             message.success('Cash Withdrawn');
@@ -335,6 +364,79 @@ export default function AdminDashboard({ onLogout }) {
         }
     };
 
+    const printQR = () => {
+        const canvas = document.getElementById('qr-canvas');
+        if (canvas) {
+            const win = window.open('', '_blank');
+            win.document.write(`<html><head><title>QR Code - ${selectedStudent?.studentId}</title><style>body{display:flex;flex-direction:column;align-items:center;justify-content:center;min-height:100vh;font-family:Arial;} img{margin-bottom:20px;}</style></head><body>`);
+            win.document.write(`<img src="${canvas.toDataURL()}" width="250" height="250" />`);
+            win.document.write(`<h2>${selectedStudent?.fullName}</h2>`);
+            win.document.write(`<p>ID: ${selectedStudent?.studentId}</p>`);
+            win.document.write(`<p>Grade: ${selectedStudent?.gradeSection}</p>`);
+            win.document.write('</body></html>');
+            win.document.close();
+            win.print();
+        }
+    };
+
+    const handleBulkTopUp = async () => {
+        if (selectedIds.size === 0) { message.warning('No students selected'); return; }
+        const amt = parseFloat(bulkTopUpAmount);
+        if (!amt || amt <= 0) { message.error('Enter a valid amount'); return; }
+        if (!confirm(`Top up SAR ${amt} to ${selectedIds.size} students?`)) return;
+
+        let success = 0;
+        for (const id of selectedIds) {
+            try {
+                await transactionService.topUp(id, amt);
+                success++;
+            } catch (e) { console.error('Bulk topup failed for', id); }
+        }
+        addAuditLog('BULK_TOPUP', `Bulk top-up SAR ${amt} to ${success}/${selectedIds.size} students`);
+        message.success(`Topped up ${success} of ${selectedIds.size} students`);
+        setShowBulkTopUpModal(false);
+        setBulkTopUpAmount('');
+        setSelectedIds(new Set());
+        loadData();
+    };
+
+    const handleMonthlyExport = async () => {
+        const month = reportDate.substring(0, 7); // e.g. '2026-02'
+        const [year, mon] = month.split('-').map(Number);
+        const daysInMonth = new Date(year, mon, 0).getDate();
+
+        message.loading({ content: 'Generating monthly report...', key: 'monthExport', duration: 0 });
+
+        let allTransactions = [];
+        for (let d = 1; d <= daysInMonth; d++) {
+            const dateStr = `${year}-${String(mon).padStart(2, '0')}-${String(d).padStart(2, '0')}`;
+            try {
+                const res = await transactionService.getDailyStats(dateStr);
+                if (res.data.status === 'success' && res.data.data.canteen?.transactions) {
+                    allTransactions.push(...res.data.data.canteen.transactions);
+                }
+            } catch (e) { /* skip */ }
+        }
+
+        message.destroy('monthExport');
+
+        if (allTransactions.length === 0) { message.warning('No transactions found for this month'); return; }
+
+        let csv = 'Date,Time,Student,Type,Amount\n';
+        allTransactions.forEach(t => {
+            csv += `${new Date(t.timestamp).toLocaleDateString()},${new Date(t.timestamp).toLocaleTimeString()},"${t.studentName}",${t.type},${t.amount}\n`;
+        });
+
+        const blob = new Blob([csv], { type: 'text/csv' });
+        const url = window.URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `Monthly_Report_${month}.csv`;
+        a.click();
+        addAuditLog('EXPORT_MONTHLY', `Exported monthly report for ${month} (${allTransactions.length} transactions)`);
+        message.success(`Exported ${allTransactions.length} transactions for ${month}`);
+    };
+
     // Removed Window Controls as requested
     const WindowControls = () => null;
 
@@ -359,7 +461,40 @@ export default function AdminDashboard({ onLogout }) {
         }).map(l => ({ ...l, isLocal: true })),
         ...(logSource.system?.transactions || []).map(t => ({ ...t, location: 'ADMIN' })),
         ...(logSource.canteen?.transactions || []).map(t => ({ ...t, location: 'CASHIER' }))
-    ].sort((a, b) => new Date(b.timestamp || 0) - new Date(a.timestamp || 0));
+    ].sort((a, b) => new Date(b.timestamp || 0) - new Date(a.timestamp || 0))
+        .filter(t => {
+            if (activityFilter === 'purchases') return t.type === 'PURCHASE';
+            if (activityFilter === 'topups') return t.type === 'TOPUP';
+            if (activityFilter === 'system') return t.type === 'WITHDRAWAL' || t.isLocal;
+            return true;
+        })
+        .filter(t => {
+            if (!activitySearch) return true;
+            const s = activitySearch.toLowerCase();
+            return (t.studentName || '').toLowerCase().includes(s) || (t.description || '').toLowerCase().includes(s) || (t.type || '').toLowerCase().includes(s);
+        });
+
+    // Report Insights
+    const reportInsights = (() => {
+        if (!reportData?.canteen?.transactions?.length) return null;
+        const txns = reportData.canteen.transactions;
+        // Busiest hour
+        const hourCounts = {};
+        txns.forEach(t => { const h = new Date(t.timestamp).getHours(); hourCounts[h] = (hourCounts[h] || 0) + 1; });
+        const busiestHour = Object.entries(hourCounts).sort((a, b) => b[1] - a[1])[0];
+        // Top spender
+        const spenderTotals = {};
+        txns.filter(t => t.type === 'PURCHASE').forEach(t => { spenderTotals[t.studentName] = (spenderTotals[t.studentName] || 0) + parseFloat(t.amount); });
+        const topSpender = Object.entries(spenderTotals).sort((a, b) => b[1] - a[1])[0];
+        // Average transaction
+        const purchases = txns.filter(t => t.type === 'PURCHASE');
+        const avgAmount = purchases.length > 0 ? purchases.reduce((s, t) => s + parseFloat(t.amount), 0) / purchases.length : 0;
+        return {
+            busiestHour: busiestHour ? `${busiestHour[0]}:00 (${busiestHour[1]} txns)` : 'N/A',
+            topSpender: topSpender ? `${topSpender[0]} (SAR ${topSpender[1].toFixed(2)})` : 'N/A',
+            avgTransaction: `SAR ${avgAmount.toFixed(2)}`
+        };
+    })();
 
     return (
         <div className="win98-container">
@@ -372,8 +507,8 @@ export default function AdminDashboard({ onLogout }) {
                     <div className={`win98-menu-item ${view === 'users' ? 'active' : ''}`} onClick={() => setView('users')}>
                         Users
                     </div>
-                    <div className={`win98-menu-item ${view === 'transactions' ? 'active' : ''}`} onClick={() => setView('transactions')}>
-                        History
+                    <div className={`win98-menu-item ${view === 'activity' ? 'active' : ''}`} onClick={() => { setView('activity'); fetchLogs(); }}>
+                        Activity
                     </div>
                     <div className={`win98-menu-item ${view === 'reports' ? 'active' : ''}`} onClick={() => { setView('reports'); fetchReport(); }}>
                         Reports
@@ -381,11 +516,8 @@ export default function AdminDashboard({ onLogout }) {
                     <div className={`win98-menu-item ${view === 'system' ? 'active' : ''}`} onClick={() => setView('system')}>
                         System
                     </div>
-                    <div className={`win98-menu-item ${view === 'requests' ? 'active' : ''}`} onClick={() => { setView('requests'); fetchRequests(); }}>
-                        Requests
-                    </div>
-                    <div className={`win98-menu-item ${view === 'logs' ? 'active' : ''}`} onClick={() => setView('logs')}>
-                        Logs
+                    <div className={`win98-menu-item ${view === 'requests' ? 'active' : ''}`} onClick={() => { setView('requests'); fetchRequests(); }} style={{ position: 'relative' }}>
+                        Requests {topupRequests.length > 0 && <span style={{ background: 'red', color: 'white', borderRadius: '50%', padding: '1px 6px', fontSize: 10, marginLeft: 5 }}>{topupRequests.length}</span>}
                     </div>
                 </div>
                 <div className="win98-menu-item" onClick={onLogout} style={{ marginTop: 'auto' }}>
@@ -395,6 +527,13 @@ export default function AdminDashboard({ onLogout }) {
 
             {/* Main Content (Desktop) */}
             <div className="win98-main">
+
+                {/* Offline Banner */}
+                {!isOnline && (
+                    <div style={{ background: '#c0392b', color: 'white', padding: '8px 15px', textAlign: 'center', fontSize: 13, fontWeight: 'bold' }}>
+                        ⚠ You are offline. Data may be stale.
+                    </div>
+                )}
 
                 {view === 'users' && (
                     <div className="win98-window" style={{ flex: 1 }}>
@@ -439,6 +578,7 @@ export default function AdminDashboard({ onLogout }) {
                                             <input type="file" accept=".csv" style={{ display: 'none' }} onChange={handleFileUpload} />
                                         </label>
                                         <button className="win98-btn" onClick={handleDeleteSelected}>Delete ({selectedIds.size})</button>
+                                        <button className="win98-btn" onClick={() => { if (selectedIds.size === 0) { message.warning('Select students first'); return; } setShowBulkTopUpModal(true); }}>Bulk Top Up ({selectedIds.size})</button>
                                     </>
                                 )}
                             </div>
@@ -509,24 +649,41 @@ export default function AdminDashboard({ onLogout }) {
                     </div>
                 )}
 
-                {view === 'transactions' && (
+                {view === 'activity' && (
                     <div className="win98-window" style={{ flex: 1 }}>
-                        <div className="win98-title-bar"><span>Transaction History</span><WindowControls /></div>
+                        <div className="win98-title-bar"><span>Activity &amp; Logs</span><WindowControls /></div>
                         <div className="win98-content" style={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
-
+                            <div className="win98-toolbar" style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
+                                <input type="date" className="win98-input" value={logDate} onChange={e => setLogDate(e.target.value)} />
+                                <button className="win98-btn" onClick={() => fetchLogs()}>Load</button>
+                                <div style={{ borderLeft: '1px solid #888', height: 20 }}></div>
+                                <button className={`win98-btn ${activityFilter === 'all' ? 'active' : ''}`} onClick={() => setActivityFilter('all')}>All</button>
+                                <button className={`win98-btn ${activityFilter === 'purchases' ? 'active' : ''}`} onClick={() => setActivityFilter('purchases')}>Purchases</button>
+                                <button className={`win98-btn ${activityFilter === 'topups' ? 'active' : ''}`} onClick={() => setActivityFilter('topups')}>Top-ups</button>
+                                <button className={`win98-btn ${activityFilter === 'system' ? 'active' : ''}`} onClick={() => setActivityFilter('system')}>System</button>
+                                <div style={{ flex: 1 }}></div>
+                                <input className="win98-input" placeholder="Search student..." value={activitySearch} onChange={e => setActivitySearch(e.target.value)} style={{ width: 150 }} />
+                            </div>
                             <div className="win98-table-wrapper">
                                 <table className="win98-table">
-                                    <thead><tr><th>Time</th><th>Student</th><th>Type</th><th>Amount</th><th>Method</th></tr></thead>
+                                    <thead><tr><th>Time</th><th>Role</th><th>Type</th><th>Student</th><th>Amount</th><th>Details</th></tr></thead>
                                     <tbody>
-                                        {(dailyStats.canteen?.transactions || []).map((t, i) => (
-                                            <tr key={i}>
-                                                <td>{new Date(t.timestamp).toLocaleTimeString()}</td>
-                                                <td>{t.studentName}</td>
-                                                <td>{t.type}</td>
-                                                <td>SAR {parseFloat(t.amount).toFixed(2)}</td>
-                                                <td>{t.cashAmount > 0 ? 'Cash' : ''}{t.creditAmount > 0 ? 'Credit' : ''}</td>
-                                            </tr>
-                                        ))}
+                                        {combinedLogs.length === 0 ? (
+                                            <tr><td colSpan={6} style={{ textAlign: 'center' }}>No activity found for this date.</td></tr>
+                                        ) : (
+                                            combinedLogs.map((t, i) => (
+                                                <tr key={i}>
+                                                    <td>{new Date(t.timestamp).toLocaleString()}</td>
+                                                    <td style={{ fontWeight: 'bold', color: t.location === 'ADMIN' || t.isLocal ? 'blue' : 'green' }}>
+                                                        {t.isLocal ? 'Admin' : (t.location === 'ADMIN' ? 'Admin' : 'Cashier')}
+                                                    </td>
+                                                    <td>{t.type}</td>
+                                                    <td>{t.studentName || '-'}</td>
+                                                    <td>{t.amount ? `SAR ${parseFloat(t.amount).toFixed(2)}` : '-'}</td>
+                                                    <td>{t.description || (t.cashAmount > 0 && t.creditAmount > 0 ? 'Mixed' : t.cashAmount > 0 ? 'Cash' : t.creditAmount > 0 ? 'Credit' : '')}</td>
+                                                </tr>
+                                            ))
+                                        )}
                                     </tbody>
                                 </table>
                             </div>
@@ -541,7 +698,8 @@ export default function AdminDashboard({ onLogout }) {
                             <div className="win98-toolbar">
                                 <input type="date" className="win98-input" value={reportDate} onChange={e => setReportDate(e.target.value)} />
                                 <button className="win98-btn" onClick={fetchReport}>Load Report</button>
-                                <button className="win98-btn" onClick={handleExportData}>Export Excel</button>
+                                <button className="win98-btn" onClick={handleExportData}>Export Day</button>
+                                <button className="win98-btn" onClick={handleMonthlyExport}>Export Month</button>
                             </div>
 
                             {/* Weekly Sales Graph */}
@@ -576,6 +734,22 @@ export default function AdminDashboard({ onLogout }) {
                                             <div className="win98-card-value">SAR {reportData.canteen?.totalCredit?.toFixed(2)}</div>
                                         </div>
                                     </div>
+                                    {reportInsights && (
+                                        <div className="win98-stats-row" style={{ marginTop: 10 }}>
+                                            <div className="win98-card">
+                                                <div className="win98-card-label">Busiest Hour</div>
+                                                <div className="win98-card-value" style={{ fontSize: 13 }}>{reportInsights.busiestHour}</div>
+                                            </div>
+                                            <div className="win98-card">
+                                                <div className="win98-card-label">Top Spender</div>
+                                                <div className="win98-card-value" style={{ fontSize: 13 }}>{reportInsights.topSpender}</div>
+                                            </div>
+                                            <div className="win98-card">
+                                                <div className="win98-card-label">Avg Transaction</div>
+                                                <div className="win98-card-value" style={{ fontSize: 13 }}>{reportInsights.avgTransaction}</div>
+                                            </div>
+                                        </div>
+                                    )}
                                     <div className="win98-table-wrapper">
                                         <table className="win98-table">
                                             <thead><tr><th>Time</th><th>Student</th><th>Type</th><th>Amount</th></tr></thead>
@@ -636,40 +810,7 @@ export default function AdminDashboard({ onLogout }) {
                     </div>
                 )}
 
-                {view === 'logs' && (
-                    <div className="win98-window" style={{ flex: 1 }}>
-                        <div className="win98-title-bar"><span>Security & Activity Logs</span><WindowControls /></div>
-                        <div className="win98-content" style={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
-                            <div className="win98-toolbar" style={{ display: 'flex', alignItems: 'center', gap: '10px', flexWrap: 'wrap' }}>
-                                <input type="date" className="win98-input" value={logDate} onChange={e => setLogDate(e.target.value)} />
-                                <button className="win98-btn" onClick={() => fetchLogs()}>Load Logs</button>
-                                <div style={{ flex: 1 }}></div>
-                                <div style={{ fontSize: 10 }}><b>Roles:</b> <span style={{ color: 'blue' }}>Admin</span> vs <span style={{ color: 'green' }}>Cashier</span></div>
-                            </div>
-                            <div className="win98-table-wrapper">
-                                <table className="win98-table">
-                                    <thead><tr><th>Time</th><th>Role</th><th>Action</th><th>Description</th></tr></thead>
-                                    <tbody>
-                                        {combinedLogs.length === 0 ? (
-                                            <tr><td colSpan={4}>No activity logs yet.</td></tr>
-                                        ) : (
-                                            combinedLogs.map((t, i) => (
-                                                <tr key={i}>
-                                                    <td>{new Date(t.timestamp).toLocaleString()}</td>
-                                                    <td style={{ fontWeight: 'bold', color: t.location === 'ADMIN' || t.isLocal ? 'blue' : 'green' }}>
-                                                        {t.isLocal ? 'Admin Use' : (t.location === 'ADMIN' ? 'Admin' : 'Cashier')}
-                                                    </td>
-                                                    <td>{t.type}</td>
-                                                    <td>{t.description ? t.description : `Amount: ${parseFloat(t.amount).toFixed(2)}`}</td>
-                                                </tr>
-                                            ))
-                                        )}
-                                    </tbody>
-                                </table>
-                            </div>
-                        </div>
-                    </div>
-                )}
+
 
                 {view === 'requests' && (
                     <div className="win98-window" style={{ flex: 1 }}>
@@ -748,7 +889,10 @@ export default function AdminDashboard({ onLogout }) {
                             <h3>{selectedStudent?.fullName}</h3>
                             <canvas id="qr-canvas" ref={c => { if (c && selectedStudent) QRCode.toCanvas(c, `FUGEN:${selectedStudent.studentId}`, { width: 150 }); }} />
                             <br />
-                            <button className="win98-btn" style={{ marginTop: 10 }} onClick={downloadQR}>Download</button>
+                            <div style={{ display: 'flex', gap: 5, justifyContent: 'center', marginTop: 10 }}>
+                                <button className="win98-btn" onClick={downloadQR}>Download</button>
+                                <button className="win98-btn" onClick={printQR}>Print</button>
+                            </div>
                         </div>
                     </div>
                 </div>
@@ -807,6 +951,22 @@ export default function AdminDashboard({ onLogout }) {
                                         </tbody>
                                     </table>
                                 </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            {showBulkTopUpModal && (
+                <div className="win98-modal-overlay">
+                    <div className="win98-modal">
+                        <div className="win98-title-bar"><span>Bulk Top Up</span><div className="win98-control-btn" onClick={() => setShowBulkTopUpModal(false)}>×</div></div>
+                        <div className="win98-content">
+                            <p>Top up <b>{selectedIds.size}</b> selected students:</p>
+                            <div className="vb-form-group"><label>Amount per student</label><input type="number" className="win98-input" value={bulkTopUpAmount} onChange={e => setBulkTopUpAmount(e.target.value)} style={{ width: '95%' }} /></div>
+                            <div style={{ display: 'flex', gap: 10, justifyContent: 'flex-end', marginTop: 10 }}>
+                                <button className="win98-btn" onClick={() => setShowBulkTopUpModal(false)}>Cancel</button>
+                                <button className="win98-btn" onClick={handleBulkTopUp}>Confirm</button>
                             </div>
                         </div>
                     </div>

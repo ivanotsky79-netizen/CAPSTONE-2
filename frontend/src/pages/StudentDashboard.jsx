@@ -41,6 +41,7 @@ export default function StudentDashboard({ user, onLogout }) {
     const [requestDate, setRequestDate] = useState(dayjs());
     const [studentData, setStudentData] = useState(user);
     const [darkMode, setDarkMode] = useState(localStorage.getItem('studentDarkMode') === 'true');
+    const [selectedTransaction, setSelectedTransaction] = useState(null);
 
     // Forms
     const [passkeyForm] = Form.useForm();
@@ -207,7 +208,7 @@ export default function StudentDashboard({ user, onLogout }) {
                             loading={loading}
                             dataSource={transactions}
                             renderItem={item => (
-                                <List.Item className="history-item">
+                                <List.Item className="history-item" onClick={() => setSelectedTransaction(item)} style={{ cursor: 'pointer' }}>
                                     <div className="item-left">
                                         <div className={`item-icon-bg ${item.type.toLowerCase()}`}>
                                             {getIcon(item.type)}
@@ -413,6 +414,51 @@ export default function StudentDashboard({ user, onLogout }) {
                         )
                     }
                 ]} />
+            </Modal>
+
+            {/* Transaction Receipt Modal */}
+            <Modal
+                title="Transaction Receipt"
+                open={!!selectedTransaction}
+                onCancel={() => setSelectedTransaction(null)}
+                footer={<Button type="primary" block onClick={() => setSelectedTransaction(null)} style={{ background: '#3B5ED2' }}>Close</Button>}
+                centered
+            >
+                {selectedTransaction && (
+                    <div style={{ textAlign: 'center', padding: '10px 0' }}>
+                        <div style={{
+                            width: 60, height: 60, borderRadius: '50%', margin: '0 auto 15px',
+                            background: selectedTransaction.type === 'TOPUP' ? '#f6ffed' : '#fff2e8',
+                            display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 28
+                        }}>
+                            {selectedTransaction.type === 'TOPUP' ? <ArrowUpOutlined style={{ color: '#52c41a' }} /> : <ShoppingOutlined style={{ color: '#fa541c' }} />}
+                        </div>
+                        <h2 style={{ margin: '5px 0', fontSize: 28, color: selectedTransaction.type === 'TOPUP' ? '#52c41a' : '#333' }}>
+                            {selectedTransaction.type === 'TOPUP' ? '+' : '-'} Points {Math.abs(selectedTransaction.amount).toFixed(2)}
+                        </h2>
+                        <p style={{ color: '#888', marginBottom: 20 }}>{selectedTransaction.type}</p>
+                        <div style={{ background: '#f9f9f9', borderRadius: 12, padding: 15, textAlign: 'left' }}>
+                            <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 10 }}>
+                                <span style={{ color: '#888' }}>Date</span>
+                                <span style={{ fontWeight: 600 }}>{new Date(selectedTransaction.timestamp).toLocaleDateString()}</span>
+                            </div>
+                            <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 10 }}>
+                                <span style={{ color: '#888' }}>Time</span>
+                                <span style={{ fontWeight: 600 }}>{new Date(selectedTransaction.timestamp).toLocaleTimeString()}</span>
+                            </div>
+                            <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 10 }}>
+                                <span style={{ color: '#888' }}>Type</span>
+                                <span style={{ fontWeight: 600 }}>{selectedTransaction.type}</span>
+                            </div>
+                            <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                                <span style={{ color: '#888' }}>Amount</span>
+                                <span style={{ fontWeight: 700, color: selectedTransaction.type === 'TOPUP' ? '#52c41a' : '#fa541c' }}>
+                                    Points {Math.abs(selectedTransaction.amount).toFixed(2)}
+                                </span>
+                            </div>
+                        </div>
+                    </div>
+                )}
             </Modal>
         </div>
     );

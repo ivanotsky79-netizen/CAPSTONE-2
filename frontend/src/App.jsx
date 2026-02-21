@@ -17,7 +17,15 @@ function App() {
         const parsed = JSON.parse(saved);
         // Validate that the saved auth has the required fields
         if (parsed && parsed.role) {
-          setAuth(parsed);
+          // Session timeout: 24 hours
+          const savedAt = parsed.savedAt || 0;
+          const now = Date.now();
+          if (now - savedAt > 24 * 60 * 60 * 1000) {
+            // Session expired
+            localStorage.removeItem('fugen_auth');
+          } else {
+            setAuth(parsed);
+          }
         }
       }
     } catch (e) {
@@ -28,7 +36,7 @@ function App() {
   }, []);
 
   const handleLogin = (role, user = null) => {
-    const authData = { role, user };
+    const authData = { role, user, savedAt: Date.now() };
     setAuth(authData);
     localStorage.setItem('fugen_auth', JSON.stringify(authData));
   };
