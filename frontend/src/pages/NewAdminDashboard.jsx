@@ -422,39 +422,64 @@ export default function AdminDashboard({ onLogout }) {
         } catch (e) { message.error('Failed to print QR'); }
     };
 
-    const massPrintQR = async () => {
+    const bulkDownloadPDF = async () => {
         const studentsToPrint = selectedIds.size > 0
             ? students.filter(s => selectedIds.has(s.studentId))
             : students;
         if (studentsToPrint.length === 0) { message.warning('No students to print'); return; }
 
-        message.loading({ content: `Generating ${studentsToPrint.length} QR cards...`, key: 'massPrint', duration: 0 });
+        message.loading({ content: `Building PDF for ${studentsToPrint.length} QR cards...`, key: 'bulkPDF', duration: 0 });
         try {
             const cards = await Promise.all(studentsToPrint.map(s => buildQRCardCanvas(s)));
-            message.destroy('massPrint');
+            message.destroy('bulkPDF');
 
+            // Layout: 2 columns, each card 500x650
+            const cols = 2;
+            const cardW = 500, cardH = 650, gap = 20, pad = 30;
+            const rows = Math.ceil(cards.length / cols);
+            const totalW = cols * cardW + (cols - 1) * gap + pad * 2;
+            const totalH = rows * cardH + (rows - 1) * gap + pad * 2;
+
+            const sheet = document.createElement('canvas');
+            sheet.width = totalW;
+            sheet.height = totalH;
+            const ctx = sheet.getContext('2d');
+            ctx.fillStyle = '#ffffff';
+            ctx.fillRect(0, 0, totalW, totalH);
+
+            cards.forEach((card, i) => {
+                const col = i % cols;
+                const row = Math.floor(i / cols);
+                const x = pad + col * (cardW + gap);
+                const y = pad + row * (cardH + gap);
+                ctx.drawImage(card, x, y, cardW, cardH);
+                // Light border
+                ctx.strokeStyle = '#e0e0e0';
+                ctx.lineWidth = 1;
+                ctx.strokeRect(x, y, cardW, cardH);
+            });
+
+            const dataUrl = sheet.toDataURL('image/png');
+            // Open print window — user can Save as PDF from browser print dialog
             const win = window.open('', '_blank');
             win.document.write(`
-                <html><head><title>Mass QR Print</title>
+                <html><head><title>Bulk QR Cards</title>
                 <style>
-                    @page { size: A4; margin: 10mm; }
-                    @media print { body { margin: 0; } .card { break-inside: avoid; } }
-                    body { background: #fff; font-family: Arial; margin: 0; padding: 10px; }
-                    .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 15px; }
-                    .card { text-align: center; padding: 10px; border: 1px solid #eee; border-radius: 8px; }
-                    .card img { width: 100%; max-width: 220px; }
-                </style></head><body><div class="grid">
+                    @page { size: auto; margin: 0; }
+                    @media print { body { margin: 0; } }
+                    body { margin: 0; background: #fff; display: flex; justify-content: center; }
+                    img { max-width: 100%; }
+                </style></head>
+                <body>
+                    <img src="${dataUrl}" />
+                    <script>window.onload = () => { window.print(); }<\/script>
+                </body></html>
             `);
-            cards.forEach((c, i) => {
-                win.document.write(`<div class="card"><img src="${c.toDataURL('image/png')}" /></div>`);
-            });
-            win.document.write('</div></body></html>');
             win.document.close();
-            setTimeout(() => win.print(), 600);
-            addAuditLog('MASS_PRINT_QR', `Mass printed ${studentsToPrint.length} QR codes`);
-        } catch (e) { message.destroy('massPrint'); message.error('Failed to generate mass print'); }
+            addAuditLog('BULK_DOWNLOAD_PDF', `Bulk PDF generated for ${studentsToPrint.length} QR codes`);
+            message.success(`PDF ready for ${studentsToPrint.length} students — use "Save as PDF" in print dialog`);
+        } catch (e) { message.destroy('bulkPDF'); message.error('Failed to generate PDF'); }
     };
-
 
     const handleBulkTopUp = async () => {
         if (selectedIds.size === 0) { message.warning('No students selected'); return; }
@@ -656,7 +681,7 @@ export default function AdminDashboard({ onLogout }) {
                                         </label>
                                         <button className="win98-btn" onClick={handleDeleteSelected}>Delete ({selectedIds.size})</button>
                                         <button className="win98-btn" onClick={() => { if (selectedIds.size === 0) { message.warning('Select students first'); return; } setShowBulkTopUpModal(true); }}>Bulk Top Up ({selectedIds.size})</button>
-                                        <button className="win98-btn" onClick={massPrintQR}>🖨️ Mass Print QR {selectedIds.size > 0 ? `(${selectedIds.size})` : '(All)'}</button>
+                                        <button className="win98-btn" onClick={bulkDownloadPDF}>📄 Bulk Download PDF {selectedIds.size > 0 ? `(${selectedIds.size})` : '(All)'}</button>
                                     </>
                                 )}
                             </div>

@@ -39,6 +39,7 @@ export default function StudentDashboard({ user, onLogout }) {
     const [activeTab, setActiveTab] = useState('home');
     const [requestAmount, setRequestAmount] = useState(10);
     const [requestDate, setRequestDate] = useState(dayjs());
+    const [requestTimeSlot, setRequestTimeSlot] = useState('');
     const [studentData, setStudentData] = useState(user);
     const [darkMode, setDarkMode] = useState(localStorage.getItem('studentDarkMode') === 'true');
     const [selectedTransaction, setSelectedTransaction] = useState(null);
@@ -131,12 +132,22 @@ export default function StudentDashboard({ user, onLogout }) {
     };
 
     const handleTopUpRequest = async () => {
+        if (!requestTimeSlot) {
+            message.warning('Please select a preferred time slot.');
+            return;
+        }
         try {
-            await transactionService.requestTopup(user.studentId, requestAmount, requestDate.format('YYYY-MM-DD'));
-            message.success("Top-up request sent to admin!");
+            await transactionService.requestTopup(
+                user.studentId,
+                requestAmount,
+                requestDate.format('YYYY-MM-DD'),
+                requestTimeSlot
+            );
+            message.success(`Top-up request sent! Preferred time: ${requestTimeSlot}`);
             setTopUpModalVisible(false);
+            setRequestTimeSlot('');
         } catch (error) {
-            message.error("Failed to send request.");
+            message.error('Failed to send request.');
         }
     };
 
@@ -331,21 +342,60 @@ export default function StudentDashboard({ user, onLogout }) {
             <Modal
                 title="Request Top Up Schedule"
                 open={topUpModalVisible}
-                onCancel={() => setTopUpModalVisible(false)}
+                onCancel={() => { setTopUpModalVisible(false); setRequestTimeSlot(''); }}
                 footer={null}
                 centered
             >
                 <div style={{ marginBottom: 20 }}>
                     <p style={{ color: '#666', fontSize: '14px', lineHeight: '1.5' }}>
                         Schedule a time to give cash to the admin to top up your account balance.
-                        Please prepare the exact amount you wish to load and bring it to the admin
+                        Please prepare the exact amount and bring it to the admin
                         (<strong>Room 12 - Olivera Classroom</strong>) at the scheduled time.
                     </p>
                     <p style={{ color: '#888', fontSize: '13px', fontStyle: 'italic', marginTop: '10px' }}>
-                        * Note: This is only a <strong>schedule request</strong>. Your balance will be updated
-                        once the physical payment is collected by the admin.
+                        * This is only a <strong>schedule request</strong>. Your balance will be updated
+                        once physical payment is collected by the admin.
                     </p>
                 </div>
+
+                {/* Time Slot Selector */}
+                {(() => {
+                    const grade = (studentData?.gradeSection || '').toLowerCase();
+                    const isSHS = grade.includes('grade 11') || grade.includes('grade 12') ||
+                        grade.includes('11') && grade.includes('grade') ||
+                        grade.includes('12') && grade.includes('grade');
+                    const slots = isSHS
+                        ? ['HRO', 'Recess', 'Lunch', 'Dismissal']
+                        : ['Recess', 'Lunch'];
+                    return (
+                        <div style={{ marginBottom: 20 }}>
+                            <label style={{ display: 'block', marginBottom: 10, fontWeight: 'bold' }}>
+                                Preferred Time Slot {isSHS && <span style={{ color: '#666', fontWeight: 'normal', fontSize: 12 }}>(SHS)</span>}
+                            </label>
+                            <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+                                {slots.map(slot => (
+                                    <button
+                                        key={slot}
+                                        onClick={() => setRequestTimeSlot(slot)}
+                                        style={{
+                                            padding: '10px 18px',
+                                            borderRadius: 10,
+                                            border: requestTimeSlot === slot ? '2px solid #1A237E' : '2px solid #e0e0e0',
+                                            background: requestTimeSlot === slot ? '#1A237E' : '#f5f5f5',
+                                            color: requestTimeSlot === slot ? '#fff' : '#333',
+                                            fontWeight: 600,
+                                            cursor: 'pointer',
+                                            fontSize: 14,
+                                            transition: 'all 0.2s',
+                                            flex: 1,
+                                            minWidth: 80,
+                                        }}
+                                    >{slot}</button>
+                                ))}
+                            </div>
+                        </div>
+                    );
+                })()}
 
                 <div style={{ marginBottom: 15 }}>
                     <label style={{ display: 'block', marginBottom: 5, fontWeight: 'bold' }}>Schedule Date</label>
@@ -369,8 +419,14 @@ export default function StudentDashboard({ user, onLogout }) {
                     />
                 </div>
 
-                <Button type="primary" block size="large" onClick={handleTopUpRequest} icon={<SendOutlined />}>
-                    Send Request to Admin
+                <Button
+                    type="primary" block size="large"
+                    onClick={handleTopUpRequest}
+                    icon={<SendOutlined />}
+                    disabled={!requestTimeSlot}
+                    style={{ opacity: requestTimeSlot ? 1 : 0.6 }}
+                >
+                    Send Request {requestTimeSlot ? `(${requestTimeSlot})` : '— Select a time slot first'}
                 </Button>
             </Modal>
 
