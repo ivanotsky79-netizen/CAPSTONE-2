@@ -65,8 +65,7 @@ export default function LoginPage({ onLogin }) {
             const studentData = {
                 lrn: lrn,
                 fullName: values.fullName,
-                grade: values.grade,
-                section: values.section,
+                gradeSection: values.gradeSection,
                 passkey: generatedPasskey
             };
 
@@ -109,7 +108,13 @@ export default function LoginPage({ onLogin }) {
     // --- LANDING VIEW ---
     if (view === 'landing') {
         return (
-            <div className="login-container">
+            <div style={{
+                position: 'fixed', top: 0, left: 0, right: 0, bottom: 0,
+                overflowY: 'auto',
+                WebkitOverflowScrolling: 'touch',
+                background: 'linear-gradient(135deg, #1A237E 0%, #283593 100%)',
+                padding: '10vh 20px 40px',
+            }}>
                 <div className="login-box landing-box">
                     <div className="login-header">
                         <h1 className="system-name">FUGEN <span className="accent">SmartPay</span></h1>
@@ -149,7 +154,9 @@ export default function LoginPage({ onLogin }) {
     // --- GENERIC WRAPPER FOR FORMS ---
     return (
         <div style={{
-            minHeight: '100vh',
+            position: 'fixed', top: 0, left: 0, right: 0, bottom: 0,
+            overflowY: 'auto',
+            WebkitOverflowScrolling: 'touch',
             background: 'linear-gradient(135deg, #1A237E 0%, #283593 100%)',
             padding: '5vh 20px 40px',
         }}>
@@ -214,30 +221,25 @@ export default function LoginPage({ onLogin }) {
                         <Form onFinish={handleRegister} layout="vertical" size="large">
                             <Row gutter={24}>
                                 <Col xs={24} sm={12}>
-                                    <Form.Item name="fullName" label="Full Name" rules={[{ required: true, message: 'Enter Full Name' }]}>
-                                        <Input prefix={<UserOutlined />} placeholder="e.g., Samuel Ivan B. Malavi" autoFocus />
+                                    <Form.Item name="fullName" rules={[{ required: true, message: 'Enter Full Name' }]}>
+                                        <Input prefix={<UserOutlined />} placeholder="Full Name (e.g., Juan Dela Cruz)" autoFocus />
                                     </Form.Item>
                                 </Col>
                                 <Col xs={24} sm={12}>
-                                    <Form.Item name="studentId" label="12-Digit LRN (Student ID)" rules={[
+                                    <Form.Item name="studentId" rules={[
                                         { required: true, message: 'Enter 12-digit LRN' },
                                         { len: 12, message: 'LRN must be exactly 12 digits' },
                                         { pattern: /^\d+$/, message: 'LRN must contain only numbers' }
                                     ]}>
-                                        <Input prefix={<IdcardOutlined />} placeholder="e.g., 123456789012" maxLength={12} />
+                                        <Input prefix={<IdcardOutlined />} placeholder="12-Digit LRN (Student ID)" maxLength={12} />
                                     </Form.Item>
                                 </Col>
                             </Row>
 
                             <Row gutter={24}>
                                 <Col xs={24} sm={12}>
-                                    <Form.Item name="grade" label="Grade Level" rules={[{ required: true, message: 'Enter Grade Level' }]}>
-                                        <Input type="number" prefix={<UserAddOutlined />} placeholder="e.g., 12" min={1} max={12} />
-                                    </Form.Item>
-                                </Col>
-                                <Col xs={24} sm={12}>
-                                    <Form.Item name="section" label="Section" rules={[{ required: true, message: 'Enter Section' }]}>
-                                        <Input prefix={<UserAddOutlined />} placeholder="e.g., Olivera, Fabella, Tesla" />
+                                    <Form.Item name="gradeSection" rules={[{ required: true, message: 'Enter Grade & Section' }]}>
+                                        <Input prefix={<UserAddOutlined />} placeholder="Grade & Section (e.g., Grade 12 - A)" />
                                     </Form.Item>
                                 </Col>
                             </Row>
