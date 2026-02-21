@@ -248,50 +248,8 @@ export default function StudentDashboard({ user, onLogout }) {
                 </div>
             )}
 
-            {activeTab === 'home' && (
-                <div className="history-section">
-                    <div className="section-header">
-                        <h3>Recent Transactions</h3>
-                        <a href="#" onClick={(e) => { e.preventDefault(); loadData(); }}>Refresh</a>
-                    </div>
-
-                    {/* Filter Buttons */}
-                    <div className="filter-row">
-                        <button className={`filter-btn ${txFilter === 'all' ? 'active' : ''}`} onClick={() => setTxFilter('all')}>All</button>
-                        <button className={`filter-btn ${txFilter === 'purchase' ? 'active' : ''}`} onClick={() => setTxFilter('purchase')}>Purchases</button>
-                        <button className={`filter-btn ${txFilter === 'topup' ? 'active' : ''}`} onClick={() => setTxFilter('topup')}>Top-ups</button>
-                    </div>
-
-                    <div className="history-list-container">
-                        <List
-                            loading={loading}
-                            dataSource={filteredTx}
-                            renderItem={item => (
-                                <List.Item className="history-item" onClick={() => setSelectedTransaction(item)} style={{ cursor: 'pointer' }}>
-                                    <div className="item-left">
-                                        <div className={`item-icon-bg ${item.type.toLowerCase()}`}>
-                                            {getIcon(item.type)}
-                                        </div>
-                                        <div className="item-details">
-                                            <span className="item-title">{item.type}</span>
-                                            <span className="item-subtitle">
-                                                {new Date(item.timestamp).toLocaleDateString()}
-                                            </span>
-                                        </div>
-                                    </div>
-                                    <div className={`item-amount ${item.type === 'TOPUP' ? 'positive' : ''}`}>
-                                        {item.type === 'TOPUP' ? '+' : '-'} Points {Math.abs(item.amount).toFixed(2)}
-                                    </div>
-                                </List.Item>
-                            )}
-                            locale={{ emptyText: 'No transactions yet' }}
-                        />
-                    </div>
-                </div>
-            )}
-
             {activeTab === 'stats' && (
-                <div className="history-section" style={{ background: 'transparent', padding: 0 }}>
+                <div style={{ flex: 1, overflowY: 'auto', paddingBottom: 100 }}>
                     <div className="chart-section">
                         <h3>Spending Overview (Last 7 Days)</h3>
                         <ResponsiveContainer width="100%" height={220}>
@@ -303,9 +261,48 @@ export default function StudentDashboard({ user, onLogout }) {
                                     cursor={{ fill: 'rgba(0,0,0,0.05)' }}
                                     contentStyle={{ borderRadius: 8, border: 'none', boxShadow: '0 4px 12px rgba(0,0,0,0.1)' }}
                                 />
-                                <Bar dataKey="amount" fill="#0D47A1" radius={[4, 4, 0, 0]} barSize={20} />
+                                <Bar dataKey="amount" fill="#FFD700" radius={[4, 4, 0, 0]} barSize={20} />
                             </BarChart>
                         </ResponsiveContainer>
+                    </div>
+
+                    <div className="history-section" style={{ marginTop: 15 }}>
+                        <div className="section-header">
+                            <h3>Transaction History</h3>
+                            <a href="#" onClick={(e) => { e.preventDefault(); loadData(); }}>Refresh</a>
+                        </div>
+
+                        <div className="filter-row">
+                            <button className={`filter-btn ${txFilter === 'all' ? 'active' : ''}`} onClick={() => setTxFilter('all')}>All</button>
+                            <button className={`filter-btn ${txFilter === 'purchase' ? 'active' : ''}`} onClick={() => setTxFilter('purchase')}>Purchases</button>
+                            <button className={`filter-btn ${txFilter === 'topup' ? 'active' : ''}`} onClick={() => setTxFilter('topup')}>Top-ups</button>
+                        </div>
+
+                        <div className="history-list-container">
+                            <List
+                                loading={loading}
+                                dataSource={filteredTx}
+                                renderItem={item => (
+                                    <List.Item className="history-item" onClick={() => setSelectedTransaction(item)} style={{ cursor: 'pointer' }}>
+                                        <div className="item-left">
+                                            <div className={`item-icon-bg ${item.type.toLowerCase()}`}>
+                                                {getIcon(item.type)}
+                                            </div>
+                                            <div className="item-details">
+                                                <span className="item-title">{item.type}</span>
+                                                <span className="item-subtitle">
+                                                    {new Date(item.timestamp).toLocaleDateString()}
+                                                </span>
+                                            </div>
+                                        </div>
+                                        <div className={`item-amount ${item.type === 'TOPUP' ? 'positive' : ''}`}>
+                                            {item.type === 'TOPUP' ? '+' : '-'} Points {Math.abs(item.amount).toFixed(2)}
+                                        </div>
+                                    </List.Item>
+                                )}
+                                locale={{ emptyText: 'No transactions yet' }}
+                            />
+                        </div>
                     </div>
                 </div>
             )}
