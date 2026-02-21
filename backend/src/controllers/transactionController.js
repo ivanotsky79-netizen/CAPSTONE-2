@@ -378,19 +378,24 @@ exports.requestTopup = async (req, res) => {
         const studentRef = db.collection('students').doc(studentId);
         const studentDoc = await studentRef.get();
         let studentName = 'Unknown';
+        let gradeSection = 'Unknown';
+
         if (studentDoc.exists) {
             studentName = studentDoc.data().fullName || 'Unknown';
+            gradeSection = studentDoc.data().gradeSection || 'Unknown';
         } else {
             // Check studentId field fallback
             const querySnapshot = await db.collection('students').where('studentId', '==', studentId).limit(1).get();
             if (!querySnapshot.empty) {
                 studentName = querySnapshot.docs[0].data().fullName || 'Unknown';
+                gradeSection = querySnapshot.docs[0].data().gradeSection || 'Unknown';
             }
         }
 
         const requestDoc = {
             studentId,
             studentName,
+            gradeSection,
             amount: parseFloat(amount),
             date, // e.g., '2026-02-23'
             timeSlot: timeSlot || 'Not Specified',
