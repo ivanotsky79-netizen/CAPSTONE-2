@@ -1,5 +1,5 @@
 import React, { useState } from 'react'; // Force Vercel Build
-import { Form, Input, Button, Card, message, Typography, Space, Modal, Row, Col } from 'antd';
+import { Form, Input, Button, Card, message, Typography, Space, Modal, Row, Col, Select } from 'antd';
 import { UserOutlined, LockOutlined, IdcardOutlined, ArrowLeftOutlined, UserAddOutlined } from '@ant-design/icons';
 import { studentService } from '../services/api';
 import './LoginPage.css';
@@ -65,7 +65,7 @@ export default function LoginPage({ onLogin }) {
             const studentData = {
                 lrn: lrn,
                 fullName: values.fullName,
-                gradeSection: values.gradeSection,
+                gradeSection: `${values.grade} - ${values.section}`,
                 passkey: generatedPasskey
             };
 
@@ -236,10 +236,19 @@ export default function LoginPage({ onLogin }) {
                                 </Col>
                             </Row>
 
-                            <Row gutter={24}>
-                                <Col xs={24} sm={12}>
-                                    <Form.Item name="gradeSection" rules={[{ required: true, message: 'Enter Grade & Section' }]}>
-                                        <Input prefix={<UserAddOutlined />} placeholder="Grade & Section (e.g., Grade 12 - A)" />
+                            <Row gutter={16}>
+                                <Col xs={24} sm={8}>
+                                    <Form.Item name="grade" label="Grade" rules={[{ required: true, message: 'Select grade' }]}>
+                                        <Select placeholder="Grade" size="large">
+                                            {[7, 8, 9, 10, 11, 12].map(g => (
+                                                <Select.Option key={g} value={`Grade ${g}`}>Grade {g}</Select.Option>
+                                            ))}
+                                        </Select>
+                                    </Form.Item>
+                                </Col>
+                                <Col xs={24} sm={8}>
+                                    <Form.Item name="section" label="Section" rules={[{ required: true, message: 'Enter section' }]}>
+                                        <Input prefix={<UserAddOutlined />} placeholder="e.g. Rizal" />
                                     </Form.Item>
                                 </Col>
                             </Row>
