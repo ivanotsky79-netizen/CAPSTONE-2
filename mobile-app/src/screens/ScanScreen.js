@@ -1,5 +1,5 @@
 import React, { useState, useMemo, useEffect } from 'react';
-import { StyleSheet, Text, View, Button, Alert, ActivityIndicator, TouchableOpacity, ScrollView, Modal } from 'react-native';
+import { StyleSheet, Text, View, Button, Alert, ActivityIndicator, TouchableOpacity, ScrollView, Modal, Vibration } from 'react-native';
 import { CameraView, useCameraPermissions } from 'expo-camera';
 import { useIsFocused } from '@react-navigation/native';
 import { transactionService, socket } from '../services/api';
@@ -58,6 +58,9 @@ export default function ScanScreen({ navigation }) {
         if (scanned || !data) return;
         setScanned(true);
 
+        // Haptic feedback
+        Vibration.vibrate(100);
+
         // Data format: "FUGEN:S12345"
         const upperData = data.toUpperCase();
         if (upperData.startsWith('FUGEN:')) {
@@ -65,8 +68,8 @@ export default function ScanScreen({ navigation }) {
             console.log(`[SCAN] Identified: "${studentId}"`);
             navigation.navigate('Passkey', { studentId });
         } else {
-            Alert.alert('Invalid QR', 'This is not a FUGEN ID', [
-                { text: 'OK', onPress: () => setScanned(false) }
+            Alert.alert('Invalid QR', 'This is not a valid FUGEN Student ID code.', [
+                { text: 'Try Again', onPress: () => setScanned(false) }
             ]);
         }
     };
@@ -89,7 +92,7 @@ export default function ScanScreen({ navigation }) {
             <View style={styles.header}>
                 <View style={{ flex: 1, alignItems: 'center' }}>
                     <Text style={styles.title}>FUGEN SmartPay</Text>
-                    <Text style={styles.subtitle}>Align student QR within the frame</Text>
+                    <Text style={styles.subtitle}>Scan QR • Today: {stats.totalSales.toFixed(0)} Points ({(stats.cashList?.length || 0) + (stats.creditCount || 0)} sales)</Text>
                 </View>
             </View>
 

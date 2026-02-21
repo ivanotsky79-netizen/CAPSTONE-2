@@ -40,7 +40,11 @@ export default function PasskeyScreen({ route, navigation }) {
             // Navigate to Purchase with verified credentials
             navigation.replace('Purchase', { student, passkey: keyToVerify });
         } catch (error) {
-            Alert.alert('Login Failed', error.response?.data?.message || 'Invalid Passkey');
+            if (error.message === 'Network Error' || !error.response) {
+                Alert.alert('Network Error', 'Cannot reach the server. Please check your connection.');
+            } else {
+                Alert.alert('Verification Failed', error.response?.data?.message || 'Invalid Passkey');
+            }
             setPasskey('');
         } finally {
             setLoading(false);
