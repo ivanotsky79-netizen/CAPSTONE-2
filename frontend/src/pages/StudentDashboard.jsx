@@ -42,6 +42,7 @@ export default function StudentDashboard({ user, onLogout }) {
     const [studentData, setStudentData] = useState(user);
     const [darkMode, setDarkMode] = useState(localStorage.getItem('studentDarkMode') === 'true');
     const [selectedTransaction, setSelectedTransaction] = useState(null);
+    const [txFilter, setTxFilter] = useState('all'); // all, purchase, topup
 
     // Forms
     const [passkeyForm] = Form.useForm();
@@ -67,9 +68,9 @@ export default function StudentDashboard({ user, onLogout }) {
         // Persist Dark Mode
         localStorage.setItem('studentDarkMode', darkMode);
         if (darkMode) {
-            document.body.style.backgroundColor = '#121212';
+            document.body.style.backgroundColor = '#0d1137';
         } else {
-            document.body.style.backgroundColor = '#f5f5f5';
+            document.body.style.backgroundColor = '#1A237E';
         }
     }, [darkMode]);
 
@@ -155,7 +156,28 @@ export default function StudentDashboard({ user, onLogout }) {
         return data;
     };
 
+    const chartData = getChartData();
+
+    // Spending summaries
+    const weekSpent = transactions
+        .filter(t => t.type === 'PURCHASE' && dayjs(t.timestamp).isAfter(dayjs().subtract(7, 'day')))
+        .reduce((s, t) => s + Math.abs(t.amount), 0);
+    const monthSpent = transactions
+        .filter(t => t.type === 'PURCHASE' && dayjs(t.timestamp).isAfter(dayjs().startOf('month')))
+        .reduce((s, t) => s + Math.abs(t.amount), 0);
+
+    // Filtered transactions
+    const filteredTx = transactions.filter(t => {
+        if (txFilter === 'purchase') return t.type === 'PURCHASE';
+        if (txFilter === 'topup') return t.type === 'TOPUP';
+        return true;
+    });
+
+    // Initials
+    const initials = studentData.fullName ? studentData.fullName.split(' ').map(w => w[0]).join('').substring(0, 2).toUpperCase() : '?';
+
     const containerClass = `student-app-container ${darkMode ? 'dark-mode' : ''}`;
+    const balance = parseFloat(studentData.balance || 0);
 
     return (
         <div className={containerClass}>
@@ -164,10 +186,22 @@ export default function StudentDashboard({ user, onLogout }) {
                 <div className="title-dashboard">Dashboard</div>
                 <div style={{ display: 'flex', gap: 10, alignItems: 'center' }}>
                     <div className="avatar">
-                        <UserOutlined />
+                        {initials}
                     </div>
                 </div>
             </div>
+
+            {/* Low Balance Alert */}
+            {balance < 10 && balance >= 0 && (
+                <div className="low-balance-alert">
+                    ⚠️ Low balance! Only <b style={{ margin: '0 4px' }}>{balance.toFixed(2)}</b> points remaining.
+                </div>
+            )}
+            {balance < 0 && (
+                <div className="low-balance-alert" style={{ borderColor: 'rgba(255,77,79,0.5)' }}>
+                    ⚠️ You are in debt: <b style={{ margin: '0 4px', color: '#ff7875' }}>{balance.toFixed(2)}</b> points.
+                </div>
+            )}
 
             {/* Balance Card */}
             <div className={`balance-card ${darkMode ? 'dark-card' : ''}`}>
@@ -196,17 +230,42 @@ export default function StudentDashboard({ user, onLogout }) {
                 </div>
             </div>
 
+            {/* Spending Summary */}
+            {activeTab === 'home' && (
+                <div className="spending-summary">
+                    <div className="summary-card">
+                        <div className="summary-label">This Week</div>
+                        <div className="summary-value">{weekSpent.toFixed(0)}</div>
+                    </div>
+                    <div className="summary-card">
+                        <div className="summary-label">This Month</div>
+                        <div className="summary-value">{monthSpent.toFixed(0)}</div>
+                    </div>
+                    <div className="summary-card">
+                        <div className="summary-label">Transactions</div>
+                        <div className="summary-value">{transactions.length}</div>
+                    </div>
+                </div>
+            )}
+
             {activeTab === 'home' && (
                 <div className="history-section">
                     <div className="section-header">
                         <h3>Recent Transactions</h3>
-                        <a href="#" onClick={(e) => { e.preventDefault(); loadData(); }}>View All</a>
+                        <a href="#" onClick={(e) => { e.preventDefault(); loadData(); }}>Refresh</a>
+                    </div>
+
+                    {/* Filter Buttons */}
+                    <div className="filter-row">
+                        <button className={`filter-btn ${txFilter === 'all' ? 'active' : ''}`} onClick={() => setTxFilter('all')}>All</button>
+                        <button className={`filter-btn ${txFilter === 'purchase' ? 'active' : ''}`} onClick={() => setTxFilter('purchase')}>Purchases</button>
+                        <button className={`filter-btn ${txFilter === 'topup' ? 'active' : ''}`} onClick={() => setTxFilter('topup')}>Top-ups</button>
                     </div>
 
                     <div className="history-list-container">
                         <List
                             loading={loading}
-                            dataSource={transactions}
+                            dataSource={filteredTx}
                             renderItem={item => (
                                 <List.Item className="history-item" onClick={() => setSelectedTransaction(item)} style={{ cursor: 'pointer' }}>
                                     <div className="item-left">
