@@ -432,11 +432,68 @@ exports.getTopupRequests = async (req, res) => {
 exports.resolveTopupRequest = async (req, res) => {
     try {
         const { id } = req.params;
-        await db.collection('topUpRequests').doc(id).update({
-            status: 'RESOLVED',
-            resolvedAt: new Date().toISOString()
-        });
-        res.status(200).json({ status: 'success', message: 'Request resolved' });
+        const reqDoc = await db.collection('topUpRequests').doc(id).get();
+
+        if (!reqDoc.exists) {
+            return res.status(404).json({ status: 'error', message: 'Request not found' });
+        }
+
+        const data = reqDoc.data();
+
+        if (data.status === 'RESOLVED') {
+            return res.status(400).json({ status: 'error', message: 'Already resolved' });
+        }
+
+        const studentRef = db.collection('students').doc(data.studentId);
+        const studentDoc = await studentRef.get();
+
+        if (studentDoc.exists) {
+            const currentBal = parseFloat(studentDoc.data().balance) || 0;
+            const newBal = currentBal + parseFloat(data.amount);
+
+            // 1. Update Student Balance
+            await studentRef.update({ balance: newBal });
+
+            // 2. Log Transaction
+            await db.collection('transactions').add({
+                studentId: data.studentId,
+                studentName: data.studentName,
+                type: 'TOPUP',
+                amount: parseFloat(data.amount),
+                balanceAfter: newBal,
+                timestamp: new Date().toISOString(),
+                description: 'Top-up from request'
+            });
+
+            // 3. Send Notification to user's inbox
+            await db.collection('notifications').add({
+                studentId: data.studentId,
+                title: 'Top-Up Accepted',
+                message: `Your top-up request of SAR ${parseFloat(data.amount).toFixed(2)} has been accepted and added to your points balance.`,
+                read: false,
+                timestamp: new Date().toISOString()
+            });
+
+            // 4. Update request status
+            await db.collection('topUpRequests').doc(id).update({
+                status: 'RESOLVED',
+                resolvedAt: new Date().toISOString()
+            });
+
+            // 5. Emit socket event
+            const io = req.app.get('io');
+            if (io) {
+                io.emit('balanceUpdate', { studentId: data.studentId, newBalance: newBal });
+            }
+        } else {
+            // Just resolve it if student doesn't exist anymore
+            await db.collection('topUpRequests').doc(id).update({
+                status: 'RESOLVED',
+                resolvedAt: new Date().toISOString()
+            });
+        }
+
+        res.status(200).json({ status: 'success', message: 'Request resolved and balance updated' });
     } catch (error) {
         res.status(500).json({ status: 'error', message: error.message });
     }

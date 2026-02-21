@@ -24,4 +24,8 @@ router.delete('/student/:studentId', studentController.deleteStudent);
 router.post('/verify-passkey', studentController.verifyPasskey);
 router.post('/student/update-passkey', studentController.updatePasskey);
 
+// Notifications
+router.get('/student/:studentId/notifications', studentController.getUserNotifications);
+router.put('/notifications/:id/read', studentController.markNotificationRead);
+
 module.exports = router;

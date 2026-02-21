@@ -229,3 +229,34 @@ exports.updatePasskey = async (req, res) => {
         res.status(500).json({ status: 'error', message: error.message });
     }
 };
+exports.getUserNotifications = async (req, res) => {
+    try {
+        const { studentId } = req.params;
+        const snapshot = await db.collection('notifications')
+            .where('studentId', '==', studentId)
+            .get();
+
+        const notifications = [];
+        snapshot.forEach(doc => {
+            notifications.push({ id: doc.id, ...doc.data() });
+        });
+
+        notifications.sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp));
+
+        res.status(200).json({ status: 'success', data: notifications });
+    } catch (error) {
+        res.status(500).json({ status: 'error', message: error.message });
+    }
+};
+
+exports.markNotificationRead = async (req, res) => {
+    try {
+        const { id } = req.params;
+        await db.collection('notifications').doc(id).update({
+            read: true
+        });
+        res.status(200).json({ status: 'success', message: 'Notification marked as read' });
+    } catch (error) {
+        res.status(500).json({ status: 'error', message: error.message });
+    }
+};

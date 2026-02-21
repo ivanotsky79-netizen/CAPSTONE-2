@@ -34,6 +34,8 @@ export const transactionService = {
     requestTopup: (studentId, amount, date, timeSlot) => api.post('/request-topup', { studentId, amount, date, timeSlot }),
     getTopupRequests: () => api.get('/topup-requests'),
     resolveTopupRequest: (id) => api.put(`/topup-requests/${id}/resolve`),
+    getNotifications: (studentId) => api.get(`/student/${studentId}/notifications`),
+    markNotificationRead: (id) => api.put(`/notifications/${id}/read`)
 };
 
 export default api;

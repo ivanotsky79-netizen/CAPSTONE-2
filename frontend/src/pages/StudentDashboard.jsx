@@ -44,6 +44,8 @@ export default function StudentDashboard({ user, onLogout }) {
     const [darkMode, setDarkMode] = useState(localStorage.getItem('studentDarkMode') === 'true');
     const [selectedTransaction, setSelectedTransaction] = useState(null);
     const [txFilter, setTxFilter] = useState('all'); // all, purchase, topup
+    const [notifications, setNotifications] = useState([]);
+    const [notificationsVisible, setNotificationsVisible] = useState(false);
 
     // Forms
     const [passkeyForm] = Form.useForm();
@@ -79,15 +81,17 @@ export default function StudentDashboard({ user, onLogout }) {
         if (!user?.studentId) return;
         setLoading(true);
         try {
-            const [tRes, sRes] = await Promise.all([
+            const [tRes, sRes, nRes] = await Promise.all([
                 transactionService.getTransactions(user.studentId),
-                studentService.getStudent(user.studentId)
+                studentService.getStudent(user.studentId),
+                transactionService.getNotifications(user.studentId).catch(() => ({ data: { data: [] } }))
             ]);
 
             const transList = tRes.data.data || [];
             setTransactions(transList);
             const freshStudent = sRes.data.data || sRes.data;
             setStudentData(freshStudent);
+            setNotifications(nRes.data.data || []);
 
             // Keep localStorage in sync with fresh student data
             const savedAuth = localStorage.getItem('fugen_auth');
@@ -196,6 +200,9 @@ export default function StudentDashboard({ user, onLogout }) {
             <div className="app-header">
                 <div className="title-dashboard">Dashboard</div>
                 <div style={{ display: 'flex', gap: 10, alignItems: 'center' }}>
+                    <Badge count={notifications.filter(n => !n.read).length} onClick={() => setNotificationsVisible(true)} style={{ cursor: 'pointer' }}>
+                        <BellOutlined style={{ fontSize: 22, color: darkMode ? '#fff' : '#fff', cursor: 'pointer' }} />
+                    </Badge>
                     <div className="avatar">
                         {initials}
                     </div>
@@ -570,6 +577,58 @@ export default function StudentDashboard({ user, onLogout }) {
                             </div>
                         </div>
                     </div>
+                )}
+            </Modal>
+            {/* Notifications Modal */}
+            <Modal
+                title="Notifications"
+                open={notificationsVisible}
+                onCancel={() => setNotificationsVisible(false)}
+                footer={null}
+                centered
+            >
+                {notifications.length === 0 ? (
+                    <div style={{ textAlign: 'center', padding: '20px', color: '#888' }}>
+                        No new notifications
+                    </div>
+                ) : (
+                    <List
+                        dataSource={notifications}
+                        renderItem={item => (
+                            <List.Item
+                                style={{
+                                    background: item.read ? 'transparent' : (darkMode ? 'rgba(59, 94, 210, 0.2)' : '#f0f5ff'),
+                                    padding: '12px',
+                                    borderRadius: 8,
+                                    marginBottom: 8,
+                                    border: item.read ? '1px solid #eee' : '1px solid #3B5ED2',
+                                    cursor: 'pointer'
+                                }}
+                                onClick={async () => {
+                                    if (!item.read) {
+                                        try {
+                                            await transactionService.markNotificationRead(item.id);
+                                            setNotifications(prev => prev.map(n => n.id === item.id ? { ...n, read: true } : n));
+                                            loadData(); // optionally reload to strictly sync
+                                        } catch (e) { }
+                                    }
+                                }}
+                            >
+                                <List.Item.Meta
+                                    title={<span style={{ color: darkMode ? '#fff' : '#333' }}>{item.title}</span>}
+                                    description={
+                                        <div>
+                                            <div style={{ color: darkMode ? '#ccc' : '#666' }}>{item.message}</div>
+                                            <div style={{ fontSize: 11, color: '#999', marginTop: 4 }}>
+                                                {new Date(item.timestamp).toLocaleString()}
+                                            </div>
+                                        </div>
+                                    }
+                                />
+                                {!item.read && <Badge status="processing" />}
+                            </List.Item>
+                        )}
+                    />
                 )}
             </Modal>
         </div>
