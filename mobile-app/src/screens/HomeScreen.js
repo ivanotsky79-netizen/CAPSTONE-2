@@ -10,7 +10,7 @@ export default function HomeScreen({ navigation }) {
     return (
         <SafeAreaView style={styles.container}>
             <View style={styles.header}>
-                <Text style={styles.headerTitle}>FUGEN <Text style={styles.accentText}>SmartPay</Text></Text>
+                <Text style={styles.headerTitle}>Fugen <Text style={styles.accentText}>Smart Pay</Text></Text>
                 <TouchableOpacity
                     style={{ position: 'absolute', right: 20 }}
                     onPress={async () => {

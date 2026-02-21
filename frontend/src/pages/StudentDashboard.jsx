@@ -535,7 +535,7 @@ export default function StudentDashboard({ user, onLogout }) {
             >
                 <div className="digital-id-card" style={{ background: 'linear-gradient(135deg, #1A237E 0%, #3949AB 100%)', color: 'white', padding: 30, textAlign: 'center' }}>
                     <div style={{ marginBottom: 20 }}>
-                        <h2 style={{ color: 'white', margin: 0 }}>FUGEN SCHOOL</h2>
+                        <h2 style={{ color: 'white', margin: 0 }}>Fugen Smart Pay</h2>
                         <p style={{ opacity: 0.8, margin: 0 }}>Student Identity Card</p>
                     </div>
 

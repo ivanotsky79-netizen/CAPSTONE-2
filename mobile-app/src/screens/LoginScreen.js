@@ -57,7 +57,7 @@ export default function LoginScreen({ navigation }) {
                     keyboardShouldPersistTaps="handled"
                 >
                     <View style={styles.header}>
-                        <Text style={styles.title}>FUGEN <Text style={styles.accentText}>SmartPay</Text></Text>
+                        <Text style={styles.title}>Fugen <Text style={styles.accentText}>Smart Pay</Text></Text>
                         <Text style={styles.subtitle}>Admin Dashboard</Text>
                     </View>
 

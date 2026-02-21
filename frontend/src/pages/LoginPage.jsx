@@ -117,7 +117,7 @@ export default function LoginPage({ onLogin }) {
             }}>
                 <div className="login-box landing-box">
                     <div className="login-header">
-                        <h1 className="system-name">FUGEN <span className="accent">SmartPay</span></h1>
+                        <h1 className="system-name">Fugen <span className="accent">Smart Pay</span></h1>
                         <p className="system-subtitle">Select Access Portal</p>
                     </div>
 
@@ -144,7 +144,7 @@ export default function LoginPage({ onLogin }) {
                     </div>
 
                     <div className="login-footer">
-                        <p>FUGEN SmartPay © 2026 | Secure Transaction System</p>
+                        <p>Fugen Smart Pay © 2026 | Secure Transaction System</p>
                     </div>
                 </div>
             </div>
