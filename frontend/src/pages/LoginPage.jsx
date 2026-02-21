@@ -13,7 +13,7 @@ const ADMIN_CREDENTIALS = {
 
 export default function LoginPage({ onLogin }) {
     const [loading, setLoading] = useState(false);
-    const [view, setView] = useState('landing'); // 'landing', 'admin', 'student-login', 'student-register'
+    const [view, setView] = useState('intro'); // 'intro', 'landing', 'admin', 'student-login', 'student-register'
 
     // Admin Login Handler
     const handleAdminLogin = async (values) => {
@@ -105,16 +105,74 @@ export default function LoginPage({ onLogin }) {
         }
     };
 
+    // --- INTRO / ABOUT VIEW ---
+    if (view === 'intro') {
+        return (
+            <div className="login-container intro-container">
+                <div className="intro-box">
+                    <div className="login-header">
+                        <h1 className="system-name">Fugen <span className="accent">Smart Pay</span></h1>
+                        <p className="system-subtitle">Official Capstone Project</p>
+                    </div>
+
+                    <Card className="intro-card-glass">
+                        <div className="intro-content">
+                            <h2 className="intro-section-title">Project Overview</h2>
+                            <p className="intro-description">
+                                <strong>"Fugen Smart Pay"</strong> is a capstone project developed for the implementation of a
+                                School ID–Based Cashless Canteen Management System at
+                                <strong> Future Generation Philippine International School (FGPIS)</strong>.
+                                The system is designed to improve canteen payment efficiency by using QR codes printed on student IDs,
+                                enabling secure and convenient cashless transactions.
+                            </p>
+
+                            <div className="intro-team-section">
+                                <h3 className="team-title">Development & Implementation</h3>
+                                <div className="team-grid">
+                                    <div className="team-item">
+                                        <Text type="secondary" className="team-label">Developer</Text>
+                                        <Text strong className="team-name">Samuel Ivan Malavi</Text>
+                                    </div>
+                                    <div className="team-item">
+                                        <Text type="secondary" className="team-label">Implementers</Text>
+                                        <Text strong className="team-name">Irish Nhycole Barber</Text>
+                                        <Text strong className="team-name">John Kenneth Gerona</Text>
+                                        <Text strong className="team-name">Julia Mendanao</Text>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <p className="intro-description bottom-desc">
+                                The platform supports automated balance tracking, reduces waiting time during transactions,
+                                minimizes cash handling errors, and provides transparent transaction records accessible
+                                only to authorized school personnel. Fugen Smart Pay aims to modernize the school canteen
+                                payment process while maintaining secure and reliable system management.
+                            </p>
+
+                            <Button
+                                type="primary"
+                                size="large"
+                                className="enter-btn"
+                                onClick={() => setView('landing')}
+                                block
+                            >
+                                Enter System Portal
+                            </Button>
+                        </div>
+                    </Card>
+
+                    <div className="login-footer">
+                        <p>© 2026 Future Generation Philippine International School</p>
+                    </div>
+                </div>
+            </div>
+        );
+    }
+
     // --- LANDING VIEW ---
     if (view === 'landing') {
         return (
-            <div style={{
-                position: 'fixed', top: 0, left: 0, right: 0, bottom: 0,
-                overflowY: 'auto',
-                WebkitOverflowScrolling: 'touch',
-                background: 'linear-gradient(135deg, #1A237E 0%, #283593 100%)',
-                padding: '10vh 20px 40px',
-            }}>
+            <div className="login-container">
                 <div className="login-box landing-box">
                     <div className="login-header">
                         <h1 className="system-name">Fugen <span className="accent">Smart Pay</span></h1>
@@ -153,16 +211,10 @@ export default function LoginPage({ onLogin }) {
 
     // --- GENERIC WRAPPER FOR FORMS ---
     return (
-        <div style={{
-            position: 'fixed', top: 0, left: 0, right: 0, bottom: 0,
-            overflowY: 'auto',
-            WebkitOverflowScrolling: 'touch',
-            background: 'linear-gradient(135deg, #1A237E 0%, #283593 100%)',
-            padding: '5vh 20px 40px',
-        }}>
+        <div className="login-container">
             <div style={{ width: '100%', maxWidth: view === 'student-register' ? 700 : 450, margin: '0 auto', transition: 'max-width 0.3s ease' }}>
                 <div className="login-header">
-                    <h1 className="system-name">FUGEN <span className="accent">SmartPay</span></h1>
+                    <h1 className="system-name">Fugen <span className="accent">Smart Pay</span></h1>
                     <p className="system-subtitle">
                         {view === 'admin' ? 'Admin Dashboard' :
                             view === 'student-register' ? 'Student Registration' : 'Student Login'}
