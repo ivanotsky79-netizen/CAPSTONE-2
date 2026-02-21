@@ -248,7 +248,7 @@ export default function LoginPage({ onLogin }) {
                                 </Col>
                                 <Col xs={24} sm={8}>
                                     <Form.Item name="section" label="Section" rules={[{ required: true, message: 'Enter section' }]}>
-                                        <Input prefix={<UserAddOutlined />} placeholder="e.g. Rizal" />
+                                        <Input prefix={<UserAddOutlined />} placeholder="e.g. Olivera" />
                                     </Form.Item>
                                 </Col>
                             </Row>
