@@ -830,8 +830,8 @@ export default function AdminDashboard({ onLogout }) {
                                             <div className="win98-card-value">SAR {reportData.canteen?.totalSales?.toFixed(2)}</div>
                                         </div>
                                         <div className="win98-card">
-                                            <div className="win98-card-label">Cash</div>
-                                            <div className="win98-card-value">SAR {reportData.canteen?.cashCollected?.toFixed(2)}</div>
+                                            <div className="win98-card-label">Total Cash</div>
+                                            <div className="win98-card-value">SAR {reportData.system?.totalCashOnHand?.toFixed(2)}</div>
                                         </div>
                                         <div className="win98-card">
                                             <div className="win98-card-label">Credit</div>
@@ -891,6 +891,10 @@ export default function AdminDashboard({ onLogout }) {
                                 <div className="win98-card">
                                     <div className="win98-card-label">Withdrawals</div>
                                     <div className="win98-card-value" style={{ color: 'orange' }}>SAR {dailyStats.system?.todayWithdrawals?.toFixed(2)}</div>
+                                </div>
+                                <div className="win98-card">
+                                    <div className="win98-card-label">Points Collected Today</div>
+                                    <div className="win98-card-value" style={{ color: 'blue' }}>SAR {dailyStats.system?.todayTopups?.toFixed(2)}</div>
                                 </div>
                             </div>
                             <div className="win98-toolbar">
