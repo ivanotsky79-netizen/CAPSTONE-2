@@ -2,9 +2,9 @@
     min-height: 100vh;
     background: linear-gradient(135deg, #1A237E 0%, #283593 100%);
     padding: 10vh 20px 40px;
-    /* Use padding to act as vertical centering */
     display: block;
-    /* Removed flex to stop clipping */
+    overflow-y: auto;
+    -webkit-overflow-scrolling: touch;
 }
 
 .login-box {
@@ -49,7 +49,7 @@
     box-shadow: 0 10px 40px rgba(0, 0, 0, 0.3);
     border: none;
     position: relative;
-    overflow: hidden;
+    overflow: visible;
 }
 
 .login-card .ant-card-body {
@@ -159,4 +159,11 @@
 .card-nav button:hover {
     color: #1A237E;
     background: transparent;
+}
+
+/* Mobile scroll fix */
+@media (max-width: 768px) {
+    .login-container {
+        padding: 5vh 15px 40px;
+    }
 }
