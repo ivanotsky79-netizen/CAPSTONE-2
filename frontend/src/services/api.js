@@ -31,7 +31,7 @@ export const transactionService = {
     getDailyStats: (date, includeGlobal = false) => api.get('/stats/daily', { params: { date, includeGlobal } }),
     getWeeklyStats: () => api.get('/stats/weekly'),
     withdraw: (amount, passkey) => api.post('/withdraw', { amount, passkey }),
-    requestTopup: (studentId, amount, date) => api.post('/request-topup', { studentId, amount, date }),
+    requestTopup: (studentId, amount, date, timeSlot) => api.post('/request-topup', { studentId, amount, date, timeSlot }),
     getTopupRequests: () => api.get('/topup-requests'),
     resolveTopupRequest: (id) => api.put(`/topup-requests/${id}/resolve`),
 };

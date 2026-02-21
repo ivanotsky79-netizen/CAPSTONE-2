@@ -925,14 +925,14 @@ export default function AdminDashboard({ onLogout }) {
                             </div>
                             <div className="win98-table-wrapper">
                                 <table className="win98-table">
-                                    <thead><tr><th>Date Request</th><th>Student</th><th>Amount to Collect</th><th>Action</th></tr></thead>
+                                    <thead><tr><th>Date / Time Slot</th><th>Student</th><th>Amount to Collect</th><th>Action</th></tr></thead>
                                     <tbody>
                                         {topupRequests.length === 0 ? (
                                             <tr><td colSpan={4} style={{ textAlign: 'center' }}>No pending top-up requests.</td></tr>
                                         ) : (
                                             topupRequests.map((req, i) => (
                                                 <tr key={i}>
-                                                    <td>{req.date}</td>
+                                                    <td>{req.date} <span style={{ color: '#888' }}>({req.timeSlot || 'Not Specified'})</span></td>
                                                     <td style={{ fontWeight: 'bold' }}>{req.studentName} ({req.studentId})</td>
                                                     <td style={{ color: 'green', fontWeight: 'bold' }}>SAR {req.amount.toFixed(2)}</td>
                                                     <td>

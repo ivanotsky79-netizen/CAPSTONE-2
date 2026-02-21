@@ -372,7 +372,7 @@ exports.getDailyStats = async (req, res) => {
 
 exports.requestTopup = async (req, res) => {
     try {
-        const { studentId, amount, date } = req.body;
+        const { studentId, amount, date, timeSlot } = req.body;
 
         // Fetch student name real quick to store in request
         const studentRef = db.collection('students').doc(studentId);
@@ -393,6 +393,7 @@ exports.requestTopup = async (req, res) => {
             studentName,
             amount: parseFloat(amount),
             date, // e.g., '2026-02-23'
+            timeSlot: timeSlot || 'Not Specified',
             status: 'PENDING',
             timestamp: new Date().toISOString()
         };
