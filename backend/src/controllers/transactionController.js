@@ -413,8 +413,8 @@ exports.requestTopup = async (req, res) => {
 exports.getTopupRequests = async (req, res) => {
     try {
         const snapshot = await db.collection('topUpRequests')
-            .where('status', '==', 'PENDING')
-            .get(); // We sort in memory to avoid index issues on Firestore
+            .where('status', 'in', ['PENDING', 'ACCEPTED'])
+            .get();
 
         let requests = [];
         snapshot.forEach(doc => {
@@ -424,6 +424,42 @@ exports.getTopupRequests = async (req, res) => {
         requests.sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp));
 
         res.status(200).json({ status: 'success', data: requests });
+    } catch (error) {
+        res.status(500).json({ status: 'error', message: error.message });
+    }
+};
+
+exports.approveTopupRequest = async (req, res) => {
+    try {
+        const { id } = req.params;
+        const reqDoc = await db.collection('topUpRequests').doc(id).get();
+
+        if (!reqDoc.exists) {
+            return res.status(404).json({ status: 'error', message: 'Request not found' });
+        }
+
+        const data = reqDoc.data();
+
+        if (data.status !== 'PENDING') {
+            return res.status(400).json({ status: 'error', message: 'Request is not in pending state' });
+        }
+
+        // 1. Update status to ACCEPTED
+        await db.collection('topUpRequests').doc(id).update({
+            status: 'ACCEPTED',
+            approvedAt: new Date().toISOString()
+        });
+
+        // 2. Send "Reservation Accepted" notification
+        await db.collection('notifications').add({
+            studentId: data.studentId,
+            title: 'Reservation Accepted',
+            message: `Your top-up reservation of SAR ${parseFloat(data.amount).toFixed(2)} has been reviewed and accepted. Please proceed to the office to complete your payment.`,
+            read: false,
+            timestamp: new Date().toISOString()
+        });
+
+        res.status(200).json({ status: 'success', message: 'Reservation accepted and user notified' });
     } catch (error) {
         res.status(500).json({ status: 'error', message: error.message });
     }
@@ -468,8 +504,8 @@ exports.resolveTopupRequest = async (req, res) => {
             // 3. Send Notification to user's inbox
             await db.collection('notifications').add({
                 studentId: data.studentId,
-                title: 'Top-Up Accepted',
-                message: `Your top-up request of SAR ${parseFloat(data.amount).toFixed(2)} has been accepted and added to your points balance.`,
+                title: 'Top-Up Completed',
+                message: `Payment received! SAR ${parseFloat(data.amount).toFixed(2)} has been successfully added to your points balance.`,
                 read: false,
                 timestamp: new Date().toISOString()
             });

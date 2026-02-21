@@ -215,6 +215,15 @@ export default function AdminDashboard({ onLogout }) {
         } catch (e) { message.error('Failed to resolve'); }
     };
 
+    const handleApproveRequest = async (id) => {
+        try {
+            await transactionService.approveTopupRequest(id);
+            message.success('Reservation Accepted and User Notified');
+            addAuditLog('APPROVE_REQUEST', `Approved top-up reservation ${id}`);
+            fetchRequests();
+        } catch (e) { message.error('Failed to approve'); }
+    };
+
     // --- Bulk Import Logic ---
     const handleFileUpload = (e) => {
         const file = e.target.files[0];
@@ -941,7 +950,14 @@ export default function AdminDashboard({ onLogout }) {
                                                     <td>{req.gradeSection || 'Unknown'}</td>
                                                     <td style={{ color: 'green', fontWeight: 'bold' }}>SAR {req.amount.toFixed(2)}</td>
                                                     <td>
-                                                        <button className="win98-btn" style={{ padding: '2px 5px' }} onClick={() => handleResolveRequest(req.id)}>Mark Collected</button>
+                                                        {req.status === 'PENDING' ? (
+                                                            <button className="win98-btn" style={{ padding: '2px 8px', backgroundColor: '#000080', color: 'white' }} onClick={() => handleApproveRequest(req.id)}>Accept Reservation</button>
+                                                        ) : (
+                                                            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                                                                <span style={{ fontSize: '11px', color: '#008000', fontWeight: 'bold' }}>ACCEPTED ✔</span>
+                                                                <button className="win98-btn" style={{ padding: '2px 8px' }} onClick={() => handleResolveRequest(req.id)}>Mark Collected</button>
+                                                            </div>
+                                                        )}
                                                     </td>
                                                 </tr>
                                             ))
