@@ -433,46 +433,30 @@ export default function AdminDashboard({ onLogout }) {
             const cards = await Promise.all(studentsToPrint.map(s => buildQRCardCanvas(s)));
             message.destroy('bulkPDF');
 
-            // Layout: 2 columns, each card 500x650
-            const cols = 2;
-            const cardW = 500, cardH = 650, gap = 20, pad = 30;
-            const rows = Math.ceil(cards.length / cols);
-            const totalW = cols * cardW + (cols - 1) * gap + pad * 2;
-            const totalH = rows * cardH + (rows - 1) * gap + pad * 2;
-
-            const sheet = document.createElement('canvas');
-            sheet.width = totalW;
-            sheet.height = totalH;
-            const ctx = sheet.getContext('2d');
-            ctx.fillStyle = '#ffffff';
-            ctx.fillRect(0, 0, totalW, totalH);
-
-            cards.forEach((card, i) => {
-                const col = i % cols;
-                const row = Math.floor(i / cols);
-                const x = pad + col * (cardW + gap);
-                const y = pad + row * (cardH + gap);
-                ctx.drawImage(card, x, y, cardW, cardH);
-                // Light border
-                ctx.strokeStyle = '#e0e0e0';
-                ctx.lineWidth = 1;
-                ctx.strokeRect(x, y, cardW, cardH);
-            });
-
-            const dataUrl = sheet.toDataURL('image/png');
-            // Open print window — user can Save as PDF from browser print dialog
+            // Use HTML Grid for native A4 pagination and better styling
             const win = window.open('', '_blank');
             win.document.write(`
                 <html><head><title>Bulk QR Cards</title>
                 <style>
-                    @page { size: auto; margin: 0; }
-                    @media print { body { margin: 0; } }
-                    body { margin: 0; background: #fff; display: flex; justify-content: center; }
-                    img { max-width: 100%; }
-                </style></head>
-                <body>
-                    <img src="${dataUrl}" />
-                    <script>window.onload = () => { window.print(); }<\/script>
+                    @page { size: A4; margin: 10mm; }
+                    @media print { 
+                        body { margin: 0; } 
+                        .card { break-inside: avoid; }
+                    }
+                    body { background: #fff; font-family: Arial, sans-serif; margin: 0; }
+                    .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; width: 100%; box-sizing: border-box; }
+                    .card { text-align: center; border: 1px solid #ddd; border-radius: 8px; overflow: hidden; padding: 10px; }
+                    .card img { width: 100%; max-width: 350px; height: auto; display: block; margin: 0 auto; }
+                </style></head><body><div class="grid">
+            `);
+
+            cards.forEach((c) => {
+                win.document.write(`<div class="card"><img src="${c.toDataURL('image/png')}" /></div>`);
+            });
+
+            win.document.write(`
+                </div>
+                <script>window.onload = () => { setTimeout(() => window.print(), 500); }<\/script>
                 </body></html>
             `);
             win.document.close();
@@ -651,8 +635,8 @@ export default function AdminDashboard({ onLogout }) {
                                     <div className="win98-card-value">{students.length}</div>
                                 </div>
                                 <div className="win98-card">
-                                    <div className="win98-card-label">Total Balance</div>
-                                    <div className="win98-card-value">SAR {totalBal.toFixed(2)}</div>
+                                    <div className="win98-card-label">Total Points</div>
+                                    <div className="win98-card-value">{totalBal.toFixed(2)}</div>
                                 </div>
                                 <div className="win98-card">
                                     <div className="win98-card-label">Total Debt</div>
