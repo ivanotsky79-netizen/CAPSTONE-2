@@ -1,10 +1,13 @@
 .login-container {
     min-height: 100vh;
     background: linear-gradient(135deg, #1A237E 0%, #283593 100%);
-    padding: 10vh 20px 40px;
-    display: block;
-    overflow-y: auto;
-    -webkit-overflow-scrolling: touch;
+    background-attachment: fixed;
+    padding: 60px 20px 80px;
+    width: 100%;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    box-sizing: border-box;
 }
 
 .login-box {
