@@ -440,13 +440,30 @@ export default function AdminDashboard({ onLogout }) {
                 <style>
                     @page { size: A4; margin: 10mm; }
                     @media print { 
-                        body { margin: 0; } 
-                        .card { break-inside: avoid; }
+                        body { margin: 0; padding: 0; } 
+                        .card { break-inside: avoid; page-break-inside: avoid; }
                     }
                     body { background: #fff; font-family: Arial, sans-serif; margin: 0; }
-                    .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; width: 100%; box-sizing: border-box; }
-                    .card { text-align: center; border: 1px solid #ddd; border-radius: 8px; overflow: hidden; padding: 10px; }
-                    .card img { width: 100%; max-width: 350px; height: auto; display: block; margin: 0 auto; }
+                    /* Standard ID size: 2.25in x 3.4in; grid gaps allow cutting space */
+                    .grid { 
+                        display: flex; 
+                        flex-wrap: wrap; 
+                        gap: 15px; 
+                        padding: 10px;
+                        justify-content: flex-start;
+                    }
+                    .card { 
+                        width: 2.25in; 
+                        height: 3.4in; 
+                        text-align: center; 
+                        border: 1px dashed #ccc; 
+                        box-sizing: border-box; 
+                        display: flex;
+                        justify-content: center;
+                        align-items: center;
+                        overflow: hidden; 
+                    }
+                    .card img { width: 100%; height: 100%; object-fit: contain; }
                 </style></head><body><div class="grid">
             `);
 
