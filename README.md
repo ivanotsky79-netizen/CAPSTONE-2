@@ -1,12 +1,12 @@
-# FUGEN SmartPay System (Corrected & Simplified)
+# FUGEN SmartPay System 
 
 ## Overview
-A cashless canteen system for the Philippine International School in Saudi Arabia.
+A cashless canteen system for the Future Generation Philippine International School in Riyadh Saudi Arabia.
 - **Currency:** Saudi Riyal (SAR)
 - **Authentication:** Student ID QR Code + 4-Digit Passkey
 - **Debt Logic:** Auto-deduction from next top-up.
 
-## 1. Web Dashboard (Admin Only)
+## 1. Web Dashboard (FOR Admin Only)
 Located in `/frontend`.
 - **Role:** Admin / School Office
 - **Features:** Create Students, Generate QR Stickers, Load Balance (Top-Up).
@@ -18,7 +18,7 @@ npm run dev
 ```
 - Access at: `http://localhost:5173`
 
-## 2. Mobile App (Scanner)
+## 2. Mobile App (For the QR Scanner)
 Located in `/mobile-app`.
 - **QR Scanning**: Uses device camera.
 - **Top-Ups**: Handles cash intake and debt deduction.
@@ -27,7 +27,7 @@ Located in `/mobile-app`.
   - **Important**: Update `API_URL` in `App.js` to your computer's local IP address.
 
 ### 📱 Mobile Troubleshooting
-If you see a **Red Error Screen** (e.g., "String cannot be cast to Boolean"):
+FOR Red Error Screen(e.g., "String cannot be cast to Boolean"):
 1. Stop the terminal (**Ctrl + C**).
 2. Run this command to clear the cache:
    ```bash

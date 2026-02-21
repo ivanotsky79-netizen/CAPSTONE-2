@@ -12,6 +12,7 @@ import SystemDataScreen from './src/screens/SystemDataScreen';
 import TransactionHistoryScreen from './src/screens/TransactionHistoryScreen';
 import ReportsScreen from './src/screens/ReportsScreen';
 import DayDetailsScreen from './src/screens/DayDetailsScreen';
+import TopupRequestsScreen from './src/screens/TopupRequestsScreen';
 
 import dailyReportService from './src/services/dailyReportService';
 
@@ -43,6 +44,7 @@ export default function App() {
           <Stack.Screen name="Users" component={TransactionHistoryScreen} options={{ title: "Student Users" }} />
           <Stack.Screen name="Reports" component={ReportsScreen} options={{ title: 'Historical Reports' }} />
           <Stack.Screen name="DayDetails" component={DayDetailsScreen} options={{ title: 'Day Details' }} />
+          <Stack.Screen name="TopupRequests" component={TopupRequestsScreen} options={{ title: 'Top-Up Requests' }} />
         </Stack.Navigator>
       </NavigationContainer>
     </SafeAreaProvider>

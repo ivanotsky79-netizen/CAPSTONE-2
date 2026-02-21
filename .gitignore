@@ -7,6 +7,8 @@ node_modules/
 
 # Backend Secrets
 backend/serviceAccountKey.json
+render_key.txt
+backend/render_key.txt
 
 # Builds
 dist/

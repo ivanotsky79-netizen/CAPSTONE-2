@@ -412,9 +412,15 @@ exports.requestTopup = async (req, res) => {
 
 exports.getTopupRequests = async (req, res) => {
     try {
-        const snapshot = await db.collection('topUpRequests')
-            .where('status', 'in', ['PENDING', 'ACCEPTED'])
-            .get();
+        const { studentId } = req.query;
+        let query = db.collection('topUpRequests')
+            .where('status', 'in', ['PENDING', 'ACCEPTED']);
+
+        if (studentId) {
+            query = query.where('studentId', '==', studentId);
+        }
+
+        const snapshot = await query.get();
 
         let requests = [];
         snapshot.forEach(doc => {

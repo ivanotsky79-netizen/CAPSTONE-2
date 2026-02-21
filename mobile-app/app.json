@@ -34,24 +34,13 @@
         {
           "cameraPermission": "Allow FUGEN SmartPay to scan student QR codes."
         }
-      ],
-      "expo-av",
-      [
-        "expo-build-properties",
-        {
-          "android": {
-            "kotlinVersion": "1.9.25"
-          }
-        }
       ]
-    ],
-    "assetBundlePatterns": [
-      "assets/*"
     ],
     "extra": {
       "eas": {
         "projectId": "390d9159-da49-4cf8-bb67-7bf521e4918e"
       }
-    }
+    },
+    "owner": "capstone2526"
   }
 }

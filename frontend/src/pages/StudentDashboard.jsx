@@ -46,6 +46,7 @@ export default function StudentDashboard({ user, onLogout }) {
     const [txFilter, setTxFilter] = useState('all'); // all, purchase, topup
     const [notifications, setNotifications] = useState([]);
     const [notificationsVisible, setNotificationsVisible] = useState(false);
+    const [pendingRequests, setPendingRequests] = useState([]);
 
     // Forms
     const [passkeyForm] = Form.useForm();
@@ -81,10 +82,11 @@ export default function StudentDashboard({ user, onLogout }) {
         if (!user?.studentId) return;
         setLoading(true);
         try {
-            const [tRes, sRes, nRes] = await Promise.all([
+            const [tRes, sRes, nRes, rRes] = await Promise.all([
                 transactionService.getTransactions(user.studentId),
                 studentService.getStudent(user.studentId),
-                transactionService.getNotifications(user.studentId).catch(() => ({ data: { data: [] } }))
+                transactionService.getNotifications(user.studentId).catch(() => ({ data: { data: [] } })),
+                transactionService.getTopupRequests(user.studentId).catch(() => ({ data: { data: [] } }))
             ]);
 
             const transList = tRes.data.data || [];
@@ -92,6 +94,7 @@ export default function StudentDashboard({ user, onLogout }) {
             const freshStudent = sRes.data.data || sRes.data;
             setStudentData(freshStudent);
             setNotifications(nRes.data.data || []);
+            setPendingRequests(rRes.data.data || []);
 
             // Keep localStorage in sync with fresh student data
             const savedAuth = localStorage.getItem('fugen_auth');
@@ -250,20 +253,48 @@ export default function StudentDashboard({ user, onLogout }) {
 
             {/* Spending Summary */}
             {activeTab === 'home' && (
-                <div className="spending-summary">
-                    <div className="summary-card">
-                        <div className="summary-label">This Week</div>
-                        <div className="summary-value">{weekSpent.toFixed(0)}</div>
+                <>
+                    <div className="pending-tracking-section" onClick={() => setActiveTab('requests')} style={{ cursor: 'pointer', marginBottom: 20 }}>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
+                            <h4 style={{ margin: 0, color: '#FFD700', fontSize: 16 }}>
+                                <SendOutlined style={{ marginRight: 8 }} />
+                                My Top-Up Requests
+                            </h4>
+                            <span style={{ fontSize: 12, opacity: 0.8 }}>Track All</span>
+                        </div>
+
+                        {pendingRequests.length > 0 ? (
+                            <div className="tracking-card-compact">
+                                <Badge status="processing" color="#FFD700" />
+                                <span style={{ marginLeft: 8 }}>
+                                    {pendingRequests[0].status === 'ACCEPTED'
+                                        ? 'Reservation Accepted! Pay at office.'
+                                        : 'Top-up Request Pending...'}
+                                </span>
+                                <span style={{ marginLeft: 'auto', fontWeight: 'bold' }}>SAR {parseFloat(pendingRequests[0].amount).toFixed(2)}</span>
+                            </div>
+                        ) : (
+                            <div style={{ textAlign: 'center', padding: '10px', background: 'rgba(255,255,255,0.05)', borderRadius: 12, fontSize: 13, color: 'rgba(255,255,255,0.6)' }}>
+                                No active top-up requests.
+                            </div>
+                        )}
                     </div>
-                    <div className="summary-card">
-                        <div className="summary-label">This Month</div>
-                        <div className="summary-value">{monthSpent.toFixed(0)}</div>
+
+                    <div className="spending-summary">
+                        <div className="summary-card">
+                            <div className="summary-label">This Week</div>
+                            <div className="summary-value">{weekSpent.toFixed(0)}</div>
+                        </div>
+                        <div className="summary-card">
+                            <div className="summary-label">This Month</div>
+                            <div className="summary-value">{monthSpent.toFixed(0)}</div>
+                        </div>
+                        <div className="summary-card">
+                            <div className="summary-label">Transactions</div>
+                            <div className="summary-value">{transactions.length}</div>
+                        </div>
                     </div>
-                    <div className="summary-card">
-                        <div className="summary-label">Transactions</div>
-                        <div className="summary-value">{transactions.length}</div>
-                    </div>
-                </div>
+                </>
             )}
 
             {activeTab === 'stats' && (
@@ -325,6 +356,48 @@ export default function StudentDashboard({ user, onLogout }) {
                 </div>
             )}
 
+            {activeTab === 'requests' && (
+                <div style={{ flex: 1, overflowY: 'auto', paddingBottom: 100, padding: '20px' }}>
+                    <div className="history-section" style={{ background: darkMode ? '#1a1a1a' : '#fff', padding: '15px', borderRadius: '15px' }}>
+                        <div className="section-header" style={{ marginBottom: 15 }}>
+                            <h3 style={{ margin: 0, color: darkMode ? '#fff' : '#000' }}>Active Top-Up Requests</h3>
+                            <span style={{ fontSize: 12, color: '#888' }}>{pendingRequests.length} Active</span>
+                        </div>
+
+                        <List
+                            loading={loading}
+                            dataSource={pendingRequests}
+                            renderItem={item => (
+                                <div style={{
+                                    background: darkMode ? '#262626' : '#f9f9f9',
+                                    padding: '15px',
+                                    borderRadius: '12px',
+                                    marginBottom: '10px',
+                                    border: darkMode ? '1px solid #333' : '1px solid #eee'
+                                }}>
+                                    <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '5px' }}>
+                                        <span style={{ fontWeight: 'bold', fontSize: 16, color: darkMode ? '#fff' : '#000' }}>Points {parseFloat(item.amount).toFixed(2)}</span>
+                                        <Badge
+                                            status={item.status === 'ACCEPTED' ? 'processing' : 'warning'}
+                                            text={<span style={{ color: item.status === 'ACCEPTED' ? '#52c41a' : '#faad14', fontWeight: 600 }}>{item.status}</span>}
+                                        />
+                                    </div>
+                                    <div style={{ fontSize: 13, color: '#888' }}>
+                                        <div>Scheduled: {item.date} • {item.timeSlot}</div>
+                                        <div style={{ marginTop: 4, fontStyle: 'italic' }}>
+                                            {item.status === 'ACCEPTED'
+                                                ? 'Reservation accepted! Please visit the office.'
+                                                : 'Waiting for admin approval...'}
+                                        </div>
+                                    </div>
+                                </div>
+                            )}
+                            locale={{ emptyText: <div style={{ padding: '40px 0', textAlign: 'center', color: '#888' }}>No active requests</div> }}
+                        />
+                    </div>
+                </div>
+            )}
+
             {/* Bottom Navigation */}
             <div className="bottom-nav">
                 <div className={`nav-item ${activeTab === 'home' ? 'active' : ''}`} onClick={() => setActiveTab('home')}>
@@ -334,6 +407,12 @@ export default function StudentDashboard({ user, onLogout }) {
                 <div className={`nav-item ${activeTab === 'stats' ? 'active' : ''}`} onClick={() => setActiveTab('stats')}>
                     <LineChartOutlined />
                     <span>Stats</span>
+                </div>
+                <div className={`nav-item ${activeTab === 'requests' ? 'active' : ''}`} onClick={() => setActiveTab('requests')}>
+                    <Badge count={pendingRequests.length} size="small" offset={[5, 0]}>
+                        <WalletOutlined style={{ color: activeTab === 'requests' ? '#FFD700' : (darkMode ? '#fff' : '#888') }} />
+                    </Badge>
+                    <span>Requests</span>
                 </div>
                 <div className="nav-item" onClick={() => setSettingsVisible(true)}>
                     <SettingOutlined />

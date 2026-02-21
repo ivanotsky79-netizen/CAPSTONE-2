@@ -364,7 +364,7 @@ export default function AdminDashboard({ onLogout }) {
 
     // Generates a styled composite image: QR + name + ID + grade
     const buildQRCardCanvas = async (student) => {
-        const cardW = 500, cardH = 650;
+        const cardW = 500, cardH = 800;
         const offscreen = document.createElement('canvas');
         offscreen.width = cardW;
         offscreen.height = cardH;
@@ -376,25 +376,26 @@ export default function AdminDashboard({ onLogout }) {
 
         // Generate QR into temp canvas
         const qrCanvas = document.createElement('canvas');
-        await QRCode.toCanvas(qrCanvas, `FUGEN:${student.studentId}`, { width: 300, margin: 1 });
+        await QRCode.toCanvas(qrCanvas, `FUGEN:${student.studentId}`, { width: 340, margin: 1 });
 
         // Draw QR centred
-        const qrX = (cardW - 300) / 2;
-        ctx.drawImage(qrCanvas, qrX, 60, 300, 300);
+        const qrX = (cardW - 340) / 2;
+        ctx.drawImage(qrCanvas, qrX, 80, 340, 340);
 
         // Name
         ctx.fillStyle = '#111111';
-        ctx.font = 'bold 32px Arial';
+        ctx.font = 'bold 36px Arial';
         ctx.textAlign = 'center';
-        ctx.fillText(student.fullName, cardW / 2, 420);
+        ctx.fillText(student.fullName, cardW / 2, 530);
 
         // ID
         ctx.fillStyle = '#666666';
-        ctx.font = '22px Arial';
-        ctx.fillText(`ID: ${student.studentId}`, cardW / 2, 470);
+        ctx.font = '24px Arial';
+        ctx.fillText(`ID: ${student.studentId}`, cardW / 2, 590);
 
         // Grade
-        ctx.fillText(`Grade: ${student.gradeSection}`, cardW / 2, 515);
+        ctx.font = '24px Arial';
+        ctx.fillText(`Grade: ${student.gradeSection}`, cardW / 2, 640);
 
         return offscreen;
     };
@@ -462,8 +463,8 @@ export default function AdminDashboard({ onLogout }) {
                         justify-content: flex-start;
                     }
                     .card { 
-                        width: 2.25in; 
-                        height: 3.4in; 
+                        width: 2.0in; 
+                        height: 3.2in; 
                         text-align: center; 
                         border: 1px dashed #ccc; 
                         box-sizing: border-box; 

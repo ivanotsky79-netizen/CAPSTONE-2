@@ -34,36 +34,29 @@ export default function HomeScreen({ navigation }) {
                 </TouchableOpacity>
 
                 <View style={styles.bottomRow}>
-                    {/* SYSTEM DATA BUTTON */}
-                    <TouchableOpacity
-                        style={styles.smallButton}
-                        onPress={() => navigation.navigate('SystemData')}
-                        activeOpacity={0.8}
-                    >
+                    <TouchableOpacity style={styles.smallButton} onPress={() => navigation.navigate('SystemData')}>
                         <MaterialCommunityIcons name="database-sync" size={40} color="white" />
-                        <Text style={styles.buttonLabel}>System Data</Text>
+                        <Text style={styles.buttonLabel}>System</Text>
                     </TouchableOpacity>
 
-                    {/* USERS BUTTON */}
-                    <TouchableOpacity
-                        style={styles.smallButton}
-                        onPress={() => navigation.navigate('Users')}
-                        activeOpacity={0.8}
-                    >
+                    <TouchableOpacity style={styles.smallButton} onPress={() => navigation.navigate('TopupRequests')}>
+                        <MaterialCommunityIcons name="clipboard-text-clock" size={40} color="white" />
+                        <Text style={styles.buttonLabel}>Requests</Text>
+                    </TouchableOpacity>
+
+                    <TouchableOpacity style={styles.smallButton} onPress={() => navigation.navigate('Users')}>
                         <MaterialCommunityIcons name="account-group" size={40} color="white" />
                         <Text style={styles.buttonLabel}>Users</Text>
                     </TouchableOpacity>
-
-                    {/* REPORTS BUTTON */}
-                    <TouchableOpacity
-                        style={styles.smallButton}
-                        onPress={() => navigation.navigate('Reports')}
-                        activeOpacity={0.8}
-                    >
-                        <MaterialCommunityIcons name="file-chart" size={40} color="white" />
-                        <Text style={styles.buttonLabel}>Reports</Text>
-                    </TouchableOpacity>
                 </View>
+
+                <TouchableOpacity
+                    style={[styles.smallButton, { width: '100%', marginTop: 15, height: 80, flexDirection: 'row', gap: 15 }]}
+                    onPress={() => navigation.navigate('Reports')}
+                >
+                    <MaterialCommunityIcons name="file-chart" size={32} color="white" />
+                    <Text style={[styles.buttonLabel, { fontSize: 18, marginTop: 0 }]}>Daily Reports & History</Text>
+                </TouchableOpacity>
             </View>
 
             <View style={styles.footer}>
