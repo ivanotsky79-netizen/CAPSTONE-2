@@ -459,6 +459,12 @@ exports.approveTopupRequest = async (req, res) => {
             timestamp: new Date().toISOString()
         });
 
+        // 3. Emit socket event to refresh dashboard in real-time
+        const io = req.app.get('io');
+        if (io) {
+            io.emit('balanceUpdate', { studentId: data.studentId, type: 'NOTIFICATION' });
+        }
+
         res.status(200).json({ status: 'success', message: 'Reservation accepted and user notified' });
     } catch (error) {
         res.status(500).json({ status: 'error', message: error.message });
@@ -494,6 +500,7 @@ exports.resolveTopupRequest = async (req, res) => {
             await db.collection('transactions').add({
                 studentId: data.studentId,
                 studentName: data.studentName,
+                gradeSection: data.gradeSection,
                 type: 'TOPUP',
                 amount: parseFloat(data.amount),
                 balanceAfter: newBal,
@@ -519,7 +526,7 @@ exports.resolveTopupRequest = async (req, res) => {
             // 5. Emit socket event
             const io = req.app.get('io');
             if (io) {
-                io.emit('balanceUpdate', { studentId: data.studentId, newBalance: newBal });
+                io.emit('balanceUpdate', { studentId: data.studentId, newBalance: newBal, type: 'BALANCE_UPDATE' });
             }
         } else {
             // Just resolve it if student doesn't exist anymore

@@ -347,19 +347,23 @@ export default function StudentDashboard({ user, onLogout }) {
 
             {/* Top Up Request Modal */}
             <Modal
-                title="Request Top Up Schedule"
+                title={<span style={{ color: darkMode ? '#fff' : '#000' }}>Request Top Up Schedule</span>}
                 open={topUpModalVisible}
                 onCancel={() => { setTopUpModalVisible(false); setRequestTimeSlot(''); }}
                 footer={null}
                 centered
+                styles={{
+                    content: { backgroundColor: darkMode ? '#1a1a1a' : '#fff' },
+                    header: { backgroundColor: darkMode ? '#1a1a1a' : '#fff', borderBottom: darkMode ? '1px solid #333' : '1px solid #f0f0f0' }
+                }}
             >
                 <div style={{ marginBottom: 20 }}>
-                    <p style={{ color: '#666', fontSize: '14px', lineHeight: '1.5' }}>
+                    <p style={{ color: darkMode ? '#ccc' : '#666', fontSize: '14px', lineHeight: '1.5' }}>
                         Schedule a time to give cash to the admin to top up your account balance.
                         Please prepare the exact amount and bring it to the admin
                         (<strong>Room 12 - Olivera Classroom</strong>) at the scheduled time.
                     </p>
-                    <p style={{ color: '#888', fontSize: '13px', fontStyle: 'italic', marginTop: '10px' }}>
+                    <p style={{ color: darkMode ? '#aaa' : '#888', fontSize: '13px', fontStyle: 'italic', marginTop: '10px' }}>
                         * This is only a <strong>schedule request</strong>. Your balance will be updated
                         once physical payment is collected by the admin.
                     </p>
@@ -376,8 +380,8 @@ export default function StudentDashboard({ user, onLogout }) {
                         : ['Recess', 'Lunch'];
                     return (
                         <div style={{ marginBottom: 20 }}>
-                            <label style={{ display: 'block', marginBottom: 10, fontWeight: 'bold' }}>
-                                Preferred Time Slot {isSHS && <span style={{ color: '#666', fontWeight: 'normal', fontSize: 12 }}>(SHS)</span>}
+                            <label style={{ display: 'block', marginBottom: 10, fontWeight: 'bold', color: darkMode ? '#fff' : '#000' }}>
+                                Preferred Time Slot {isSHS && <span style={{ color: darkMode ? '#888' : '#666', fontWeight: 'normal', fontSize: 12 }}>(SHS)</span>}
                             </label>
                             <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
                                 {slots.map(slot => (
@@ -387,9 +391,9 @@ export default function StudentDashboard({ user, onLogout }) {
                                         style={{
                                             padding: '10px 18px',
                                             borderRadius: 10,
-                                            border: requestTimeSlot === slot ? '2px solid #1A237E' : '2px solid #e0e0e0',
-                                            background: requestTimeSlot === slot ? '#1A237E' : '#f5f5f5',
-                                            color: requestTimeSlot === slot ? '#fff' : '#333',
+                                            border: requestTimeSlot === slot ? '2px solid #3B5ED2' : (darkMode ? '2px solid #333' : '2px solid #e0e0e0'),
+                                            background: requestTimeSlot === slot ? '#3B5ED2' : (darkMode ? '#262626' : '#f5f5f5'),
+                                            color: requestTimeSlot === slot ? '#fff' : (darkMode ? '#ddd' : '#333'),
                                             fontWeight: 600,
                                             cursor: 'pointer',
                                             fontSize: 14,
@@ -405,7 +409,7 @@ export default function StudentDashboard({ user, onLogout }) {
                 })()}
 
                 <div style={{ marginBottom: 15 }}>
-                    <label style={{ display: 'block', marginBottom: 5, fontWeight: 'bold' }}>Schedule Date</label>
+                    <label style={{ display: 'block', marginBottom: 5, fontWeight: 'bold', color: darkMode ? '#fff' : '#000' }}>Schedule Date</label>
                     <DatePicker
                         style={{ width: '100%' }}
                         value={requestDate}
@@ -415,7 +419,7 @@ export default function StudentDashboard({ user, onLogout }) {
                 </div>
 
                 <div style={{ marginBottom: 25 }}>
-                    <label style={{ display: 'block', marginBottom: 5, fontWeight: 'bold' }}>Amount to Top Up (Points)</label>
+                    <label style={{ display: 'block', marginBottom: 5, fontWeight: 'bold', color: darkMode ? '#fff' : '#000' }}>Amount to Top Up (Points)</label>
                     <InputNumber
                         style={{ width: '100%' }}
                         value={requestAmount}
@@ -445,7 +449,10 @@ export default function StudentDashboard({ user, onLogout }) {
                 footer={null}
                 centered
                 className="digital-id-modal"
-                styles={{ body: { padding: 0, borderRadius: 20, overflow: 'hidden' } }}
+                styles={{
+                    body: { padding: 0, borderRadius: 20, overflow: 'hidden' },
+                    content: { backgroundColor: 'transparent', boxShadow: 'none' }
+                }}
             >
                 <div className="digital-id-card" style={{ background: 'linear-gradient(135deg, #1A237E 0%, #3949AB 100%)', color: 'white', padding: 30, textAlign: 'center' }}>
                     <div style={{ marginBottom: 20 }}>
@@ -477,10 +484,14 @@ export default function StudentDashboard({ user, onLogout }) {
 
             {/* Settings Modal */}
             <Modal
-                title="Settings"
+                title={<span style={{ color: darkMode ? '#fff' : '#000' }}>Settings</span>}
                 open={settingsVisible}
                 onCancel={() => setSettingsVisible(false)}
                 footer={null}
+                styles={{
+                    content: { backgroundColor: darkMode ? '#1a1a1a' : '#fff' },
+                    header: { backgroundColor: darkMode ? '#1a1a1a' : '#fff', borderBottom: darkMode ? '1px solid #333' : '1px solid #f0f0f0' }
+                }}
             >
                 <Tabs defaultActiveKey="1" items={[
                     {
@@ -500,8 +511,8 @@ export default function StudentDashboard({ user, onLogout }) {
                                     </List.Item>
                                 </List>
 
-                                <div style={{ marginTop: 20, display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '15px 0', borderTop: '1px solid #eee' }}>
-                                    <span><BulbOutlined /> Dark Mode</span>
+                                <div style={{ marginTop: 20, display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '15px 0', borderTop: darkMode ? '1px solid #333' : '1px solid #eee' }}>
+                                    <span style={{ color: darkMode ? '#fff' : '#000' }}><BulbOutlined /> Dark Mode</span>
                                     <Switch checked={darkMode} onChange={(val) => { console.log('Dark Mode: ', val); setDarkMode(val); }} />
                                 </div>
                             </>
@@ -537,11 +548,15 @@ export default function StudentDashboard({ user, onLogout }) {
 
             {/* Transaction Receipt Modal */}
             <Modal
-                title="Transaction Receipt"
+                title={<span style={{ color: darkMode ? '#fff' : '#000' }}>Transaction Receipt</span>}
                 open={!!selectedTransaction}
                 onCancel={() => setSelectedTransaction(null)}
                 footer={<Button type="primary" block onClick={() => setSelectedTransaction(null)} style={{ background: '#3B5ED2' }}>Close</Button>}
                 centered
+                styles={{
+                    content: { backgroundColor: darkMode ? '#1a1a1a' : '#fff' },
+                    header: { backgroundColor: darkMode ? '#1a1a1a' : '#fff', borderBottom: darkMode ? '1px solid #333' : '1px solid #f0f0f0' }
+                }}
             >
                 {selectedTransaction && (
                     <div style={{ textAlign: 'center', padding: '10px 0' }}>
@@ -552,11 +567,11 @@ export default function StudentDashboard({ user, onLogout }) {
                         }}>
                             {selectedTransaction.type === 'TOPUP' ? <ArrowUpOutlined style={{ color: '#52c41a' }} /> : <ShoppingOutlined style={{ color: '#fa541c' }} />}
                         </div>
-                        <h2 style={{ margin: '5px 0', fontSize: 28, color: selectedTransaction.type === 'TOPUP' ? '#52c41a' : '#333' }}>
+                        <h2 style={{ margin: '5px 0', fontSize: 28, color: selectedTransaction.type === 'TOPUP' ? '#52c41a' : (darkMode ? '#ff7875' : '#fa541c') }}>
                             {selectedTransaction.type === 'TOPUP' ? '+' : '-'} Points {Math.abs(selectedTransaction.amount).toFixed(2)}
                         </h2>
                         <p style={{ color: '#888', marginBottom: 20 }}>{selectedTransaction.type}</p>
-                        <div style={{ background: '#f9f9f9', borderRadius: 12, padding: 15, textAlign: 'left' }}>
+                        <div style={{ background: darkMode ? '#262626' : '#f9f9f9', borderRadius: 12, padding: 15, textAlign: 'left', border: darkMode ? '1px solid #333' : 'none' }}>
                             <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 10 }}>
                                 <span style={{ color: '#888' }}>Date</span>
                                 <span style={{ fontWeight: 600 }}>{new Date(selectedTransaction.timestamp).toLocaleDateString()}</span>
@@ -581,14 +596,18 @@ export default function StudentDashboard({ user, onLogout }) {
             </Modal>
             {/* Notifications Modal */}
             <Modal
-                title="Notifications"
+                title={<span style={{ color: darkMode ? '#fff' : '#000' }}>Notifications</span>}
                 open={notificationsVisible}
                 onCancel={() => setNotificationsVisible(false)}
                 footer={null}
                 centered
+                styles={{
+                    content: { backgroundColor: darkMode ? '#1a1a1a' : '#fff' },
+                    header: { backgroundColor: darkMode ? '#1a1a1a' : '#fff', borderBottom: darkMode ? '1px solid #333' : '1px solid #f0f0f0' }
+                }}
             >
                 {notifications.length === 0 ? (
-                    <div style={{ textAlign: 'center', padding: '20px', color: '#888' }}>
+                    <div style={{ textAlign: 'center', padding: '20px', color: darkMode ? '#888' : '#888' }}>
                         No new notifications
                     </div>
                 ) : (
@@ -599,10 +618,11 @@ export default function StudentDashboard({ user, onLogout }) {
                                 style={{
                                     background: item.read ? 'transparent' : (darkMode ? 'rgba(59, 94, 210, 0.2)' : '#f0f5ff'),
                                     padding: '12px',
-                                    borderRadius: 8,
-                                    marginBottom: 8,
-                                    border: item.read ? '1px solid #eee' : '1px solid #3B5ED2',
-                                    cursor: 'pointer'
+                                    borderRadius: 12,
+                                    marginBottom: 12,
+                                    border: item.read ? (darkMode ? '1px solid #333' : '1px solid #eee') : '1px solid #3B5ED2',
+                                    cursor: 'pointer',
+                                    transition: 'all 0.2s'
                                 }}
                                 onClick={async () => {
                                     if (!item.read) {
@@ -615,17 +635,17 @@ export default function StudentDashboard({ user, onLogout }) {
                                 }}
                             >
                                 <List.Item.Meta
-                                    title={<span style={{ color: darkMode ? '#fff' : '#333' }}>{item.title}</span>}
+                                    title={<span style={{ color: darkMode ? '#fff' : '#000', fontWeight: item.read ? 600 : 800, fontSize: 16 }}>{item.title}</span>}
                                     description={
                                         <div>
-                                            <div style={{ color: darkMode ? '#ccc' : '#666' }}>{item.message}</div>
-                                            <div style={{ fontSize: 11, color: '#999', marginTop: 4 }}>
+                                            <div style={{ color: darkMode ? '#ddd' : '#444', fontSize: 14, lineHeight: '1.4' }}>{item.message}</div>
+                                            <div style={{ fontSize: 11, color: '#999', marginTop: 8 }}>
                                                 {new Date(item.timestamp).toLocaleString()}
                                             </div>
                                         </div>
                                     }
                                 />
-                                {!item.read && <Badge status="processing" />}
+                                {!item.read && <Badge status="processing" color="#3B5ED2" />}
                             </List.Item>
                         )}
                     />

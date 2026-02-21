@@ -133,7 +133,8 @@ export default function DayDetailsScreen({ route, navigation }) {
                             ]}>
                                 {formatCurrency(Math.abs(item.amount))}
                             </Text>
-                            {item.studentId ? <Text style={styles.studentId}>{item.studentId}</Text> : null}
+                            <Text style={styles.studentInfo}>{item.studentName || 'System'}</Text>
+                            <Text style={styles.studentId}>{item.gradeSection || (item.grade ? `${item.grade}${item.section ? ' - ' + item.section : ''}` : item.studentId || 'N/A')}</Text>
                         </View>
                     </View>
                 </View>
@@ -255,7 +256,8 @@ const styles = StyleSheet.create({
     txnType: { fontWeight: 'bold', color: '#333', fontSize: 15 },
     txnTime: { fontSize: 12, color: '#888', marginTop: 2 },
     txnAmount: { fontWeight: 'bold', fontSize: 16, textAlign: 'right' },
-    studentId: { fontSize: 11, color: '#999', textAlign: 'right', marginTop: 2 },
+    studentInfo: { fontSize: 12, color: '#333', fontWeight: 'bold', textAlign: 'right', marginTop: 2 },
+    studentId: { fontSize: 11, color: '#999', textAlign: 'right', marginTop: 1 },
     emptyContainer: { alignItems: 'center', marginTop: 40 },
     emptyText: { textAlign: 'center', color: '#999', marginTop: 10, fontStyle: 'italic' },
 });
