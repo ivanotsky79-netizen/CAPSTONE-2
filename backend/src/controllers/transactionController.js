@@ -354,7 +354,7 @@ exports.getDailyStats = async (req, res) => {
                         transactions: canteenStats.transactions.sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp))
                     },
                     system: {
-                        todayTopups: systemStats.topups,
+                        todayTopups: Math.max(0, systemStats.topups - systemStats.withdrawals),
                         todayWithdrawals: systemStats.withdrawals,
                         totalCashOnHand: totalSystemCash, // The "System Cash"
                         totalDebt: globalTotalCredit,     // The "Outstanding Credits"
