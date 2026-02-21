@@ -353,31 +353,108 @@ export default function AdminDashboard({ onLogout }) {
         setShowProfileModal(true);
     };
 
-    const downloadQR = () => {
-        const canvas = document.getElementById('qr-canvas');
-        if (canvas) {
-            addAuditLog('DOWNLOAD_QR', `Downloaded QR Code for ${selectedStudent?.studentId}`);
-            const link = document.createElement('a');
-            link.download = `QR_${selectedStudent?.studentId}.png`;
-            link.href = canvas.toDataURL();
-            link.click();
-        }
+    // Generates a styled composite image: QR + name + ID + grade
+    const buildQRCardCanvas = async (student) => {
+        const cardW = 500, cardH = 650;
+        const offscreen = document.createElement('canvas');
+        offscreen.width = cardW;
+        offscreen.height = cardH;
+        const ctx = offscreen.getContext('2d');
+
+        // White background
+        ctx.fillStyle = '#ffffff';
+        ctx.fillRect(0, 0, cardW, cardH);
+
+        // Generate QR into temp canvas
+        const qrCanvas = document.createElement('canvas');
+        await QRCode.toCanvas(qrCanvas, `FUGEN:${student.studentId}`, { width: 300, margin: 1 });
+
+        // Draw QR centred
+        const qrX = (cardW - 300) / 2;
+        ctx.drawImage(qrCanvas, qrX, 60, 300, 300);
+
+        // Name
+        ctx.fillStyle = '#111111';
+        ctx.font = 'bold 32px Arial';
+        ctx.textAlign = 'center';
+        ctx.fillText(student.fullName, cardW / 2, 420);
+
+        // ID
+        ctx.fillStyle = '#666666';
+        ctx.font = '22px Arial';
+        ctx.fillText(`ID: ${student.studentId}`, cardW / 2, 470);
+
+        // Grade
+        ctx.fillText(`Grade: ${student.gradeSection}`, cardW / 2, 515);
+
+        return offscreen;
     };
 
-    const printQR = () => {
-        const canvas = document.getElementById('qr-canvas');
-        if (canvas) {
-            const win = window.open('', '_blank');
-            win.document.write(`<html><head><title>QR Code - ${selectedStudent?.studentId}</title><style>body{display:flex;flex-direction:column;align-items:center;justify-content:center;min-height:100vh;font-family:Arial;} img{margin-bottom:20px;}</style></head><body>`);
-            win.document.write(`<img src="${canvas.toDataURL()}" width="250" height="250" />`);
-            win.document.write(`<h2>${selectedStudent?.fullName}</h2>`);
-            win.document.write(`<p>ID: ${selectedStudent?.studentId}</p>`);
-            win.document.write(`<p>Grade: ${selectedStudent?.gradeSection}</p>`);
-            win.document.write('</body></html>');
-            win.document.close();
-            win.print();
-        }
+    const downloadQR = async () => {
+        if (!selectedStudent) return;
+        try {
+            const card = await buildQRCardCanvas(selectedStudent);
+            addAuditLog('DOWNLOAD_QR', `Downloaded QR Code for ${selectedStudent.studentId}`);
+            const link = document.createElement('a');
+            link.download = `QR_${selectedStudent.studentId}_${selectedStudent.fullName}.png`;
+            link.href = card.toDataURL('image/png');
+            link.click();
+        } catch (e) { message.error('Failed to generate QR image'); }
     };
+
+    const printQR = async () => {
+        if (!selectedStudent) return;
+        try {
+            const card = await buildQRCardCanvas(selectedStudent);
+            const dataUrl = card.toDataURL('image/png');
+            const win = window.open('', '_blank');
+            win.document.write(`
+                <html><head><title>QR - ${selectedStudent.fullName}</title>
+                <style>
+                    @media print { body { margin: 0; } }
+                    body { background: #fff; display: flex; justify-content: center; padding: 30px; font-family: Arial; }
+                    img { max-width: 100%; }
+                </style></head>
+                <body><img src="${dataUrl}" /></body></html>
+            `);
+            win.document.close();
+            setTimeout(() => win.print(), 400);
+        } catch (e) { message.error('Failed to print QR'); }
+    };
+
+    const massPrintQR = async () => {
+        const studentsToPrint = selectedIds.size > 0
+            ? students.filter(s => selectedIds.has(s.studentId))
+            : students;
+        if (studentsToPrint.length === 0) { message.warning('No students to print'); return; }
+
+        message.loading({ content: `Generating ${studentsToPrint.length} QR cards...`, key: 'massPrint', duration: 0 });
+        try {
+            const cards = await Promise.all(studentsToPrint.map(s => buildQRCardCanvas(s)));
+            message.destroy('massPrint');
+
+            const win = window.open('', '_blank');
+            win.document.write(`
+                <html><head><title>Mass QR Print</title>
+                <style>
+                    @page { size: A4; margin: 10mm; }
+                    @media print { body { margin: 0; } .card { break-inside: avoid; } }
+                    body { background: #fff; font-family: Arial; margin: 0; padding: 10px; }
+                    .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 15px; }
+                    .card { text-align: center; padding: 10px; border: 1px solid #eee; border-radius: 8px; }
+                    .card img { width: 100%; max-width: 220px; }
+                </style></head><body><div class="grid">
+            `);
+            cards.forEach((c, i) => {
+                win.document.write(`<div class="card"><img src="${c.toDataURL('image/png')}" /></div>`);
+            });
+            win.document.write('</div></body></html>');
+            win.document.close();
+            setTimeout(() => win.print(), 600);
+            addAuditLog('MASS_PRINT_QR', `Mass printed ${studentsToPrint.length} QR codes`);
+        } catch (e) { message.destroy('massPrint'); message.error('Failed to generate mass print'); }
+    };
+
 
     const handleBulkTopUp = async () => {
         if (selectedIds.size === 0) { message.warning('No students selected'); return; }
@@ -579,6 +656,7 @@ export default function AdminDashboard({ onLogout }) {
                                         </label>
                                         <button className="win98-btn" onClick={handleDeleteSelected}>Delete ({selectedIds.size})</button>
                                         <button className="win98-btn" onClick={() => { if (selectedIds.size === 0) { message.warning('Select students first'); return; } setShowBulkTopUpModal(true); }}>Bulk Top Up ({selectedIds.size})</button>
+                                        <button className="win98-btn" onClick={massPrintQR}>🖨️ Mass Print QR {selectedIds.size > 0 ? `(${selectedIds.size})` : '(All)'}</button>
                                     </>
                                 )}
                             </div>
