@@ -10,6 +10,7 @@ body {
     color: black;
     margin: 0;
     overflow: hidden;
+    height: 100vh;
 }
 
 /* Layout Container */
@@ -74,9 +75,10 @@ body {
     padding: 10px;
     display: flex;
     flex-direction: column;
-    overflow-y: auto;
+    overflow: hidden;
+    /* Prevent page scroll, force internal scroll */
     position: relative;
-    /* For stacking windows */
+    height: 100vh;
 }
 
 /* Windows / Boxes */
@@ -211,9 +213,12 @@ body {
     background: white;
     border: 2px inset #fff;
     border-color: #404040 #fff #fff #404040;
-    overflow: auto;
-    height: 100%;
-    /* Fill remaining space */
+    overflow-y: auto;
+    overflow-x: auto;
+    flex: 1;
+    /* Grow to fill available window space */
+    min-height: 200px;
+    /* Standard flex fix for scrolling children */
 }
 
 .win98-table {
