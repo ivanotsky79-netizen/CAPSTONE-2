@@ -1,13 +1,36 @@
 .login-container {
-    min-height: 100vh;
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
     background: linear-gradient(135deg, #1A237E 0%, #283593 100%);
     background-attachment: fixed;
-    padding: 60px 20px 80px;
-    width: 100%;
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    box-sizing: border-box;
+    padding: 40px 20px 80px;
+    display: block;
+    /* Back to block for natural flow */
+    overflow-y: scroll;
+    /* Force scrollbar */
+    -webkit-overflow-scrolling: touch;
+    z-index: 1000;
+}
+
+/* Custom Gold Scrollbar for the login page */
+.login-container::-webkit-scrollbar {
+    width: 8px;
+}
+
+.login-container::-webkit-scrollbar-track {
+    background: rgba(255, 255, 255, 0.05);
+}
+
+.login-container::-webkit-scrollbar-thumb {
+    background: #FFD701;
+    border-radius: 4px;
+}
+
+.login-container::-webkit-scrollbar-thumb:hover {
+    background: #fff;
 }
 
 .login-box {
