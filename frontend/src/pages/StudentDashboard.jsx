@@ -47,6 +47,9 @@ export default function StudentDashboard({ user, onLogout }) {
     const [notifications, setNotifications] = useState([]);
     const [notificationsVisible, setNotificationsVisible] = useState(false);
     const [pendingRequests, setPendingRequests] = useState([]);
+    const [rescheduleVisible, setRescheduleVisible] = useState(false);
+    const [rescheduleId, setRescheduleId] = useState(null);
+    const [rescheduleForm, setRescheduleForm] = useState({ date: dayjs(), timeSlot: '' });
 
     // Forms
     const [passkeyForm] = Form.useForm();
@@ -155,6 +158,25 @@ export default function StudentDashboard({ user, onLogout }) {
             setRequestTimeSlot('');
         } catch (error) {
             message.error('Failed to send request.');
+        }
+    };
+
+    const handleReschedule = async () => {
+        if (!rescheduleForm.timeSlot) {
+            message.warning('Please select a time slot.');
+            return;
+        }
+        try {
+            await transactionService.rescheduleTopupRequest(
+                rescheduleId,
+                rescheduleForm.date.format('YYYY-MM-DD'),
+                rescheduleForm.timeSlot
+            );
+            message.success('Schedule updated!');
+            setRescheduleVisible(false);
+            loadData();
+        } catch (error) {
+            message.error('Failed to update schedule.');
         }
     };
 
@@ -389,6 +411,18 @@ export default function StudentDashboard({ user, onLogout }) {
                                                 ? 'Reservation accepted! Please visit the office.'
                                                 : 'Waiting for admin approval...'}
                                         </div>
+                                        <div style={{ marginTop: 10, display: 'flex', gap: 10 }}>
+                                            <Button
+                                                size="small"
+                                                onClick={() => {
+                                                    setRescheduleId(item.id);
+                                                    setRescheduleForm({ date: item.date, timeSlot: item.timeSlot || 'HRO' });
+                                                    setRescheduleVisible(true);
+                                                }}
+                                            >
+                                                Move Schedule
+                                            </Button>
+                                        </div>
                                     </div>
                                 </div>
                             )}
@@ -517,6 +551,81 @@ export default function StudentDashboard({ user, onLogout }) {
                     style={{ opacity: requestTimeSlot ? 1 : 0.6 }}
                 >
                     Send Request {requestTimeSlot ? `(${requestTimeSlot})` : '— Select a time slot first'}
+                </Button>
+            </Modal>
+
+            {/* Reschedule Modal */}
+            <Modal
+                title={<span style={{ color: darkMode ? '#fff' : '#000' }}>Reschedule Appointment</span>}
+                open={rescheduleVisible}
+                onCancel={() => { setRescheduleVisible(false); }}
+                footer={null}
+                centered
+                styles={{
+                    content: { backgroundColor: darkMode ? '#1a1a1a' : '#fff' },
+                    header: { backgroundColor: darkMode ? '#1a1a1a' : '#fff', borderBottom: darkMode ? '1px solid #333' : '1px solid #f0f0f0' }
+                }}
+            >
+                <div style={{ marginBottom: 20 }}>
+                    <p style={{ color: darkMode ? '#ccc' : '#666' }}>Pick a new day and time slot for your top-up collection.</p>
+                </div>
+
+                {/* Time Slot Selector */}
+                {(() => {
+                    const grade = (studentData?.gradeSection || '').toLowerCase();
+                    const isSHS = grade.includes('grade 11') || grade.includes('grade 12') ||
+                        grade.includes('11') && grade.includes('grade') ||
+                        grade.includes('12') && grade.includes('grade');
+                    const slots = isSHS
+                        ? ['HRO', 'Recess', 'Lunch', 'Dismissal']
+                        : ['Recess', 'Lunch'];
+                    return (
+                        <div style={{ marginBottom: 20 }}>
+                            <label style={{ display: 'block', marginBottom: 10, fontWeight: 'bold', color: darkMode ? '#fff' : '#000' }}>
+                                New Time Slot
+                            </label>
+                            <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+                                {slots.map(slot => (
+                                    <button
+                                        key={slot}
+                                        onClick={() => setRescheduleForm({ ...rescheduleForm, timeSlot: slot })}
+                                        style={{
+                                            padding: '10px 18px',
+                                            borderRadius: 10,
+                                            border: rescheduleForm.timeSlot === slot ? '2px solid #3B5ED2' : (darkMode ? '2px solid #333' : '2px solid #e0e0e0'),
+                                            background: rescheduleForm.timeSlot === slot ? '#3B5ED2' : (darkMode ? '#262626' : '#f5f5f5'),
+                                            color: rescheduleForm.timeSlot === slot ? '#fff' : (darkMode ? '#ddd' : '#333'),
+                                            fontWeight: 600,
+                                            cursor: 'pointer',
+                                            fontSize: 14,
+                                            transition: 'all 0.2s',
+                                            flex: 1,
+                                            minWidth: 80,
+                                        }}
+                                    >{slot}</button>
+                                ))}
+                            </div>
+                        </div>
+                    );
+                })()}
+
+                <div style={{ marginBottom: 25 }}>
+                    <label style={{ display: 'block', marginBottom: 5, fontWeight: 'bold', color: darkMode ? '#fff' : '#000' }}>New Date</label>
+                    <DatePicker
+                        style={{ width: '100%' }}
+                        value={rescheduleForm.date}
+                        onChange={(d) => setRescheduleForm({ ...rescheduleForm, date: d || dayjs() })}
+                        size="large"
+                    />
+                </div>
+
+                <Button
+                    type="primary" block size="large"
+                    onClick={handleReschedule}
+                    icon={<SendOutlined />}
+                    disabled={!rescheduleForm.timeSlot}
+                >
+                    Update Schedule
                 </Button>
             </Modal>
 

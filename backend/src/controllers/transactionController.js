@@ -595,6 +595,50 @@ exports.rejectTopupRequest = async (req, res) => {
     }
 };
 
+exports.rescheduleTopupRequest = async (req, res) => {
+    try {
+        const { id } = req.params;
+        const { date, timeSlot } = req.body;
+
+        if (!date || !timeSlot) {
+            return res.status(400).json({ status: 'error', message: 'Date and Time Slot are required' });
+        }
+
+        const reqDoc = await db.collection('topUpRequests').doc(id).get();
+        if (!reqDoc.exists) {
+            return res.status(404).json({ status: 'error', message: 'Request not found' });
+        }
+
+        const data = reqDoc.data();
+        if (data.status === 'RESOLVED' || data.status === 'REJECTED') {
+            return res.status(400).json({ status: 'error', message: 'Cannot reschedule a finalized request' });
+        }
+
+        await db.collection('topUpRequests').doc(id).update({
+            date,
+            timeSlot,
+            updatedAt: new Date().toISOString()
+        });
+
+        await db.collection('notifications').add({
+            studentId: data.studentId,
+            title: 'Reservation Rescheduled',
+            message: `Your top-up reservation has been moved to ${date} (${timeSlot}). Please visit the office at the new time.`,
+            read: false,
+            timestamp: new Date().toISOString()
+        });
+
+        const io = req.app.get('io');
+        if (io) {
+            io.emit('balanceUpdate', { studentId: data.studentId, type: 'NOTIFICATION' });
+        }
+
+        res.status(200).json({ status: 'success', message: 'Reservation rescheduled' });
+    } catch (error) {
+        res.status(500).json({ status: 'error', message: error.message });
+    }
+};
+
 exports.resolveTopupRequest = async (req, res) => {
     try {
         const { id } = req.params;

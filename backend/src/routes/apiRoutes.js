@@ -18,6 +18,7 @@ router.get('/topup-requests', transactionController.getTopupRequests);
 router.put('/topup-requests/:id/resolve', transactionController.resolveTopupRequest);
 router.put('/topup-requests/:id/approve', transactionController.approveTopupRequest);
 router.put('/topup-requests/:id/reject', transactionController.rejectTopupRequest);
+router.put('/topup-requests/:id/reschedule', transactionController.rescheduleTopupRequest);
 
 // Student Routes
 router.post('/student', studentController.createStudent);

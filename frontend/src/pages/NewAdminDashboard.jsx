@@ -37,6 +37,9 @@ export default function AdminDashboard({ onLogout }) {
     const [showWithdrawModal, setShowWithdrawModal] = useState(false);
     const [showProfileModal, setShowProfileModal] = useState(false);
     const [showDeductModal, setShowDeductModal] = useState(false);
+    const [showRescheduleModal, setShowRescheduleModal] = useState(false);
+    const [rescheduleForm, setRescheduleForm] = useState({ date: '', timeSlot: 'HRO' });
+    const [rescheduleId, setRescheduleId] = useState(null);
 
     // Import/Export State
     const [isImporting, setIsImporting] = useState(false);
@@ -241,6 +244,17 @@ export default function AdminDashboard({ onLogout }) {
             const errorMsg = e.response?.data?.message || e.message || 'Failed to reject';
             message.error(`Failed to reject: ${errorMsg}`);
         }
+    };
+
+    const handleReschedule = async () => {
+        if (!rescheduleId || !rescheduleForm.date) return;
+        try {
+            await transactionService.rescheduleTopupRequest(rescheduleId, rescheduleForm.date, rescheduleForm.timeSlot);
+            message.success('Request Rescheduled');
+            addAuditLog('RESCHEDULE_REQUEST', `Rescheduled top-up request ${rescheduleId} to ${rescheduleForm.date} (${rescheduleForm.timeSlot})`);
+            setShowRescheduleModal(false);
+            fetchRequests();
+        } catch (e) { message.error('Failed to reschedule'); }
     };
 
     // --- Bulk Import Logic ---
@@ -1088,12 +1102,14 @@ export default function AdminDashboard({ onLogout }) {
                                                             {req.status === 'PENDING' ? (
                                                                 <div style={{ display: 'flex', gap: '5px' }}>
                                                                     <button className="win98-btn" style={{ padding: '2px 8px', backgroundColor: '#000080', color: 'white' }} onClick={() => handleApproveRequest(req.id)}>Accept Reservation</button>
+                                                                    <button className="win98-btn" style={{ padding: '2px 8px' }} onClick={() => { setRescheduleId(req.id); setRescheduleForm({ date: req.date, timeSlot: req.timeSlot || 'HRO' }); setShowRescheduleModal(true); }}>Reschedule</button>
                                                                     <button className="win98-btn" style={{ padding: '2px 8px', backgroundColor: '#800000', color: 'white' }} onClick={() => handleRejectRequest(req.id)}>Reject</button>
                                                                 </div>
                                                             ) : (
                                                                 <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
                                                                     <span style={{ fontSize: '11px', color: '#008000', fontWeight: 'bold' }}>ACCEPTED ✔</span>
                                                                     <button className="win98-btn" style={{ padding: '2px 8px' }} onClick={() => handleResolveRequest(req.id)}>Mark Collected</button>
+                                                                    <button className="win98-btn" style={{ padding: '2px 8px' }} onClick={() => { setRescheduleId(req.id); setRescheduleForm({ date: req.date, timeSlot: req.timeSlot || 'HRO' }); setShowRescheduleModal(true); }}>Reschedule</button>
                                                                     <button className="win98-btn" style={{ padding: '2px 8px', fontSize: '10px' }} onClick={() => handleRejectRequest(req.id)}>Cancel</button>
                                                                 </div>
                                                             )}
@@ -1122,6 +1138,45 @@ export default function AdminDashboard({ onLogout }) {
                             <div style={{ display: 'flex', gap: 10, justifyContent: 'flex-end', marginTop: 10 }}>
                                 <button className="win98-btn" onClick={() => setShowAddModal(false)}>Cancel</button>
                                 <button className="win98-btn" onClick={handleAddStudent}>Save</button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            {showRescheduleModal && (
+                <div className="win98-modal-overlay">
+                    <div className="win98-modal">
+                        <div className="win98-title-bar"><span>Reschedule Appointment</span><div className="win98-control-btn" onClick={() => setShowRescheduleModal(false)}>×</div></div>
+                        <div className="win98-content">
+                            <p>Moving appointment for: <b>Request #{rescheduleId?.slice(-6)}</b></p>
+                            <div className="vb-form-group">
+                                <label>New Date</label>
+                                <input
+                                    type="date"
+                                    className="win98-input"
+                                    value={rescheduleForm.date}
+                                    onChange={e => setRescheduleForm({ ...rescheduleForm, date: e.target.value })}
+                                    style={{ width: '95%' }}
+                                />
+                            </div>
+                            <div className="vb-form-group" style={{ marginTop: 10 }}>
+                                <label>New Time Slot</label>
+                                <select
+                                    className="win98-input"
+                                    value={rescheduleForm.timeSlot}
+                                    onChange={e => setRescheduleForm({ ...rescheduleForm, timeSlot: e.target.value })}
+                                    style={{ width: '95%' }}
+                                >
+                                    <option value="HRO">HRO</option>
+                                    <option value="Recess">Recess</option>
+                                    <option value="Lunch">Lunch</option>
+                                    <option value="Dismissal">Dismissal</option>
+                                </select>
+                            </div>
+                            <div style={{ display: 'flex', gap: 10, justifyContent: 'flex-end', marginTop: 15 }}>
+                                <button className="win98-btn" onClick={() => setShowRescheduleModal(false)}>Cancel</button>
+                                <button className="win98-btn" style={{ backgroundColor: '#000080', color: 'white' }} onClick={handleReschedule}>Apply Changes</button>
                             </div>
                         </div>
                     </div>
