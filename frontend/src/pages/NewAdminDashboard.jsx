@@ -26,6 +26,7 @@ export default function AdminDashboard({ onLogout }) {
     const [totalBal, setTotalBal] = useState(0);
     const [totalCredit, setTotalCredit] = useState(0);
     const [topupRequests, setTopupRequests] = useState([]);
+    const [requestSearch, setRequestSearch] = useState('');
     const [reqFilterDate, setReqFilterDate] = useState(new Date().toISOString().split('T')[0]);
     const [reqFilterSlot, setReqFilterSlot] = useState('ALL');
 
@@ -712,10 +713,15 @@ export default function AdminDashboard({ onLogout }) {
                                     Pending Requests {topupRequests.length > 0 && <span style={{ background: 'red', color: 'white', borderRadius: '50%', padding: '0 5px', fontSize: 10 }}>{topupRequests.length}</span>}
                                 </button>
                                 <div style={{ flex: 1 }}></div>
-                                {usersViewMode === 'all' && (
+                                {(usersViewMode === 'all' || usersViewMode === 'requests') && (
                                     <>
-                                        <input className="win98-input" placeholder="Search..." value={searchText} onChange={e => setSearchText(e.target.value)} />
-                                        <button className="win98-btn" onClick={() => setShowAddModal(true)}>+ Add</button>
+                                        <input
+                                            className="win98-input"
+                                            placeholder={usersViewMode === 'requests' ? "Search requests..." : "Search..."}
+                                            value={usersViewMode === 'requests' ? requestSearch : searchText}
+                                            onChange={e => usersViewMode === 'requests' ? setRequestSearch(e.target.value) : setSearchText(e.target.value)}
+                                        />
+                                        {usersViewMode === 'all' && <button className="win98-btn" onClick={() => setShowAddModal(true)}>+ Add</button>}
                                         <button className="win98-btn" onClick={() => {
                                             if (selectedIds.size === 0) { message.warning('Please select a student to Top Up.'); return; }
                                             if (selectedIds.size > 1) { message.warning('Please select only one student.'); return; }
@@ -807,7 +813,11 @@ export default function AdminDashboard({ onLogout }) {
                                         <tbody>
                                             {(() => {
                                                 const reqIds = new Set(topupRequests.map(r => r.studentId));
-                                                const studentsWithReq = students.filter(s => reqIds.has(s.studentId));
+                                                const searchLower = requestSearch.toLowerCase();
+                                                const studentsWithReq = students.filter(s =>
+                                                    reqIds.has(s.studentId) &&
+                                                    (s.fullName.toLowerCase().includes(searchLower) || s.studentId.includes(searchLower))
+                                                );
 
                                                 if (studentsWithReq.length === 0) {
                                                     return <tr><td colSpan={5} style={{ textAlign: 'center' }}>No students with pending top-up requests.</td></tr>;
@@ -1010,6 +1020,13 @@ export default function AdminDashboard({ onLogout }) {
                         <div className="win98-content" style={{ display: 'flex', flexDirection: 'column', flex: 1, minHeight: 0 }}>
                             <div className="win98-toolbar" style={{ gap: '10px', flexWrap: 'wrap' }}>
                                 <button className="win98-btn" onClick={fetchRequests}>Refresh Inbox</button>
+                                <input
+                                    className="win98-input"
+                                    placeholder="Search by student or ID..."
+                                    value={requestSearch}
+                                    onChange={(e) => setRequestSearch(e.target.value)}
+                                    style={{ width: '180px' }}
+                                />
                                 <div style={{ display: 'flex', alignItems: 'center', gap: '5px', marginLeft: 'auto' }}>
                                     <label style={{ fontSize: '11px' }}>Filter by Date:</label>
                                     <input
@@ -1040,18 +1057,26 @@ export default function AdminDashboard({ onLogout }) {
                                     <tbody>
                                         {topupRequests
                                             .filter(req => {
+                                                const searchLower = requestSearch.toLowerCase();
+                                                const matchesSearch = !requestSearch ||
+                                                    req.studentName.toLowerCase().includes(searchLower) ||
+                                                    req.studentId.toLowerCase().includes(searchLower);
                                                 const matchesDate = !reqFilterDate || req.date === reqFilterDate;
                                                 const matchesSlot = reqFilterSlot === 'ALL' || req.timeSlot === reqFilterSlot;
-                                                return matchesDate && matchesSlot;
+                                                return matchesSearch && matchesDate && matchesSlot;
                                             })
                                             .length === 0 ? (
                                             <tr><td colSpan={5} style={{ textAlign: 'center' }}>No requests found for this filter.</td></tr>
                                         ) : (
                                             topupRequests
                                                 .filter(req => {
+                                                    const searchLower = requestSearch.toLowerCase();
+                                                    const matchesSearch = !requestSearch ||
+                                                        req.studentName.toLowerCase().includes(searchLower) ||
+                                                        req.studentId.toLowerCase().includes(searchLower);
                                                     const matchesDate = !reqFilterDate || req.date === reqFilterDate;
                                                     const matchesSlot = reqFilterSlot === 'ALL' || req.timeSlot === reqFilterSlot;
-                                                    return matchesDate && matchesSlot;
+                                                    return matchesSearch && matchesDate && matchesSlot;
                                                 })
                                                 .map((req, i) => (
                                                     <tr key={i}>
