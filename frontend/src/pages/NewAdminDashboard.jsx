@@ -1237,15 +1237,16 @@ export default function AdminDashboard({ onLogout }) {
 
             {showQrModal && (
                 <div className="win98-modal-overlay">
-                    <div className="win98-modal" style={{ width: 300 }}>
+                    <div className="win98-modal" style={{ width: 320 }}>
                         <div className="win98-title-bar"><span>QR Code</span><div className="win98-control-btn" onClick={() => setShowQrModal(false)}>×</div></div>
-                        <div className="win98-content" style={{ textAlign: 'center' }}>
-                            <h3>{selectedStudent?.fullName}</h3>
-                            <canvas id="qr-canvas" ref={c => { if (c && selectedStudent) QRCode.toCanvas(c, `FUGEN:${selectedStudent.studentId}`, { width: 150 }); }} />
-                            <br />
-                            <div style={{ display: 'flex', gap: 5, justifyContent: 'center', marginTop: 10 }}>
-                                <button className="win98-btn" onClick={downloadQR}>Download</button>
-                                <button className="win98-btn" onClick={printQR}>Print</button>
+                        <div className="win98-content" style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', padding: '20px' }}>
+                            <h2 style={{ margin: '0 0 10px 0', textAlign: 'center' }}>{selectedStudent?.fullName}</h2>
+                            <div style={{ background: '#fff', padding: '10px', boxShadow: 'inset 2px 2px 0 #808080, inset -1px -1px 0 #fff' }}>
+                                <canvas id="qr-canvas" ref={c => { if (c && selectedStudent) QRCode.toCanvas(c, `FUGEN:${selectedStudent.studentId}`, { width: 180, margin: 1 }); }} />
+                            </div>
+                            <div style={{ display: 'flex', gap: 10, justifyContent: 'center', marginTop: 20 }}>
+                                <button className="win98-btn" onClick={downloadQR} style={{ minWidth: 80 }}>Download</button>
+                                <button className="win98-btn" onClick={printQR} style={{ minWidth: 80 }}>Print</button>
                             </div>
                         </div>
                     </div>

@@ -18,6 +18,8 @@ export default function ScanScreen({ navigation }) {
     });
     const [showCredits, setShowCredits] = useState(false);
     const [showCash, setShowCash] = useState(false);
+    const [showIdentifyModal, setShowIdentifyModal] = useState(false);
+    const [identifiedId, setIdentifiedId] = useState('');
     const [loading, setLoading] = useState(false);
 
     // Fetch daily stats
@@ -66,37 +68,8 @@ export default function ScanScreen({ navigation }) {
         if (upperData.startsWith('FUGEN:')) {
             const studentId = data.includes(':') ? data.split(':')[1].trim() : data.substring(6).trim();
             console.log(`[SCAN] Identified: "${studentId}"`);
-
-            Alert.alert(
-                'Student Identified',
-                `Student ID: ${studentId}\nHow do you want to proceed?`,
-                [
-                    {
-                        text: 'Proceed (Skip Passkey)',
-                        onPress: async () => {
-                            setLoading(true);
-                            try {
-                                const res = await studentService.getStudent(studentId);
-                                navigation.navigate('Purchase', {
-                                    student: res.data.data,
-                                    passkey: 'BYPASSED',
-                                    bypassPasskey: true
-                                });
-                            } catch (err) {
-                                Alert.alert('Error', 'Failed to fetch student info.');
-                                setScanned(false);
-                            } finally {
-                                setLoading(false);
-                            }
-                        }
-                    },
-                    {
-                        text: 'Require Passkey',
-                        onPress: () => navigation.navigate('Passkey', { studentId })
-                    }
-                ],
-                { cancelable: true, onDismiss: () => setScanned(false) }
-            );
+            setIdentifiedId(studentId);
+            setShowIdentifyModal(true);
         } else {
             Alert.alert('Invalid QR', 'This is not a valid FUGEN Student ID code.', [
                 { text: 'Try Again', onPress: () => setScanned(false) }
@@ -267,6 +240,71 @@ export default function ScanScreen({ navigation }) {
                         >
                             <Text style={styles.statsButtonText}>CLOSE</Text>
                         </TouchableOpacity>
+                    </View>
+                </View>
+            </Modal>
+
+            <Modal
+                visible={showIdentifyModal}
+                transparent={true}
+                animationType="fade"
+                onRequestClose={() => { setShowIdentifyModal(false); setScanned(false); }}
+            >
+                <View style={styles.modalOverlay}>
+                    <View style={[styles.modalContent, { borderRadius: 20, padding: 0, overflow: 'hidden', width: '85%', alignSelf: 'center', marginBottom: 'auto', marginTop: 'auto' }]}>
+                        <View style={[styles.modalHeader, { backgroundColor: '#1A237E', padding: 20, marginBottom: 0 }]}>
+                            <Text style={[styles.modalTitle, { color: '#fff' }]}>Student Identified</Text>
+                            <TouchableOpacity onPress={() => { setShowIdentifyModal(false); setScanned(false); }}>
+                                <Text style={[styles.closeButton, { color: '#fff' }]}>✕</Text>
+                            </TouchableOpacity>
+                        </View>
+
+                        <View style={{ padding: 25, alignItems: 'center' }}>
+                            <View style={{ backgroundColor: '#E8EAF6', padding: 15, borderRadius: 12, marginBottom: 20, width: '100%', alignItems: 'center' }}>
+                                <Text style={{ fontSize: 14, color: '#666', fontWeight: 'bold', marginBottom: 5 }}>STUDENT ID</Text>
+                                <Text style={{ fontSize: 22, fontWeight: 'bold', color: '#1A237E' }}>{identifiedId}</Text>
+                            </View>
+
+                            <Text style={{ textAlign: 'center', color: '#444', marginBottom: 25, fontSize: 16 }}>
+                                Authentication is required before proceeding. Select bypass mode or verify student.
+                            </Text>
+
+                            <TouchableOpacity
+                                style={[styles.statsButton, { backgroundColor: '#2E7D32', width: '100%', marginBottom: 12, height: 55, justifyContent: 'center' }]}
+                                onPress={async () => {
+                                    setLoading(true);
+                                    try {
+                                        const res = await studentService.getStudent(identifiedId);
+                                        setShowIdentifyModal(false);
+                                        navigation.navigate('Purchase', {
+                                            student: res.data.data,
+                                            passkey: 'BYPASSED',
+                                            bypassPasskey: true
+                                        });
+                                    } catch (err) {
+                                        Alert.alert('Error', 'Failed to fetch student info.');
+                                        setShowIdentifyModal(false);
+                                        setScanned(false);
+                                    } finally {
+                                        setLoading(false);
+                                    }
+                                }}
+                            >
+                                {loading ? <ActivityIndicator color="#fff" /> : (
+                                    <Text style={styles.statsButtonText}>🚀 PROCEED (SKIP PASSKEY)</Text>
+                                )}
+                            </TouchableOpacity>
+
+                            <TouchableOpacity
+                                style={[styles.statsButton, { width: '100%', height: 55, justifyContent: 'center' }]}
+                                onPress={() => {
+                                    setShowIdentifyModal(false);
+                                    navigation.navigate('Passkey', { studentId: identifiedId });
+                                }}
+                            >
+                                <Text style={styles.statsButtonText}>🛡️ REQUIRE PASSKEY</Text>
+                            </TouchableOpacity>
+                        </View>
                     </View>
                 </View>
             </Modal>
