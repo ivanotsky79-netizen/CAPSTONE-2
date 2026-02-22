@@ -46,10 +46,11 @@ export const studentService = {
 };
 
 export const transactionService = {
-    purchase: (studentId, amount, passkey) => api.post('/purchase', {
+    purchase: (studentId, amount, passkey, bypassPasskey = false) => api.post('/purchase', {
         studentId,
         amount,
         passkey,
+        bypassPasskey,
         location: 'CANTEEN'
     }),
     getDailyStats: (location = 'CANTEEN', date = null) => api.get(`/stats/daily`, { params: { location, date } }),

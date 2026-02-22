@@ -2,7 +2,7 @@ import React, { useState, useMemo, useEffect } from 'react';
 import { StyleSheet, Text, View, Button, Alert, ActivityIndicator, TouchableOpacity, ScrollView, Modal, Vibration } from 'react-native';
 import { CameraView, useCameraPermissions } from 'expo-camera';
 import { useIsFocused } from '@react-navigation/native';
-import { transactionService, socket } from '../services/api';
+import { transactionService, studentService, socket } from '../services/api';
 
 export default function ScanScreen({ navigation }) {
     const isFocused = useIsFocused();
@@ -66,7 +66,37 @@ export default function ScanScreen({ navigation }) {
         if (upperData.startsWith('FUGEN:')) {
             const studentId = data.includes(':') ? data.split(':')[1].trim() : data.substring(6).trim();
             console.log(`[SCAN] Identified: "${studentId}"`);
-            navigation.navigate('Passkey', { studentId });
+
+            Alert.alert(
+                'Student Identified',
+                `Student ID: ${studentId}\nHow do you want to proceed?`,
+                [
+                    {
+                        text: 'Proceed (Skip Passkey)',
+                        onPress: async () => {
+                            setLoading(true);
+                            try {
+                                const res = await studentService.getStudent(studentId);
+                                navigation.navigate('Purchase', {
+                                    student: res.data.data,
+                                    passkey: 'BYPASSED',
+                                    bypassPasskey: true
+                                });
+                            } catch (err) {
+                                Alert.alert('Error', 'Failed to fetch student info.');
+                                setScanned(false);
+                            } finally {
+                                setLoading(false);
+                            }
+                        }
+                    },
+                    {
+                        text: 'Require Passkey',
+                        onPress: () => navigation.navigate('Passkey', { studentId })
+                    }
+                ],
+                { cancelable: true, onDismiss: () => setScanned(false) }
+            );
         } else {
             Alert.alert('Invalid QR', 'This is not a valid FUGEN Student ID code.', [
                 { text: 'Try Again', onPress: () => setScanned(false) }

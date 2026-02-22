@@ -5,11 +5,9 @@ import { transactionService, studentService } from '../services/api';
 
 export default function PurchaseScreen({ route, navigation }) {
     const [student, setStudent] = useState(route.params.student);
-    const { passkey } = route.params;
+    const { passkey, bypassPasskey } = route.params;
     const [amount, setAmount] = useState('');
     const [loading, setLoading] = useState(false);
-    const [showReceipt, setShowReceipt] = useState(false);
-    const [receiptData, setReceiptData] = useState(null);
 
     useEffect(() => {
         // Just configure audio mode once
@@ -85,26 +83,13 @@ export default function PurchaseScreen({ route, navigation }) {
 
     const processTransaction = async () => {
         setLoading(true);
-        const prevBalance = parseFloat(student.balance);
-        const purchaseAmt = parseFloat(amount);
         try {
-            await transactionService.purchase(student.studentId, amount, passkey);
+            await transactionService.purchase(student.studentId, amount, passkey, bypassPasskey);
             await playSuccessSound();
 
-            const newBalance = prevBalance - purchaseAmt;
-            setReceiptData({
-                studentName: student.fullName,
-                grade: `${student.grade} - ${student.section}`,
-                amount: purchaseAmt,
-                prevBalance: prevBalance,
-                newBalance: newBalance,
-                timestamp: new Date().toLocaleString(),
-                isCredit: newBalance < 0,
-            });
-            setShowReceipt(true);
             setAmount('');
-            // Refresh student data
-            refreshBalance();
+            // Instead of showing receipt, go back to scan
+            navigation.navigate('Scan');
         } catch (error) {
             if (error.message === 'Network Error' || !error.response) {
                 Alert.alert('Network Error', 'Cannot reach the server. Please check your connection.');
@@ -153,46 +138,6 @@ export default function PurchaseScreen({ route, navigation }) {
             >
                 {loading ? <ActivityIndicator color="#fff" /> : <Text style={styles.payText}>CONFIRM PURCHASE</Text>}
             </TouchableOpacity>
-
-            {/* Receipt Modal */}
-            <Modal visible={showReceipt} transparent animationType="fade">
-                <View style={styles.receiptOverlay}>
-                    <View style={styles.receiptCard}>
-                        <Text style={styles.receiptTitle}>✅ Transaction Complete</Text>
-                        <View style={styles.receiptDivider} />
-                        {receiptData && (
-                            <>
-                                <Text style={styles.receiptLabel}>Student</Text>
-                                <Text style={styles.receiptValue}>{receiptData.studentName}</Text>
-                                <Text style={styles.receiptLabel}>Grade</Text>
-                                <Text style={styles.receiptValue}>{receiptData.grade}</Text>
-                                <View style={styles.receiptDivider} />
-                                <Text style={styles.receiptLabel}>Amount Charged</Text>
-                                <Text style={[styles.receiptAmount, { color: '#d32f2f' }]}>-{receiptData.amount.toFixed(2)} Points</Text>
-                                <View style={styles.receiptRow}>
-                                    <View style={{ flex: 1 }}>
-                                        <Text style={styles.receiptLabel}>Previous</Text>
-                                        <Text style={styles.receiptSmallVal}>{receiptData.prevBalance.toFixed(2)}</Text>
-                                    </View>
-                                    <View style={{ flex: 1, alignItems: 'flex-end' }}>
-                                        <Text style={styles.receiptLabel}>New Balance</Text>
-                                        <Text style={[styles.receiptSmallVal, { color: receiptData.newBalance < 0 ? '#d32f2f' : '#2E7D32' }]}>{receiptData.newBalance.toFixed(2)}</Text>
-                                    </View>
-                                </View>
-                                {receiptData.isCredit && (
-                                    <View style={styles.receiptWarning}>
-                                        <Text style={styles.receiptWarningText}>⚠️ Credit used — student owes balance</Text>
-                                    </View>
-                                )}
-                                <Text style={styles.receiptTime}>{receiptData.timestamp}</Text>
-                            </>
-                        )}
-                        <TouchableOpacity style={styles.receiptBtn} onPress={() => { setShowReceipt(false); navigation.navigate('Scan'); }}>
-                            <Text style={styles.receiptBtnText}>NEXT CUSTOMER</Text>
-                        </TouchableOpacity>
-                    </View>
-                </View>
-            </Modal>
         </View>
     );
 }

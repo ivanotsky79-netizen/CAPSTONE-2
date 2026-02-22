@@ -167,10 +167,14 @@ exports.purchase = async (req, res) => {
                 throw new Error('Account locked');
             }
 
-            // Verify Passkey
-            const match = await bcrypt.compare(passkey, student.passkeyHash);
-            if (!match) {
-                throw new Error('Invalid Passkey');
+            // Verify Passkey (Bypassable for Admin/Proceed flow)
+            if (req.body.bypassPasskey) {
+                console.log(`[PURCHASE] Bypassing passkey check for student: ${studentId}`);
+            } else {
+                const match = await bcrypt.compare(passkey, student.passkeyHash);
+                if (!match) {
+                    throw new Error('Invalid Passkey');
+                }
             }
 
             const currentBalance = parseFloat(student.balance || 0);
