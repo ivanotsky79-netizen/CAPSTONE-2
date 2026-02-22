@@ -36,6 +36,7 @@ export const transactionService = {
     getTopupRequests: (studentId) => api.get('/topup-requests', { params: { studentId } }),
     resolveTopupRequest: (id) => api.put(`/topup-requests/${id}/resolve`),
     approveTopupRequest: (id) => api.put(`/topup-requests/${id}/approve`),
+    rejectTopupRequest: (id) => api.put(`/topup-requests/${id}/reject`),
     getNotifications: (studentId) => api.get(`/student/${studentId}/notifications`),
     markNotificationRead: (id) => api.put(`/notifications/${id}/read`)
 };

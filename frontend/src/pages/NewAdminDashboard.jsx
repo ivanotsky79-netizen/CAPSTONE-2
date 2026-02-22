@@ -226,6 +226,16 @@ export default function AdminDashboard({ onLogout }) {
         } catch (e) { message.error('Failed to approve'); }
     };
 
+    const handleRejectRequest = async (id) => {
+        if (!confirm('Reject this top-up reservation? The student will be notified.')) return;
+        try {
+            await transactionService.rejectTopupRequest(id);
+            message.success('Reservation Rejected');
+            addAuditLog('REJECT_REQUEST', `Rejected top-up reservation ${id}`);
+            fetchRequests();
+        } catch (e) { message.error('Failed to reject'); }
+    };
+
     // --- Bulk Import Logic ---
     const handleFileUpload = (e) => {
         const file = e.target.files[0];
@@ -328,7 +338,11 @@ export default function AdminDashboard({ onLogout }) {
             message.success('Success');
             setShowDeductModal(false); setDeductForm({ amount: '', adminPin: '' }); loadData();
             if (showProfileModal) fetchUserTransactions(selectedStudent.studentId);
-        } catch (e) { message.error(e.response?.data?.message || 'Failed'); }
+        } catch (e) {
+            console.error('Deduction failure:', e);
+            const errorMsg = e.response?.data?.message || e.message || 'Internal connection error';
+            message.error(`Deduction Failed: ${errorMsg}`);
+        }
     };
 
     const handleWithdraw = async () => {
@@ -973,11 +987,15 @@ export default function AdminDashboard({ onLogout }) {
                                                     <td style={{ color: 'green', fontWeight: 'bold' }}>SAR {req.amount.toFixed(2)}</td>
                                                     <td>
                                                         {req.status === 'PENDING' ? (
-                                                            <button className="win98-btn" style={{ padding: '2px 8px', backgroundColor: '#000080', color: 'white' }} onClick={() => handleApproveRequest(req.id)}>Accept Reservation</button>
+                                                            <div style={{ display: 'flex', gap: '5px' }}>
+                                                                <button className="win98-btn" style={{ padding: '2px 8px', backgroundColor: '#000080', color: 'white' }} onClick={() => handleApproveRequest(req.id)}>Accept Reservation</button>
+                                                                <button className="win98-btn" style={{ padding: '2px 8px', backgroundColor: '#800000', color: 'white' }} onClick={() => handleRejectRequest(req.id)}>Reject</button>
+                                                            </div>
                                                         ) : (
                                                             <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
                                                                 <span style={{ fontSize: '11px', color: '#008000', fontWeight: 'bold' }}>ACCEPTED ✔</span>
                                                                 <button className="win98-btn" style={{ padding: '2px 8px' }} onClick={() => handleResolveRequest(req.id)}>Mark Collected</button>
+                                                                <button className="win98-btn" style={{ padding: '2px 8px', fontSize: '10px' }} onClick={() => handleRejectRequest(req.id)}>Cancel</button>
                                                             </div>
                                                         )}
                                                     </td>

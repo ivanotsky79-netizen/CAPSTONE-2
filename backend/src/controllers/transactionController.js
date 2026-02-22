@@ -549,6 +549,44 @@ exports.approveTopupRequest = async (req, res) => {
     }
 };
 
+exports.rejectTopupRequest = async (req, res) => {
+    try {
+        const { id } = req.params;
+        const reqDoc = await db.collection('topUpRequests').doc(id).get();
+
+        if (!reqDoc.exists) {
+            return res.status(404).json({ status: 'error', message: 'Request not found' });
+        }
+
+        const data = reqDoc.data();
+        if (data.status === 'RESOLVED' || data.status === 'REJECTED') {
+            return res.status(400).json({ status: 'error', message: 'Request is already finalized' });
+        }
+
+        await db.collection('topUpRequests').doc(id).update({
+            status: 'REJECTED',
+            rejectedAt: new Date().toISOString()
+        });
+
+        await db.collection('notifications').add({
+            studentId: data.studentId,
+            title: 'Reservation Rejected',
+            message: `Your top-up reservation of SAR ${parseFloat(data.amount).toFixed(2)} has been rejected. Please contact the office if you have questions.`,
+            read: false,
+            timestamp: new Date().toISOString()
+        });
+
+        const io = req.app.get('io');
+        if (io) {
+            io.emit('balanceUpdate', { studentId: data.studentId, type: 'NOTIFICATION' });
+        }
+
+        res.status(200).json({ status: 'success', message: 'Reservation rejected' });
+    } catch (error) {
+        res.status(500).json({ status: 'error', message: error.message });
+    }
+};
+
 exports.resolveTopupRequest = async (req, res) => {
     try {
         const { id } = req.params;
