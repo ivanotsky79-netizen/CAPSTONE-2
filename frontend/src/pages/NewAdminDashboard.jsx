@@ -26,6 +26,8 @@ export default function AdminDashboard({ onLogout }) {
     const [totalBal, setTotalBal] = useState(0);
     const [totalCredit, setTotalCredit] = useState(0);
     const [topupRequests, setTopupRequests] = useState([]);
+    const [reqFilterDate, setReqFilterDate] = useState(new Date().toISOString().split('T')[0]);
+    const [reqFilterSlot, setReqFilterSlot] = useState('ALL');
 
     // Modals
     const [showAddModal, setShowAddModal] = useState(false);
@@ -706,6 +708,9 @@ export default function AdminDashboard({ onLogout }) {
                             <div className="win98-toolbar">
                                 <button className={`win98-btn ${usersViewMode === 'all' ? 'active' : ''}`} onClick={() => setUsersViewMode('all')}>All Students</button>
                                 <button className={`win98-btn ${usersViewMode === 'debtors' ? 'active' : ''}`} onClick={() => setUsersViewMode('debtors')}>Students with Credit</button>
+                                <button className={`win98-btn ${usersViewMode === 'requests' ? 'active' : ''}`} onClick={() => setUsersViewMode('requests')}>
+                                    Pending Requests {topupRequests.length > 0 && <span style={{ background: 'red', color: 'white', borderRadius: '50%', padding: '0 5px', fontSize: 10 }}>{topupRequests.length}</span>}
+                                </button>
                                 <div style={{ flex: 1 }}></div>
                                 {usersViewMode === 'all' && (
                                     <>
@@ -771,7 +776,7 @@ export default function AdminDashboard({ onLogout }) {
                                             ))}
                                         </tbody>
                                     </table>
-                                ) : (
+                                ) : usersViewMode === 'debtors' ? (
                                     <table className="win98-table">
                                         <thead><tr><th>ID</th><th>Name</th><th>Grade</th><th>Debt Amount</th><th>Action</th></tr></thead>
                                         <tbody>
@@ -794,6 +799,36 @@ export default function AdminDashboard({ onLogout }) {
                                                     </tr>
                                                 ))
                                             )}
+                                        </tbody>
+                                    </table>
+                                ) : (
+                                    <table className="win98-table">
+                                        <thead><tr><th>ID</th><th>Name</th><th>Grade</th><th>Current Balance</th><th>Action</th></tr></thead>
+                                        <tbody>
+                                            {(() => {
+                                                const reqIds = new Set(topupRequests.map(r => r.studentId));
+                                                const studentsWithReq = students.filter(s => reqIds.has(s.studentId));
+
+                                                if (studentsWithReq.length === 0) {
+                                                    return <tr><td colSpan={5} style={{ textAlign: 'center' }}>No students with pending top-up requests.</td></tr>;
+                                                }
+
+                                                return studentsWithReq.map(s => (
+                                                    <tr key={s.studentId}>
+                                                        <td>{s.studentId}</td>
+                                                        <td style={{ fontWeight: 'bold' }}>
+                                                            <span onClick={() => handleOpenProfile(s)} style={{ textDecoration: 'underline', cursor: 'pointer' }}>
+                                                                {s.fullName}
+                                                            </span>
+                                                        </td>
+                                                        <td>{s.gradeSection}</td>
+                                                        <td style={{ color: parseFloat(s.balance) < 0 ? 'red' : 'green' }}>SAR {parseFloat(s.balance).toFixed(2)}</td>
+                                                        <td>
+                                                            <button className="win98-btn" style={{ padding: '2px 5px' }} onClick={() => setView('requests')}>View Request</button>
+                                                        </td>
+                                                    </tr>
+                                                ));
+                                            })()}
                                         </tbody>
                                     </table>
                                 )}
@@ -973,38 +1008,73 @@ export default function AdminDashboard({ onLogout }) {
                     <div className="win98-window" style={{ flex: 1, minHeight: 0 }}>
                         <div className="win98-title-bar"><span>Top Up Requests</span><WindowControls /></div>
                         <div className="win98-content" style={{ display: 'flex', flexDirection: 'column', flex: 1, minHeight: 0 }}>
-                            <div className="win98-toolbar">
+                            <div className="win98-toolbar" style={{ gap: '10px', flexWrap: 'wrap' }}>
                                 <button className="win98-btn" onClick={fetchRequests}>Refresh Inbox</button>
+                                <div style={{ display: 'flex', alignItems: 'center', gap: '5px', marginLeft: 'auto' }}>
+                                    <label style={{ fontSize: '11px' }}>Filter by Date:</label>
+                                    <input
+                                        type="date"
+                                        className="win98-input"
+                                        style={{ width: '130px', padding: '2px' }}
+                                        value={reqFilterDate}
+                                        onChange={(e) => setReqFilterDate(e.target.value)}
+                                    />
+                                    <label style={{ fontSize: '11px', marginLeft: '10px' }}>Period:</label>
+                                    <select
+                                        className="win98-input"
+                                        style={{ padding: '2px' }}
+                                        value={reqFilterSlot}
+                                        onChange={(e) => setReqFilterSlot(e.target.value)}
+                                    >
+                                        <option value="ALL">All Periods</option>
+                                        <option value="HRO">HRO</option>
+                                        <option value="Recess">Recess</option>
+                                        <option value="Lunch">Lunch</option>
+                                        <option value="Dismissal">Dismissal</option>
+                                    </select>
+                                </div>
                             </div>
                             <div className="win98-table-wrapper">
                                 <table className="win98-table">
                                     <thead><tr><th>Date / Time Slot</th><th>Student</th><th>Grade / Section</th><th>Amount to Collect</th><th>Action</th></tr></thead>
                                     <tbody>
-                                        {topupRequests.length === 0 ? (
-                                            <tr><td colSpan={5} style={{ textAlign: 'center' }}>No pending top-up requests.</td></tr>
+                                        {topupRequests
+                                            .filter(req => {
+                                                const matchesDate = !reqFilterDate || req.date === reqFilterDate;
+                                                const matchesSlot = reqFilterSlot === 'ALL' || req.timeSlot === reqFilterSlot;
+                                                return matchesDate && matchesSlot;
+                                            })
+                                            .length === 0 ? (
+                                            <tr><td colSpan={5} style={{ textAlign: 'center' }}>No requests found for this filter.</td></tr>
                                         ) : (
-                                            topupRequests.map((req, i) => (
-                                                <tr key={i}>
-                                                    <td>{req.date} <span style={{ color: '#888' }}>({req.timeSlot || 'Not Specified'})</span></td>
-                                                    <td style={{ fontWeight: 'bold' }}>{req.studentName} ({req.studentId})</td>
-                                                    <td>{req.gradeSection || 'Unknown'}</td>
-                                                    <td style={{ color: 'green', fontWeight: 'bold' }}>SAR {req.amount.toFixed(2)}</td>
-                                                    <td>
-                                                        {req.status === 'PENDING' ? (
-                                                            <div style={{ display: 'flex', gap: '5px' }}>
-                                                                <button className="win98-btn" style={{ padding: '2px 8px', backgroundColor: '#000080', color: 'white' }} onClick={() => handleApproveRequest(req.id)}>Accept Reservation</button>
-                                                                <button className="win98-btn" style={{ padding: '2px 8px', backgroundColor: '#800000', color: 'white' }} onClick={() => handleRejectRequest(req.id)}>Reject</button>
-                                                            </div>
-                                                        ) : (
-                                                            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                                                                <span style={{ fontSize: '11px', color: '#008000', fontWeight: 'bold' }}>ACCEPTED ✔</span>
-                                                                <button className="win98-btn" style={{ padding: '2px 8px' }} onClick={() => handleResolveRequest(req.id)}>Mark Collected</button>
-                                                                <button className="win98-btn" style={{ padding: '2px 8px', fontSize: '10px' }} onClick={() => handleRejectRequest(req.id)}>Cancel</button>
-                                                            </div>
-                                                        )}
-                                                    </td>
-                                                </tr>
-                                            ))
+                                            topupRequests
+                                                .filter(req => {
+                                                    const matchesDate = !reqFilterDate || req.date === reqFilterDate;
+                                                    const matchesSlot = reqFilterSlot === 'ALL' || req.timeSlot === reqFilterSlot;
+                                                    return matchesDate && matchesSlot;
+                                                })
+                                                .map((req, i) => (
+                                                    <tr key={i}>
+                                                        <td>{req.date} <span style={{ color: '#888' }}>({req.timeSlot || 'Not Specified'})</span></td>
+                                                        <td style={{ fontWeight: 'bold' }}>{req.studentName} ({req.studentId})</td>
+                                                        <td>{req.gradeSection || 'Unknown'}</td>
+                                                        <td style={{ color: 'green', fontWeight: 'bold' }}>SAR {req.amount.toFixed(2)}</td>
+                                                        <td>
+                                                            {req.status === 'PENDING' ? (
+                                                                <div style={{ display: 'flex', gap: '5px' }}>
+                                                                    <button className="win98-btn" style={{ padding: '2px 8px', backgroundColor: '#000080', color: 'white' }} onClick={() => handleApproveRequest(req.id)}>Accept Reservation</button>
+                                                                    <button className="win98-btn" style={{ padding: '2px 8px', backgroundColor: '#800000', color: 'white' }} onClick={() => handleRejectRequest(req.id)}>Reject</button>
+                                                                </div>
+                                                            ) : (
+                                                                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                                                                    <span style={{ fontSize: '11px', color: '#008000', fontWeight: 'bold' }}>ACCEPTED ✔</span>
+                                                                    <button className="win98-btn" style={{ padding: '2px 8px' }} onClick={() => handleResolveRequest(req.id)}>Mark Collected</button>
+                                                                    <button className="win98-btn" style={{ padding: '2px 8px', fontSize: '10px' }} onClick={() => handleRejectRequest(req.id)}>Cancel</button>
+                                                                </div>
+                                                            )}
+                                                        </td>
+                                                    </tr>
+                                                ))
                                         )}
                                     </tbody>
                                 </table>
