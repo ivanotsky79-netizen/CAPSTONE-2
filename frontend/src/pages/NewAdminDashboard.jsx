@@ -29,6 +29,7 @@ export default function AdminDashboard({ onLogout }) {
     const [requestSearch, setRequestSearch] = useState('');
     const [reqFilterDate, setReqFilterDate] = useState(new Date().toISOString().split('T')[0]);
     const [reqFilterSlot, setReqFilterSlot] = useState('ALL');
+    const [sortOrder, setSortOrder] = useState('newest'); // 'newest' (Last Joined) or 'oldest' (First Joined)
 
     // Modals
     const [showAddModal, setShowAddModal] = useState(false);
@@ -603,7 +604,13 @@ export default function AdminDashboard({ onLogout }) {
     const WindowControls = () => null;
 
     // Rendering Helpers
-    const filtered = students.filter(s => s.fullName.toLowerCase().includes(searchText.toLowerCase()) || s.studentId.includes(searchText));
+    const filtered = students
+        .filter(s => s.fullName.toLowerCase().includes(searchText.toLowerCase()) || s.studentId.includes(searchText))
+        .sort((a, b) => {
+            const dateA = new Date(a.createdAt || 0);
+            const dateB = new Date(b.createdAt || 0);
+            return sortOrder === 'newest' ? dateB - dateA : dateA - dateB;
+        });
 
     const fetchLogs = async (dateStr) => {
         try {
@@ -735,6 +742,17 @@ export default function AdminDashboard({ onLogout }) {
                                             value={usersViewMode === 'requests' ? requestSearch : searchText}
                                             onChange={e => usersViewMode === 'requests' ? setRequestSearch(e.target.value) : setSearchText(e.target.value)}
                                         />
+                                        {usersViewMode === 'all' && (
+                                            <select
+                                                className="win98-input"
+                                                value={sortOrder}
+                                                onChange={e => setSortOrder(e.target.value)}
+                                                style={{ width: 'auto', padding: '2px 5px' }}
+                                            >
+                                                <option value="newest">Last Joined</option>
+                                                <option value="oldest">First Joined</option>
+                                            </select>
+                                        )}
                                         {usersViewMode === 'all' && <button className="win98-btn" onClick={() => setShowAddModal(true)}>+ Add</button>}
                                         <button className="win98-btn" onClick={() => {
                                             if (selectedIds.size === 0) { message.warning('Please select a student to Top Up.'); return; }
