@@ -70,19 +70,22 @@ exports.topUp = async (req, res) => {
 };
 
 exports.deduct = async (req, res) => {
-    const { studentId: rawStudentId, amount, location, adminPin } = req.body;
-    const studentId = rawStudentId?.trim()?.toUpperCase();
-    const deductAmount = parseFloat(amount);
-
-    if (adminPin !== '170206') {
-        return res.status(401).json({ status: 'error', message: 'Invalid Admin PIN' });
-    }
-
-    if (deductAmount <= 0) {
-        return res.status(400).json({ status: 'error', message: 'Amount must be positive' });
-    }
-
     try {
+        const { studentId: rawStudentId, amount, location, adminPin } = req.body;
+        console.log(`[DEDUCT_REQUEST] Student: ${rawStudentId}, Amount: ${amount}, Admin PIN Provided: ${!!adminPin}`);
+
+        const studentId = rawStudentId?.trim()?.toUpperCase();
+        const deductAmount = parseFloat(amount);
+
+        if (adminPin !== '170206') {
+            console.log(`[DEDUCT_ERROR] Invalid Admin PIN attempt for ${studentId}`);
+            return res.status(401).json({ status: 'error', message: 'Invalid Admin PIN' });
+        }
+
+        if (isNaN(deductAmount) || deductAmount <= 0) {
+            return res.status(400).json({ status: 'error', message: 'Enter a valid positive amount' });
+        }
+
         await db.runTransaction(async (t) => {
             const studentRef = db.collection('students').doc(studentId);
             const studentDoc = await t.get(studentRef);
@@ -93,7 +96,7 @@ exports.deduct = async (req, res) => {
             if (!studentDoc.exists) {
                 const querySnapshot = await t.get(db.collection('students').where('studentId', '==', studentId).limit(1));
                 if (querySnapshot.empty) {
-                    throw new Error('Student not found');
+                    throw new Error('Student not found in database');
                 }
                 studentDocActual = querySnapshot.docs[0];
                 studentRefActual = studentDocActual.ref;
@@ -103,12 +106,14 @@ exports.deduct = async (req, res) => {
             const currentBalance = parseFloat(student.balance || 0);
             const newBalance = Number((currentBalance - deductAmount).toFixed(2));
 
+            console.log(`[DEDUCT_EXEC] Student: ${student.fullName}, Balance: ${currentBalance} -> ${newBalance}`);
+
             const transaction = {
                 id: uuidv4(),
-                studentId,
+                studentId: student.studentId, // Use exact ID from DB
                 studentName: student.fullName,
-                grade: student.grade,
-                section: student.section,
+                grade: student.grade || '',
+                section: student.section || '',
                 type: 'DEDUCTION',
                 amount: deductAmount,
                 previousBalance: currentBalance,
@@ -122,14 +127,14 @@ exports.deduct = async (req, res) => {
             t.set(transRef, transaction);
         });
 
+        /** @type {import('socket.io').Server} */
         const io = req.app.get('io');
-        if (io) {
-            io.emit('balanceUpdate', { studentId, type: 'DEDUCTION' });
-        }
+        if (io) io.emit('balanceUpdate', { studentId, type: 'DEDUCTION' });
 
-        res.status(200).json({ status: 'success', message: 'Deduction successful' });
+        res.status(200).json({ status: 'success', message: 'Points successfully removed' });
     } catch (error) {
-        res.status(500).json({ status: 'error', message: error.message });
+        console.error(`[DEDUCT_CRITICAL_FAIL] ${error.message}`);
+        res.status(500).json({ status: 'error', message: error.message || 'Server-side deduction error' });
     }
 };
 
@@ -358,6 +363,9 @@ exports.getDailyStats = async (req, res) => {
 
                 const amount = parseFloat(data.amount || 0);
                 systemStats.withdrawals += amount;
+                systemStats.transactions.push(transactionRecord);
+            } else if (data.type === 'DEDUCTION') {
+                if (location && location === 'CANTEEN') return;
                 systemStats.transactions.push(transactionRecord);
             }
         });
