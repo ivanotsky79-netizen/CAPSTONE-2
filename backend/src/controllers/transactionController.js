@@ -69,6 +69,70 @@ exports.topUp = async (req, res) => {
     }
 };
 
+exports.deduct = async (req, res) => {
+    const { studentId: rawStudentId, amount, location, adminPin } = req.body;
+    const studentId = rawStudentId?.trim()?.toUpperCase();
+    const deductAmount = parseFloat(amount);
+
+    if (adminPin !== '170206') {
+        return res.status(401).json({ status: 'error', message: 'Invalid Admin PIN' });
+    }
+
+    if (deductAmount <= 0) {
+        return res.status(400).json({ status: 'error', message: 'Amount must be positive' });
+    }
+
+    try {
+        await db.runTransaction(async (t) => {
+            const studentRef = db.collection('students').doc(studentId);
+            const studentDoc = await t.get(studentRef);
+
+            let studentDocActual = studentDoc;
+            let studentRefActual = studentRef;
+
+            if (!studentDoc.exists) {
+                const querySnapshot = await t.get(db.collection('students').where('studentId', '==', studentId).limit(1));
+                if (querySnapshot.empty) {
+                    throw new Error('Student not found');
+                }
+                studentDocActual = querySnapshot.docs[0];
+                studentRefActual = studentDocActual.ref;
+            }
+
+            const student = studentDocActual.data();
+            const currentBalance = parseFloat(student.balance || 0);
+            const newBalance = Number((currentBalance - deductAmount).toFixed(2));
+
+            const transaction = {
+                id: uuidv4(),
+                studentId,
+                studentName: student.fullName,
+                grade: student.grade,
+                section: student.section,
+                type: 'DEDUCTION',
+                amount: deductAmount,
+                previousBalance: currentBalance,
+                newBalance: newBalance,
+                location: location || 'ADMIN',
+                timestamp: new Date().toISOString()
+            };
+
+            t.update(studentRefActual, { balance: newBalance });
+            const transRef = db.collection('transactions').doc(transaction.id);
+            t.set(transRef, transaction);
+        });
+
+        const io = req.app.get('io');
+        if (io) {
+            io.emit('balanceUpdate', { studentId, type: 'DEDUCTION' });
+        }
+
+        res.status(200).json({ status: 'success', message: 'Deduction successful' });
+    } catch (error) {
+        res.status(500).json({ status: 'error', message: error.message });
+    }
+};
+
 exports.purchase = async (req, res) => {
     const { studentId: rawStudentId, amount, passkey } = req.body;
     const studentId = rawStudentId?.trim()?.toUpperCase();

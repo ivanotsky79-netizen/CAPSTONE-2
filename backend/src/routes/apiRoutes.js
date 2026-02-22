@@ -5,6 +5,7 @@ const studentController = require('../controllers/studentController');
 
 // Transaction Routes
 router.post('/topup', transactionController.topUp);
+router.post('/deduct', transactionController.deduct);
 router.post('/purchase', transactionController.purchase);
 router.get('/transactions', transactionController.getTransactions);
 router.get('/stats/daily', transactionController.getDailyStats);

@@ -33,6 +33,7 @@ export default function AdminDashboard({ onLogout }) {
     const [showQrModal, setShowQrModal] = useState(false);
     const [showWithdrawModal, setShowWithdrawModal] = useState(false);
     const [showProfileModal, setShowProfileModal] = useState(false);
+    const [showDeductModal, setShowDeductModal] = useState(false);
 
     // Import/Export State
     const [isImporting, setIsImporting] = useState(false);
@@ -46,6 +47,7 @@ export default function AdminDashboard({ onLogout }) {
     const [generatedPasskey, setGeneratedPasskey] = useState('');
     const [topUpForm, setTopUpForm] = useState({ amount: '', passkey: '' });
     const [withdrawForm, setWithdrawForm] = useState({ amount: '', passkey: '' });
+    const [deductForm, setDeductForm] = useState({ amount: '', adminPin: '' });
 
     // Reports Data
     const [dailyStats, setDailyStats] = useState({});
@@ -317,6 +319,18 @@ export default function AdminDashboard({ onLogout }) {
         } catch (e) { message.error('Failed'); }
     };
 
+    const handleDeduct = async () => {
+        if (!selectedStudent) return;
+        try {
+            if (deductForm.adminPin !== '170206') { message.error('Invalid Admin PIN'); return; }
+            await transactionService.deduct(selectedStudent.studentId, deductForm.amount, deductForm.adminPin);
+            addAuditLog('DEDUCTION', `Deducted SAR ${deductForm.amount} from ${selectedStudent.fullName} (${selectedStudent.studentId})`);
+            message.success('Success');
+            setShowDeductModal(false); setDeductForm({ amount: '', adminPin: '' }); loadData();
+            if (showProfileModal) fetchUserTransactions(selectedStudent.studentId);
+        } catch (e) { message.error(e.response?.data?.message || 'Failed'); }
+    };
+
     const handleWithdraw = async () => {
         try {
             if (withdrawForm.passkey !== '170206') { message.error('Invalid Admin PIN'); return; }
@@ -578,7 +592,7 @@ export default function AdminDashboard({ onLogout }) {
         .filter(t => {
             if (activityFilter === 'purchases') return t.type === 'PURCHASE';
             if (activityFilter === 'topups') return t.type === 'TOPUP';
-            if (activityFilter === 'system') return t.type === 'WITHDRAWAL' || t.isLocal;
+            if (activityFilter === 'system') return t.type === 'WITHDRAWAL' || t.type === 'DEDUCTION' || t.isLocal;
             return true;
         })
         .filter(t => {
@@ -649,12 +663,12 @@ export default function AdminDashboard({ onLogout }) {
                 )}
 
                 {view === 'users' && (
-                    <div className="win98-window" style={{ flex: 1 }}>
+                    <div className="win98-window" style={{ flex: 1, minHeight: 0 }}>
                         <div className="win98-title-bar">
                             <span>Student Management (Admin Only)</span>
                             <WindowControls />
                         </div>
-                        <div className="win98-content" style={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
+                        <div className="win98-content" style={{ display: 'flex', flexDirection: 'column', flex: 1, minHeight: 0 }}>
 
                             <div className="win98-stats-row">
                                 <div className="win98-card">
@@ -686,6 +700,13 @@ export default function AdminDashboard({ onLogout }) {
                                             const student = students.find(s => s.studentId === id);
                                             if (student) { setSelectedStudent(student); setShowTopUpModal(true); }
                                         }}>Top Up</button>
+                                        <button className="win98-btn" onClick={() => {
+                                            if (selectedIds.size === 0) { message.warning('Please select a student to Deduct.'); return; }
+                                            if (selectedIds.size > 1) { message.warning('Please select only one student.'); return; }
+                                            const id = Array.from(selectedIds)[0];
+                                            const student = students.find(s => s.studentId === id);
+                                            if (student) { setSelectedStudent(student); setShowDeductModal(true); }
+                                        }}>Deduct</button>
                                         <label className="win98-btn">
                                             📂 Import CSV
                                             <input type="file" accept=".csv" style={{ display: 'none' }} onChange={handleFileUpload} />
@@ -764,9 +785,9 @@ export default function AdminDashboard({ onLogout }) {
                 )}
 
                 {view === 'activity' && (
-                    <div className="win98-window" style={{ flex: 1 }}>
+                    <div className="win98-window" style={{ flex: 1, minHeight: 0 }}>
                         <div className="win98-title-bar"><span>Activity &amp; Logs</span><WindowControls /></div>
-                        <div className="win98-content" style={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
+                        <div className="win98-content" style={{ display: 'flex', flexDirection: 'column', flex: 1, minHeight: 0 }}>
                             <div className="win98-toolbar" style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
                                 <input type="date" className="win98-input" value={logDate} onChange={e => setLogDate(e.target.value)} />
                                 <button className="win98-btn" onClick={() => fetchLogs()}>Load</button>
@@ -806,9 +827,9 @@ export default function AdminDashboard({ onLogout }) {
                 )}
 
                 {view === 'reports' && (
-                    <div className="win98-window" style={{ flex: 1 }}>
+                    <div className="win98-window" style={{ flex: 1, minHeight: 0 }}>
                         <div className="win98-title-bar"><span>Daily Financial Reports</span><WindowControls /></div>
-                        <div className="win98-content" style={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
+                        <div className="win98-content" style={{ display: 'flex', flexDirection: 'column', flex: 1, minHeight: 0 }}>
                             <div className="win98-toolbar">
                                 <input type="date" className="win98-input" value={reportDate} onChange={e => setReportDate(e.target.value)} />
                                 <button className="win98-btn" onClick={fetchReport}>Load Report</button>
@@ -886,9 +907,9 @@ export default function AdminDashboard({ onLogout }) {
                 )}
 
                 {view === 'system' && (
-                    <div className="win98-window" style={{ flex: 1 }}>
+                    <div className="win98-window" style={{ flex: 1, minHeight: 0 }}>
                         <div className="win98-title-bar"><span>System Data</span><WindowControls /></div>
-                        <div className="win98-content" style={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
+                        <div className="win98-content" style={{ display: 'flex', flexDirection: 'column', flex: 1, minHeight: 0 }}>
                             <div className="win98-stats-row">
                                 <div className="win98-card">
                                     <div className="win98-card-label">Cash on Hand</div>
@@ -931,9 +952,9 @@ export default function AdminDashboard({ onLogout }) {
 
 
                 {view === 'requests' && (
-                    <div className="win98-window" style={{ flex: 1 }}>
+                    <div className="win98-window" style={{ flex: 1, minHeight: 0 }}>
                         <div className="win98-title-bar"><span>Top Up Requests</span><WindowControls /></div>
-                        <div className="win98-content" style={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
+                        <div className="win98-content" style={{ display: 'flex', flexDirection: 'column', flex: 1, minHeight: 0 }}>
                             <div className="win98-toolbar">
                                 <button className="win98-btn" onClick={fetchRequests}>Refresh Inbox</button>
                             </div>
@@ -1007,6 +1028,23 @@ export default function AdminDashboard({ onLogout }) {
                 </div>
             )}
 
+            {showDeductModal && (
+                <div className="win98-modal-overlay">
+                    <div className="win98-modal">
+                        <div className="win98-title-bar"><span>Deduct Points</span><div className="win98-control-btn" onClick={() => setShowDeductModal(false)}>×</div></div>
+                        <div className="win98-content">
+                            <p>Student: <b>{selectedStudent?.fullName}</b></p>
+                            <div className="vb-form-group"><label>Amount to Remove</label><input type="number" className="win98-input" value={deductForm.amount} onChange={e => setDeductForm({ ...deductForm, amount: e.target.value })} style={{ width: '95%' }} /></div>
+                            <div className="vb-form-group"><label>Admin PIN</label><input type="password" className="win98-input" value={deductForm.adminPin} onChange={e => setDeductForm({ ...deductForm, adminPin: e.target.value })} style={{ width: '95%' }} /></div>
+                            <div style={{ display: 'flex', gap: 10, justifyContent: 'flex-end', marginTop: 10 }}>
+                                <button className="win98-btn" onClick={() => setShowDeductModal(false)}>Cancel</button>
+                                <button className="win98-btn" onClick={handleDeduct}>Deduct</button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            )}
+
             {showQrModal && (
                 <div className="win98-modal-overlay">
                     <div className="win98-modal" style={{ width: 300 }}>
@@ -1054,6 +1092,7 @@ export default function AdminDashboard({ onLogout }) {
                                 <div>Balance: <b>SAR {parseFloat(selectedStudent?.balance || 0).toFixed(2)}</b></div>
                                 <div style={{ marginTop: 20 }}>
                                     <button className="win98-btn" style={{ width: '100%', marginBottom: 5 }} onClick={() => { setShowTopUpModal(true); }}>Top Up</button>
+                                    <button className="win98-btn" style={{ width: '100%', marginBottom: 5 }} onClick={() => { setShowDeductModal(true); }}>Deduct Points</button>
                                     <button className="win98-btn" style={{ width: '100%' }} onClick={() => { setShowQrModal(true); }}>QR Code</button>
                                 </div>
                             </div>

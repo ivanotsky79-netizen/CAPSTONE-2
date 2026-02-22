@@ -26,6 +26,7 @@ export const studentService = {
 
 export const transactionService = {
     topUp: (studentId, amount) => api.post('/topup', { studentId, amount, location: 'ADMIN' }),
+    deduct: (studentId, amount, adminPin) => api.post('/deduct', { studentId, amount, adminPin, location: 'ADMIN' }),
     purchase: (studentId, amount, passkey) => api.post('/purchase', { studentId, amount, passkey }),
     getTransactions: (studentId) => api.get('/transactions', { params: { studentId } }),
     getDailyStats: (date, includeGlobal = false) => api.get('/stats/daily', { params: { date, includeGlobal } }),
