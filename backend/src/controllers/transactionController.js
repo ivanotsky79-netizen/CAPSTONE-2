@@ -552,15 +552,18 @@ exports.approveTopupRequest = async (req, res) => {
 exports.rejectTopupRequest = async (req, res) => {
     try {
         const { id } = req.params;
+        console.log(`[REJECT_REQUEST] Attempting to reject: ${id}`);
+
         const reqDoc = await db.collection('topUpRequests').doc(id).get();
 
         if (!reqDoc.exists) {
-            return res.status(404).json({ status: 'error', message: 'Request not found' });
+            console.log(`[REJECT_ERROR] Request ${id} not found`);
+            return res.status(404).json({ status: 'error', message: 'Request could not be found' });
         }
 
         const data = reqDoc.data();
         if (data.status === 'RESOLVED' || data.status === 'REJECTED') {
-            return res.status(400).json({ status: 'error', message: 'Request is already finalized' });
+            return res.status(400).json({ status: 'error', message: 'Request is already finalized as ' + data.status });
         }
 
         await db.collection('topUpRequests').doc(id).update({
@@ -568,10 +571,13 @@ exports.rejectTopupRequest = async (req, res) => {
             rejectedAt: new Date().toISOString()
         });
 
+        // Safe amount formatting
+        const displayAmount = (parseFloat(data.amount) || 0).toFixed(2);
+
         await db.collection('notifications').add({
             studentId: data.studentId,
             title: 'Reservation Rejected',
-            message: `Your top-up reservation of SAR ${parseFloat(data.amount).toFixed(2)} has been rejected. Please contact the office if you have questions.`,
+            message: `Your top-up reservation of SAR ${displayAmount} has been rejected. Please contact the office if you have questions.`,
             read: false,
             timestamp: new Date().toISOString()
         });
@@ -581,8 +587,10 @@ exports.rejectTopupRequest = async (req, res) => {
             io.emit('balanceUpdate', { studentId: data.studentId, type: 'NOTIFICATION' });
         }
 
+        console.log(`[REJECT_SUCCESS] Request ${id} rejected for student ${data.studentId}`);
         res.status(200).json({ status: 'success', message: 'Reservation rejected' });
     } catch (error) {
+        console.error(`[REJECT_FAIL] Error for request ${req.params.id}:`, error.message);
         res.status(500).json({ status: 'error', message: error.message });
     }
 };

@@ -233,7 +233,11 @@ export default function AdminDashboard({ onLogout }) {
             message.success('Reservation Rejected');
             addAuditLog('REJECT_REQUEST', `Rejected top-up reservation ${id}`);
             fetchRequests();
-        } catch (e) { message.error('Failed to reject'); }
+        } catch (e) {
+            console.error('Rejection failure:', e);
+            const errorMsg = e.response?.data?.message || e.message || 'Failed to reject';
+            message.error(`Failed to reject: ${errorMsg}`);
+        }
     };
 
     // --- Bulk Import Logic ---
