@@ -374,10 +374,15 @@ export default function AdminDashboard({ onLogout }) {
     const handleEditStudent = async () => {
         if (!selectedStudent) return;
         try {
-            await studentService.updateStudent(selectedStudent.studentId, editForm);
+            const payload = { ...editForm };
+            if (editForm.newPasskey) {
+                payload.newPasskey = editForm.newPasskey;
+            }
+            await studentService.updateStudent(selectedStudent.studentId, payload);
             addAuditLog('EDIT_STUDENT', `Updated student: ${editForm.fullName} (${editForm.studentId})`);
             message.success('Student Updated');
             setShowEditModal(false);
+            setEditForm({ fullName: '', gradeSection: '', lrn: '', studentId: '', newPasskey: '' });
             loadData();
         } catch (e) {
             console.error('Edit failure:', e);
@@ -387,8 +392,7 @@ export default function AdminDashboard({ onLogout }) {
 
     const handleAddStudent = async () => {
         try {
-            const passkey = addForm.lrn.length === 12 ? generatedPasskey : (prompt("Enter a 4-digit passkey for this student:", "1234") || "1234");
-            if (!passkey || passkey.length !== 4) { message.error('Valid 4-digit passkey required'); return; }
+            const passkey = addForm.lrn.length === 12 ? generatedPasskey : (addForm.passkey || "1234");
 
             await studentService.createStudent({ ...addForm, passkey });
             addAuditLog('ADD_STUDENT', `Created student: ${addForm.fullName} (${addForm.studentId || 'Auto-ID'})`);
@@ -1343,6 +1347,10 @@ export default function AdminDashboard({ onLogout }) {
                                 <input className="win98-input" value={editForm.studentId} onChange={e => setEditForm({ ...editForm, studentId: e.target.value })} />
                                 <small style={{ color: '#666', fontSize: '9px' }}>Warning: Changing ID will update their QR code.</small>
                             </div>
+                            <div className="win98-field">
+                                <label>Reset Passkey (4 digits):</label>
+                                <input className="win98-input" maxLength={4} placeholder="Keep blank to keep current" value={editForm.newPasskey || ''} onChange={e => setEditForm({ ...editForm, newPasskey: e.target.value })} />
+                            </div>
                             <div style={{ display: 'flex', gap: 10, justifyContent: 'flex-end', marginTop: 15 }}>
                                 <button className="win98-btn" onClick={() => setShowEditModal(false)}>Cancel</button>
                                 <button className="win98-btn" style={{ backgroundColor: '#000080', color: 'white' }} onClick={handleEditStudent}>Save Changes</button>
@@ -1359,17 +1367,17 @@ export default function AdminDashboard({ onLogout }) {
                         <div className="win98-content">
                             <div className="vb-form-group"><label>Name</label><input className="win98-input" value={addForm.fullName} onChange={e => setAddForm({ ...addForm, fullName: e.target.value })} style={{ width: '95%' }} /></div>
                             <div className="vb-form-group"><label>Grade</label><input className="win98-input" value={addForm.gradeSection} onChange={e => setAddForm({ ...addForm, gradeSection: e.target.value })} style={{ width: '95%' }} /></div>
-                            <div className="vb-form-group"><label>LRN</label><input className="win98-input" name="lrn" value={addForm.lrn} onChange={e => setAddForm({ ...addForm, lrn: e.target.value })} maxLength={12} placeholder="12 digits" style={{ width: '95%' }} /></div>
+                            <div className="vb-form-group"><label>LRN (Optional)</label><input className="win98-input" name="lrn" value={addForm.lrn} onChange={e => setAddForm({ ...addForm, lrn: e.target.value })} maxLength={12} placeholder="12 digits" style={{ width: '95%' }} /></div>
                             <div className="vb-form-group"><label>Student ID (Optional)</label><input className="win98-input" name="studentId" value={addForm.studentId} onChange={e => setAddForm({ ...addForm, studentId: e.target.value })} placeholder="Auto-generate if blank" style={{ width: '95%' }} /></div>
                             <div className="vb-form-group">
-                                <label>Passkey {addForm.lrn.length < 12 && '(Manual)'}</label>
+                                <label>Passkey (Optional)</label>
                                 <input
                                     className="win98-input"
                                     value={addForm.lrn.length === 12 ? generatedPasskey : (addForm.passkey || '')}
                                     onChange={e => setAddForm({ ...addForm, passkey: e.target.value })}
                                     disabled={addForm.lrn.length === 12}
                                     maxLength={4}
-                                    placeholder="XXXX"
+                                    placeholder="Default: 1234"
                                     style={{ background: addForm.lrn.length === 12 ? '#eee' : '#fff', width: '95%' }}
                                 />
                             </div>
