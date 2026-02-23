@@ -11,6 +11,8 @@ export default function AdminDashboard({ onLogout }) {
     const [view, setView] = useState('users');
     const [systemViewMode, setSystemViewMode] = useState('logs');
     const [usersViewMode, setUsersViewMode] = useState('all');
+    const [diagnostics, setDiagnostics] = useState({ orphanRequests: [], collisionIds: [], nameMismatches: [] });
+    const [showDiagnostics, setShowDiagnostics] = useState(false);
     const [students, setStudents] = useState([]);
     const [loading, setLoading] = useState(false);
     const [searchText, setSearchText] = useState('');
@@ -710,18 +712,31 @@ export default function AdminDashboard({ onLogout }) {
         const txns = reportData.canteen.transactions;
         // Busiest hour
         const hourCounts = {};
-        txns.forEach(t => { const h = new Date(t.timestamp).getHours(); hourCounts[h] = (hourCounts[h] || 0) + 1; });
-        const busiestHour = Object.entries(hourCounts).sort((a, b) => b[1] - a[1])[0];
+        txns.forEach(t => {
+            const d = new Date(t.timestamp);
+            if (!isNaN(d)) {
+                const h = d.getHours();
+                hourCounts[h] = (hourCounts[h] || 0) + 1;
+            }
+        });
+        const busiestEntries = Object.entries(hourCounts);
+        const busiestHour = busiestEntries.length > 0 ? busiestEntries.sort((a, b) => b[1] - a[1])[0] : null;
+
         // Top spender
         const spenderTotals = {};
-        txns.filter(t => t.type === 'PURCHASE').forEach(t => { spenderTotals[t.studentName] = (spenderTotals[t.studentName] || 0) + parseFloat(t.amount); });
-        const topSpender = Object.entries(spenderTotals).sort((a, b) => b[1] - a[1])[0];
+        txns.filter(t => t.type === 'PURCHASE').forEach(t => {
+            spenderTotals[t.studentName] = (spenderTotals[t.studentName] || 0) + (parseFloat(t.amount) || 0);
+        });
+        const spenderEntries = Object.entries(spenderTotals);
+        const topSpender = spenderEntries.length > 0 ? spenderEntries.sort((a, b) => b[1] - a[1])[0] : null;
+
         // Average transaction
         const purchases = txns.filter(t => t.type === 'PURCHASE');
-        const avgAmount = purchases.length > 0 ? purchases.reduce((s, t) => s + parseFloat(t.amount), 0) / purchases.length : 0;
+        const avgAmount = purchases.length > 0 ? purchases.reduce((s, t) => s + (parseFloat(t.amount) || 0), 0) / purchases.length : 0;
+
         return {
             busiestHour: busiestHour ? `${busiestHour[0]}:00 (${busiestHour[1]} txns)` : 'N/A',
-            topSpender: topSpender ? `${topSpender[0]} (SAR ${topSpender[1].toFixed(2)})` : 'N/A',
+            topSpender: topSpender ? `${topSpender[0]} (SAR ${parseFloat(topSpender[1]).toFixed(2)})` : 'N/A',
             avgTransaction: `SAR ${avgAmount.toFixed(2)}`
         };
     })();
@@ -910,29 +925,52 @@ export default function AdminDashboard({ onLogout }) {
                                         <thead><tr><th>ID</th><th>Name</th><th>Grade</th><th>Current Balance</th><th>Action</th></tr></thead>
                                         <tbody>
                                             {(() => {
-                                                const reqIds = new Set(topupRequests.map(r => r.studentId));
+                                                const studentMap = {};
+                                                topupRequests.forEach(r => {
+                                                    if (!studentMap[r.studentId]) {
+                                                        const exists = students.find(s => s.studentId === r.studentId);
+                                                        studentMap[r.studentId] = {
+                                                            studentId: r.studentId,
+                                                            fullName: r.studentName,
+                                                            gradeSection: r.gradeSection,
+                                                            balance: exists ? exists.balance : null,
+                                                            exists: !!exists,
+                                                            rawStudent: exists
+                                                        };
+                                                    }
+                                                });
+
                                                 const searchLower = requestSearch.toLowerCase();
-                                                const studentsWithReq = students.filter(s =>
-                                                    reqIds.has(s.studentId) &&
-                                                    (s.fullName.toLowerCase().includes(searchLower) || s.studentId.includes(searchLower))
+                                                const filteredReqs = Object.values(studentMap).filter(s =>
+                                                    s.fullName.toLowerCase().includes(searchLower) || s.studentId.includes(searchLower)
                                                 );
 
-                                                if (studentsWithReq.length === 0) {
+                                                if (filteredReqs.length === 0) {
                                                     return <tr><td colSpan={5} style={{ textAlign: 'center' }}>No students with pending top-up requests.</td></tr>;
                                                 }
 
-                                                return studentsWithReq.map(s => (
+                                                return filteredReqs.map(s => (
                                                     <tr key={s.studentId}>
                                                         <td>{s.studentId}</td>
                                                         <td style={{ fontWeight: 'bold' }}>
-                                                            <span onClick={() => handleOpenProfile(s)} style={{ textDecoration: 'underline', cursor: 'pointer' }}>
-                                                                {s.fullName}
-                                                            </span>
+                                                            {s.exists ? (
+                                                                <span onClick={() => handleOpenProfile(s.rawStudent)} style={{ textDecoration: 'underline', cursor: 'pointer' }}>
+                                                                    {s.fullName}
+                                                                </span>
+                                                            ) : (
+                                                                <span style={{ color: 'red' }}>{s.fullName} (MISSING)</span>
+                                                            )}
                                                         </td>
                                                         <td>{s.gradeSection}</td>
-                                                        <td style={{ color: parseFloat(s.balance) < 0 ? 'red' : 'green' }}>SAR {parseFloat(s.balance).toFixed(2)}</td>
+                                                        <td style={{ color: s.exists ? (parseFloat(s.balance) < 0 ? 'red' : 'green') : '#888' }}>
+                                                            {s.exists ? `SAR ${parseFloat(s.balance).toFixed(2)}` : 'UNKNOWN'}
+                                                        </td>
                                                         <td>
-                                                            <button className="win98-btn" style={{ padding: '2px 5px' }} onClick={() => setView('requests')}>View Request</button>
+                                                            {s.exists ? (
+                                                                <button className="win98-btn" style={{ padding: '2px 5px' }} onClick={() => setView('requests')}>View Request</button>
+                                                            ) : (
+                                                                <button className="win98-btn" style={{ padding: '2px 5px', backgroundColor: '#ffd700' }} onClick={() => handleRestoreOrphan(topupRequests.find(r => r.studentId === s.studentId))}>Restore student</button>
+                                                            )}
                                                         </td>
                                                     </tr>
                                                 ));
@@ -1019,15 +1057,15 @@ export default function AdminDashboard({ onLogout }) {
                                     <div className="win98-stats-row">
                                         <div className="win98-card">
                                             <div className="win98-card-label">Total Sales</div>
-                                            <div className="win98-card-value">SAR {reportData.canteen?.totalSales?.toFixed(2)}</div>
+                                            <div className="win98-card-value">SAR {(parseFloat(reportData.canteen?.totalSales) || 0).toFixed(2)}</div>
                                         </div>
                                         <div className="win98-card">
                                             <div className="win98-card-label">Total Cash</div>
-                                            <div className="win98-card-value">SAR {reportData.system?.totalCashOnHand?.toFixed(2)}</div>
+                                            <div className="win98-card-value">SAR {(parseFloat(reportData.system?.totalCashOnHand) || 0).toFixed(2)}</div>
                                         </div>
                                         <div className="win98-card">
                                             <div className="win98-card-label">Credit</div>
-                                            <div className="win98-card-value">SAR {reportData.canteen?.totalCredit?.toFixed(2)}</div>
+                                            <div className="win98-card-value">SAR {(parseFloat(reportData.canteen?.totalCredit) || 0).toFixed(2)}</div>
                                         </div>
                                     </div>
                                     {reportInsights && (
@@ -1052,10 +1090,10 @@ export default function AdminDashboard({ onLogout }) {
                                             <tbody>
                                                 {(reportData.canteen?.transactions || []).map((t, i) => (
                                                     <tr key={i}>
-                                                        <td>{new Date(t.timestamp).toLocaleTimeString()}</td>
-                                                        <td>{t.studentName}</td>
+                                                        <td>{t.timestamp ? new Date(t.timestamp).toLocaleTimeString() : 'N/A'}</td>
+                                                        <td>{t.studentName || 'System'}</td>
                                                         <td>{t.type}</td>
-                                                        <td>SAR {parseFloat(t.amount).toFixed(2)}</td>
+                                                        <td>SAR {(parseFloat(t.amount) || 0).toFixed(2)}</td>
                                                     </tr>
                                                 ))}
                                             </tbody>
@@ -1074,19 +1112,19 @@ export default function AdminDashboard({ onLogout }) {
                             <div className="win98-stats-row">
                                 <div className="win98-card">
                                     <div className="win98-card-label">Cash on Hand</div>
-                                    <div className="win98-card-value" style={{ color: 'green' }}>SAR {dailyStats.system?.totalCashOnHand?.toFixed(2)}</div>
+                                    <div className="win98-card-value" style={{ color: 'green' }}>SAR {(parseFloat(dailyStats.system?.totalCashOnHand) || 0).toFixed(2)}</div>
                                 </div>
                                 <div className="win98-card">
                                     <div className="win98-card-label">Total Debt</div>
-                                    <div className="win98-card-value" style={{ color: 'red' }}>SAR {totalCredit.toFixed(2)}</div>
+                                    <div className="win98-card-value" style={{ color: 'red' }}>SAR {(parseFloat(totalCredit) || 0).toFixed(2)}</div>
                                 </div>
                                 <div className="win98-card">
                                     <div className="win98-card-label">Withdrawals</div>
-                                    <div className="win98-card-value" style={{ color: 'orange' }}>SAR {dailyStats.system?.todayWithdrawals?.toFixed(2)}</div>
+                                    <div className="win98-card-value" style={{ color: 'orange' }}>SAR {(parseFloat(dailyStats.system?.todayWithdrawals) || 0).toFixed(2)}</div>
                                 </div>
                                 <div className="win98-card">
                                     <div className="win98-card-label">Points Collected Today</div>
-                                    <div className="win98-card-value" style={{ color: 'blue' }}>SAR {dailyStats.system?.todayTopups?.toFixed(2)}</div>
+                                    <div className="win98-card-value" style={{ color: 'blue' }}>SAR {(parseFloat(dailyStats.system?.todayTopups) || 0).toFixed(2)}</div>
                                 </div>
                             </div>
                             <div className="win98-toolbar" style={{ gap: '10px' }}>
@@ -1094,7 +1132,7 @@ export default function AdminDashboard({ onLogout }) {
                                 <button className="win98-btn" onClick={runDiagnostics} style={{ backgroundColor: '#000080', color: 'white' }}>🔍 Run System Diagnosis</button>
                             </div>
 
-                            {showDiagnostics && (diagnostics.orphanRequests.length > 0 || diagnostics.collisionIds.length > 0) && (
+                            {showDiagnostics && (diagnostics.orphanRequests.length > 0 || diagnostics.collisionIds.length > 0 || diagnostics.nameMismatches?.length > 0) && (
                                 <div style={{ margin: '10px', padding: '10px', border: '2px solid red', backgroundColor: '#fff' }}>
                                     <h4 style={{ color: 'red', marginTop: 0 }}>⚠️ Data Integrity Issues Found</h4>
 
@@ -1107,7 +1145,7 @@ export default function AdminDashboard({ onLogout }) {
 
                                     {diagnostics.nameMismatches?.map((req, idx) => (
                                         <div key={`m-${idx}`} style={{ fontSize: '11px', marginBottom: '5px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid #eee', paddingBottom: '3px' }}>
-                                            <span>Mismatch: Request name <b>{req.studentName}</b> != DB name <b>{students.find(s => s.studentId === req.studentId)?.fullName}</b> for ID <b>{req.studentId}</b>.</span>
+                                            <span>Mismatch: Request name <b>{req.studentName}</b> != DB name <b>{students.find(s => s.studentId === req.studentId)?.fullName || 'Unknown'}</b> for ID <b>{req.studentId}</b>.</span>
                                             <button className="win98-btn" style={{ fontSize: '9px' }} onClick={() => {
                                                 setAddForm({
                                                     fullName: req.studentName,
@@ -1134,9 +1172,9 @@ export default function AdminDashboard({ onLogout }) {
                                     <tbody>
                                         {(dailyStats.system?.transactions || []).map((t, i) => (
                                             <tr key={i}>
-                                                <td>{new Date(t.timestamp).toLocaleTimeString()}</td>
+                                                <td>{t.timestamp ? new Date(t.timestamp).toLocaleTimeString() : 'N/A'}</td>
                                                 <td>{t.type}</td>
-                                                <td>SAR {parseFloat(t.amount).toFixed(2)}</td>
+                                                <td>SAR {(parseFloat(t.amount) || 0).toFixed(2)}</td>
                                             </tr>
                                         ))}
                                     </tbody>
@@ -1441,7 +1479,7 @@ export default function AdminDashboard({ onLogout }) {
                                     <div>{selectedStudent?.studentId}</div>
                                 </div>
                                 <hr />
-                                <div>Balance: <b>SAR {parseFloat(selectedStudent?.balance || 0).toFixed(2)}</b></div>
+                                <div>Balance: <b>SAR {(parseFloat(selectedStudent?.balance) || 0).toFixed(2)}</b></div>
                                 <div style={{ marginTop: 20 }}>
                                     <button className="win98-btn" style={{ width: '100%', marginBottom: 5 }} onClick={() => { setShowTopUpModal(true); }}>Top Up</button>
                                     <button className="win98-btn" style={{ width: '100%', marginBottom: 5 }} onClick={() => { setShowDeductModal(true); }}>Deduct Points</button>
