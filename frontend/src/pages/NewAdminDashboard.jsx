@@ -23,6 +23,7 @@ export default function AdminDashboard({ onLogout }) {
 
     // Selection for Delete
     const [selectedIds, setSelectedIds] = useState(new Set());
+    const [selectedRequestIds, setSelectedRequestIds] = useState(new Set());
 
     // Stats
     const [totalBal, setTotalBal] = useState(0);
@@ -148,7 +149,9 @@ export default function AdminDashboard({ onLogout }) {
 
             const allStudents = sRes.data.data;
             setStudents(allStudents);
-            setTotalBal(allStudents.reduce((a, c) => a + (parseFloat(c.balance) || 0), 0));
+
+            // Sync logic: Total Cash = Sum of positive balances. Total Debt = Sum of negative balances.
+            setTotalBal(allStudents.filter(s => parseFloat(s.balance) > 0).reduce((a, c) => a + (parseFloat(c.balance) || 0), 0));
             setTotalCredit(allStudents.filter(s => parseFloat(s.balance) < 0).reduce((a, c) => a + Math.abs(parseFloat(c.balance)), 0));
 
             if (dRes.data.status === 'success') {
@@ -268,6 +271,52 @@ export default function AdminDashboard({ onLogout }) {
         }
     };
 
+    const handleToggleSelectRequest = (id) => {
+        const newSet = new Set(selectedRequestIds);
+        if (newSet.has(id)) newSet.delete(id);
+        else newSet.add(id);
+        setSelectedRequestIds(newSet);
+    };
+
+    const handleBulkAcceptRequests = async () => {
+        if (selectedRequestIds.size === 0) return;
+        const toProcess = topupRequests.filter(r => selectedRequestIds.has(r.id) && r.status === 'PENDING');
+        if (toProcess.length === 0) { message.warning('No Pending requests selected'); return; }
+        if (!confirm(`Accept ${toProcess.length} reservations?`)) return;
+
+        let ok = 0;
+        for (const r of toProcess) {
+            try {
+                await transactionService.approveTopupRequest(r.id);
+                ok++;
+            } catch (e) { }
+        }
+        message.success(`Accepted ${ok} reservations`);
+        addAuditLog('BULK_APPROVE', `Bulk accepted ${ok} reservations`);
+        setSelectedRequestIds(new Set());
+        fetchRequests();
+    };
+
+    const handleBulkResolveRequests = async () => {
+        if (selectedRequestIds.size === 0) return;
+        const toProcess = topupRequests.filter(r => selectedRequestIds.has(r.id) && r.status === 'ACCEPTED');
+        if (toProcess.length === 0) { message.warning('No Accepted requests selected'); return; }
+        if (!confirm(`Mark ${toProcess.length} requests as Collected?`)) return;
+
+        let ok = 0;
+        for (const r of toProcess) {
+            try {
+                await transactionService.resolveTopupRequest(r.id);
+                ok++;
+            } catch (e) { }
+        }
+        message.success(`Marked ${ok} as Collected`);
+        addAuditLog('BULK_RESOLVE', `Bulk resolved ${ok} top-up collections`);
+        setSelectedRequestIds(new Set());
+        fetchRequests();
+        loadData();
+    };
+
     const runDiagnostics = () => {
         const orphans = topupRequests.filter(req => !students.find(s => s.studentId === req.studentId));
 
@@ -368,23 +417,73 @@ export default function AdminDashboard({ onLogout }) {
 
     // --- Export Logic ---
     const handleExportData = () => {
-        // Export current daily report or transactions
         const data = reportData?.canteen?.transactions || dailyStats.canteen?.transactions || [];
         if (data.length === 0) { message.warning('No data to export'); return; }
 
-        addAuditLog('EXPORT_DATA', `User exported transaction history to Excel/CSV`);
+        const totalSales = reportData?.canteen?.totalSales || 0;
+        const totalCash = reportData?.system?.totalCashOnHand || 0;
+        const totalDebt = reportData?.system?.totalDebt || 0;
 
-        let csv = 'Date,Time,Student,Type,Amount\n';
+        let html = `
+            <html xmlns:o="urn:schemas-microsoft-com:office:office" xmlns:x="urn:schemas-microsoft-com:office:excel" xmlns="http://www.w3.org/TR/REC-html40">
+            <head><meta charset="utf-8" /><style>
+                .header { font-size: 18pt; font-weight: bold; text-align: center; }
+                .sub-header { font-size: 14pt; font-weight: bold; margin-bottom: 10px; }
+                .summary-table { border: 1px solid #000; margin-bottom: 20px; border-collapse: collapse; }
+                .summary-table th, .summary-table td { border: 1px solid #000; padding: 5px; text-align: left; }
+                .data-table { border-collapse: collapse; width: 100%; }
+                .data-table th { background-color: #000080; color: #ffffff; border: 1px solid #000; padding: 5px; }
+                .data-table td { border: 1px solid #000; padding: 5px; }
+            </style></head>
+            <body>
+                <table>
+                    <tr><td colspan="4" class="header">FUGEN SmartPay - Daily Financial Report</td></tr>
+                    <tr><td colspan="4" style="text-align: center;">Report Date: ${reportDate}</td></tr>
+                    <tr><td colspan="4" style="text-align: center;">Generated on: ${new Date().toLocaleString()}</td></tr>
+                    <tr><td></td></tr>
+                    <tr><td colspan="2" class="sub-header">Financial Summary</td></tr>
+                    <tr><td><b>Total Sales Today:</b></td><td style="color: green;">SAR ${parseFloat(totalSales).toFixed(2)}</td></tr>
+                    <tr><td><b>System Cash on Hand:</b></td><td>SAR ${parseFloat(totalCash).toFixed(2)}</td></tr>
+                    <tr><td><b>Total System Debt:</b></td><td style="color: red;">SAR ${parseFloat(totalDebt).toFixed(2)}</td></tr>
+                    <tr><td></td></tr>
+                </table>
+                <table class="data-table">
+                    <thead>
+                        <tr>
+                            <th>Time</th>
+                            <th>Student Name</th>
+                            <th>Transaction Type</th>
+                            <th>Amount (SAR)</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+        `;
+
         data.forEach(t => {
-            csv += `${new Date(t.timestamp).toLocaleDateString()},${new Date(t.timestamp).toLocaleTimeString()},"${t.studentName}",${t.type},${t.amount}\n`;
+            html += `
+                <tr>
+                    <td>${new Date(t.timestamp).toLocaleTimeString()}</td>
+                    <td>${t.studentName || 'System'}</td>
+                    <td>${t.type}</td>
+                    <td>${parseFloat(t.amount).toFixed(2)}</td>
+                </tr>
+            `;
         });
 
-        const blob = new Blob([csv], { type: 'text/csv' });
+        html += `
+                    </tbody>
+                </table>
+            </body>
+            </html>
+        `;
+
+        const blob = new Blob([html], { type: 'application/vnd.ms-excel' });
         const url = window.URL.createObjectURL(blob);
         const a = document.createElement('a');
         a.href = url;
-        a.download = `Transactions_${new Date().toISOString().split('T')[0]}.csv`;
+        a.download = `Daily_Report_${reportDate}.xls`;
         a.click();
+        addAuditLog('EXPORT_DAILY', `Professional report exported for ${reportDate}`);
     };
 
     // Actions
@@ -669,18 +768,69 @@ export default function AdminDashboard({ onLogout }) {
 
         if (allTransactions.length === 0) { message.warning('No transactions found for this month'); return; }
 
-        let csv = 'Date,Time,Student,Type,Amount\n';
+        // Calculate Monthly Totals
+        const monthlySales = allTransactions.filter(t => t.type === 'PURCHASE').reduce((a, c) => a + (parseFloat(c.amount) || 0), 0);
+        const monthlyTopups = allTransactions.filter(t => t.type === 'TOPUP' || t.type === 'REPOS_TOPUP').reduce((a, c) => a + (parseFloat(c.amount) || 0), 0);
+
+        let html = `
+            <html xmlns:o="urn:schemas-microsoft-com:office:office" xmlns:x="urn:schemas-microsoft-com:office:excel" xmlns="http://www.w3.org/TR/REC-html40">
+            <head><meta charset="utf-8" /><style>
+                .header { font-size: 18pt; font-weight: bold; text-align: center; }
+                .sub-header { font-size: 14pt; font-weight: bold; margin-bottom: 10px; }
+                .data-table { border-collapse: collapse; width: 100%; }
+                .data-table th { background-color: #000080; color: #ffffff; border: 1px solid #000; padding: 5px; }
+                .data-table td { border: 1px solid #000; padding: 5px; }
+            </style></head>
+            <body>
+                <table>
+                    <tr><td colspan="5" class="header">FUGEN SmartPay - Monthly Financial Report</td></tr>
+                    <tr><td colspan="5" style="text-align: center;">Month: ${month}</td></tr>
+                    <tr><td colspan="5" style="text-align: center;">Generated on: ${new Date().toLocaleString()}</td></tr>
+                    <tr><td></td></tr>
+                    <tr><td colspan="2" class="sub-header">Monthly Summary</td></tr>
+                    <tr><td><b>Total Sales for Month:</b></td><td style="color: green;">SAR ${monthlySales.toFixed(2)}</td></tr>
+                    <tr><td><b>Total Top-ups for Month:</b></td><td>SAR ${monthlyTopups.toFixed(2)}</td></tr>
+                    <tr><td></td></tr>
+                </table>
+                <table class="data-table">
+                    <thead>
+                        <tr>
+                            <th>Date</th>
+                            <th>Time</th>
+                            <th>Student Name</th>
+                            <th>Transaction Type</th>
+                            <th>Amount (SAR)</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+        `;
+
         allTransactions.forEach(t => {
-            csv += `${new Date(t.timestamp).toLocaleDateString()},${new Date(t.timestamp).toLocaleTimeString()},"${t.studentName}",${t.type},${t.amount}\n`;
+            html += `
+                <tr>
+                    <td>${new Date(t.timestamp).toLocaleDateString()}</td>
+                    <td>${new Date(t.timestamp).toLocaleTimeString()}</td>
+                    <td>${t.studentName || 'System'}</td>
+                    <td>${t.type}</td>
+                    <td>${parseFloat(t.amount).toFixed(2)}</td>
+                </tr>
+            `;
         });
 
-        const blob = new Blob([csv], { type: 'text/csv' });
+        html += `
+                    </tbody>
+                </table>
+            </body>
+            </html>
+        `;
+
+        const blob = new Blob([html], { type: 'application/vnd.ms-excel' });
         const url = window.URL.createObjectURL(blob);
         const a = document.createElement('a');
         a.href = url;
-        a.download = `Monthly_Report_${month}.csv`;
+        a.download = `Monthly_Report_${month}.xls`;
         a.click();
-        addAuditLog('EXPORT_MONTHLY', `Exported monthly report for ${month} (${allTransactions.length} transactions)`);
+        addAuditLog('EXPORT_MONTHLY', `Monthly report exported for ${month} (${allTransactions.length} transactions)`);
         message.success(`Exported ${allTransactions.length} transactions for ${month}`);
     };
 
@@ -1085,8 +1235,8 @@ export default function AdminDashboard({ onLogout }) {
                                             <div className="win98-card-value">SAR {(parseFloat(reportData.system?.totalCashOnHand) || 0).toFixed(2)}</div>
                                         </div>
                                         <div className="win98-card">
-                                            <div className="win98-card-label">Credit</div>
-                                            <div className="win98-card-value">SAR {(parseFloat(reportData.canteen?.totalCredit) || 0).toFixed(2)}</div>
+                                            <div className="win98-card-label">Total Debt</div>
+                                            <div className="win98-card-value" style={{ color: 'red' }}>SAR {(parseFloat(reportData.system?.totalDebt) || 0).toFixed(2)}</div>
                                         </div>
                                     </div>
                                     {reportInsights && (
@@ -1247,10 +1397,62 @@ export default function AdminDashboard({ onLogout }) {
                                         <input type="checkbox" checked={showRequestHistory} onChange={e => setShowRequestHistory(e.target.checked)} />
                                     </div>
                                 </div>
+                                <div style={{ borderLeft: '1px solid #888', height: 20, margin: '0 5px' }}></div>
+                                <div style={{ display: 'flex', gap: '5px' }}>
+                                    <button
+                                        className="win98-btn"
+                                        disabled={selectedRequestIds.size === 0}
+                                        onClick={handleBulkAcceptRequests}
+                                        style={{ backgroundColor: selectedRequestIds.size > 0 ? '#000080' : '#c0c0c0', color: selectedRequestIds.size > 0 ? 'white' : '#888' }}
+                                    >
+                                        Bulk Accept ({selectedRequestIds.size})
+                                    </button>
+                                    <button
+                                        className="win98-btn"
+                                        disabled={selectedRequestIds.size === 0}
+                                        onClick={handleBulkResolveRequests}
+                                        style={{ backgroundColor: selectedRequestIds.size > 0 ? '#008000' : '#c0c0c0', color: selectedRequestIds.size > 0 ? 'white' : '#888' }}
+                                    >
+                                        Bulk Collect
+                                    </button>
+                                </div>
                             </div>
                             <div className="win98-table-wrapper">
                                 <table className="win98-table">
-                                    <thead><tr><th>Date / Time Slot</th><th>Student</th><th>Grade / Section</th><th>Amount to Collect</th><th>Action</th></tr></thead>
+                                    <thead>
+                                        <tr>
+                                            <th style={{ width: '30px' }}>
+                                                <input
+                                                    type="checkbox"
+                                                    onChange={e => {
+                                                        const visible = topupRequests.filter(req => {
+                                                            const searchLower = requestSearch.toLowerCase();
+                                                            const matchesSearch = !requestSearch || req.studentName.toLowerCase().includes(searchLower) || req.studentId.toLowerCase().includes(searchLower);
+                                                            const matchesDate = !reqFilterDate || req.date === reqFilterDate;
+                                                            const matchesSlot = reqFilterSlot === 'ALL' || req.timeSlot === reqFilterSlot;
+                                                            const matchesHistory = showRequestHistory || req.status !== 'RESOLVED';
+                                                            return matchesSearch && matchesDate && matchesSlot && matchesHistory;
+                                                        });
+                                                        if (e.target.checked) setSelectedRequestIds(new Set(visible.map(r => r.id)));
+                                                        else setSelectedRequestIds(new Set());
+                                                    }}
+                                                    checked={selectedRequestIds.size > 0 && selectedRequestIds.size === topupRequests.filter(req => {
+                                                        const searchLower = requestSearch.toLowerCase();
+                                                        const matchesSearch = !requestSearch || req.studentName.toLowerCase().includes(searchLower) || req.studentId.toLowerCase().includes(searchLower);
+                                                        const matchesDate = !reqFilterDate || req.date === reqFilterDate;
+                                                        const matchesSlot = reqFilterSlot === 'ALL' || req.timeSlot === reqFilterSlot;
+                                                        const matchesHistory = showRequestHistory || req.status !== 'RESOLVED';
+                                                        return matchesSearch && matchesDate && matchesSlot && matchesHistory;
+                                                    }).length}
+                                                />
+                                            </th>
+                                            <th>Date / Time Slot</th>
+                                            <th>Student</th>
+                                            <th>Grade / Section</th>
+                                            <th>Amount to Collect</th>
+                                            <th>Action</th>
+                                        </tr>
+                                    </thead>
                                     <tbody>
                                         {topupRequests
                                             .filter(req => {
@@ -1264,7 +1466,7 @@ export default function AdminDashboard({ onLogout }) {
                                                 return matchesSearch && matchesDate && matchesSlot && matchesHistory;
                                             })
                                             .length === 0 ? (
-                                            <tr><td colSpan={5} style={{ textAlign: 'center' }}>No requests found for this filter.</td></tr>
+                                            <tr><td colSpan={6} style={{ textAlign: 'center' }}>No requests found for this filter.</td></tr>
                                         ) : (
                                             topupRequests
                                                 .filter(req => {
@@ -1279,6 +1481,13 @@ export default function AdminDashboard({ onLogout }) {
                                                 })
                                                 .map((req, i) => (
                                                     <tr key={i} style={{ opacity: req.status === 'RESOLVED' ? 0.7 : 1 }}>
+                                                        <td>
+                                                            <input
+                                                                type="checkbox"
+                                                                checked={selectedRequestIds.has(req.id)}
+                                                                onChange={() => handleToggleSelectRequest(req.id)}
+                                                            />
+                                                        </td>
                                                         <td>{req.date} <span style={{ color: '#888' }}>({req.timeSlot || 'Not Specified'})</span></td>
                                                         <td style={{ fontWeight: 'bold' }}>
                                                             {req.studentName} ({req.studentId})
