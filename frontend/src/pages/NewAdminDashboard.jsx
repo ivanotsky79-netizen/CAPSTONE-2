@@ -1283,12 +1283,24 @@ export default function AdminDashboard({ onLogout }) {
                                                                 <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
                                                                     <span style={{ fontSize: '11px', color: '#008000', fontWeight: 'bold' }}>ACCEPTED ✔</span>
                                                                     {(() => {
-                                                                        const student = students.find(s => s.studentId === req.studentId);
-                                                                        const nameMatch = student && (student.fullName.toLowerCase() === req.studentName.toLowerCase());
+                                                                        const studentById = students.find(s => s.studentId === req.studentId);
+                                                                        const studentByName = students.find(s => s.fullName.toLowerCase() === req.studentName.toLowerCase());
 
-                                                                        if (student && nameMatch) {
+                                                                        const nameMatchWithId = studentById && (studentById.fullName.toLowerCase() === req.studentName.toLowerCase());
+
+                                                                        if (studentById && nameMatchWithId) {
+                                                                            // Perfect Match
                                                                             return <button className="win98-btn" style={{ padding: '2px 8px' }} onClick={() => handleResolveRequest(req.id)}>Mark Collected</button>;
-                                                                        } else if (student && !nameMatch) {
+                                                                        } else if (studentByName) {
+                                                                            // Found by name (Restored with fixed ID)
+                                                                            return (
+                                                                                <div style={{ display: 'flex', gap: '5px' }}>
+                                                                                    <span style={{ color: 'blue', fontSize: '10px', alignSelf: 'center' }}>ID Changed</span>
+                                                                                    <button className="win98-btn" style={{ padding: '2px 8px' }} onClick={() => handleResolveRequest(req.id)}>Mark Collected</button>
+                                                                                </div>
+                                                                            );
+                                                                        } else if (studentById && !nameMatchWithId) {
+                                                                            // ID Collision
                                                                             return (
                                                                                 <div style={{ display: 'flex', gap: '5px' }}>
                                                                                     <span style={{ color: 'red', fontSize: '10px', alignSelf: 'center' }}>Name Mismatch!</span>
@@ -1299,12 +1311,13 @@ export default function AdminDashboard({ onLogout }) {
                                                                                             lrn: '',
                                                                                             studentId: req.studentId + '_FIXED'
                                                                                         });
-                                                                                        message.info(`Restoring ${req.studentName} with a modified ID to avoid collision with ${student.fullName}.`);
+                                                                                        message.info(`Restoring ${req.studentName} with a modified ID to avoid collision with ${studentById.fullName}.`);
                                                                                         setShowAddModal(true);
                                                                                     }}>Fix: Restore as New ID</button>
                                                                                 </div>
                                                                             );
                                                                         } else {
+                                                                            // Truly missing
                                                                             return <button className="win98-btn" style={{ padding: '2px 8px', backgroundColor: '#ffd700', fontWeight: 'bold' }} onClick={() => handleRestoreOrphan(req)}>Restore Student First</button>;
                                                                         }
                                                                     })()}
