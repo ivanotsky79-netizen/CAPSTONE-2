@@ -668,7 +668,7 @@ export default function AdminDashboard({ onLogout }) {
 
     // Rendering Helpers
     const filtered = students
-        .filter(s => s.fullName.toLowerCase().includes(searchText.toLowerCase()) || s.studentId.includes(searchText))
+        .filter(s => s.fullName.toLowerCase().includes(searchText.toLowerCase()) || s.studentId.toLowerCase().includes(searchText.toLowerCase()))
         .sort((a, b) => {
             const dateA = new Date(a.createdAt || 0);
             const dateB = new Date(b.createdAt || 0);
@@ -1278,11 +1278,32 @@ export default function AdminDashboard({ onLogout }) {
                                                             ) : (
                                                                 <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
                                                                     <span style={{ fontSize: '11px', color: '#008000', fontWeight: 'bold' }}>ACCEPTED ✔</span>
-                                                                    {students.find(s => s.studentId === req.studentId) ? (
-                                                                        <button className="win98-btn" style={{ padding: '2px 8px' }} onClick={() => handleResolveRequest(req.id)}>Mark Collected</button>
-                                                                    ) : (
-                                                                        <button className="win98-btn" style={{ padding: '2px 8px', backgroundColor: '#ffd700', fontWeight: 'bold' }} onClick={() => handleRestoreOrphan(req)}>Restore Student First</button>
-                                                                    )}
+                                                                    {(() => {
+                                                                        const student = students.find(s => s.studentId === req.studentId);
+                                                                        const nameMatch = student && (student.fullName.toLowerCase() === req.studentName.toLowerCase());
+
+                                                                        if (student && nameMatch) {
+                                                                            return <button className="win98-btn" style={{ padding: '2px 8px' }} onClick={() => handleResolveRequest(req.id)}>Mark Collected</button>;
+                                                                        } else if (student && !nameMatch) {
+                                                                            return (
+                                                                                <div style={{ display: 'flex', gap: '5px' }}>
+                                                                                    <span style={{ color: 'red', fontSize: '10px', alignSelf: 'center' }}>Name Mismatch!</span>
+                                                                                    <button className="win98-btn" style={{ padding: '2px 8px', backgroundColor: '#ffd700' }} onClick={() => {
+                                                                                        setAddForm({
+                                                                                            fullName: req.studentName,
+                                                                                            gradeSection: req.gradeSection || '',
+                                                                                            lrn: '',
+                                                                                            studentId: req.studentId + '_FIXED'
+                                                                                        });
+                                                                                        message.info(`Restoring ${req.studentName} with a modified ID to avoid collision with ${student.fullName}.`);
+                                                                                        setShowAddModal(true);
+                                                                                    }}>Fix: Restore as New ID</button>
+                                                                                </div>
+                                                                            );
+                                                                        } else {
+                                                                            return <button className="win98-btn" style={{ padding: '2px 8px', backgroundColor: '#ffd700', fontWeight: 'bold' }} onClick={() => handleRestoreOrphan(req)}>Restore Student First</button>;
+                                                                        }
+                                                                    })()}
                                                                     <button className="win98-btn" style={{ padding: '2px 8px' }} onClick={() => { setRescheduleId(req.id); setRescheduleForm({ date: req.date, timeSlot: req.timeSlot || 'HRO' }); setShowRescheduleModal(true); }}>Reschedule</button>
                                                                     <button className="win98-btn" style={{ padding: '2px 8px', fontSize: '10px' }} onClick={() => handleRejectRequest(req.id)}>Cancel</button>
                                                                 </div>
