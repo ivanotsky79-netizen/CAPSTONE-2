@@ -32,6 +32,7 @@ export default function AdminDashboard({ onLogout }) {
     const [reqFilterDate, setReqFilterDate] = useState(new Date().toISOString().split('T')[0]);
     const [reqFilterSlot, setReqFilterSlot] = useState('ALL');
     const [sortOrder, setSortOrder] = useState('newest'); // 'newest' (Last Joined) or 'oldest' (First Joined)
+    const [showRequestHistory, setShowRequestHistory] = useState(false);
 
     // Modals
     const [showAddModal, setShowAddModal] = useState(false);
@@ -227,6 +228,21 @@ export default function AdminDashboard({ onLogout }) {
             addAuditLog('RESOLVE_REQUEST', `Resolved top-up request ${id}`);
             fetchRequests();
         } catch (e) { message.error('Failed to resolve'); }
+    };
+
+    const handleUndoRequest = async (id, status) => {
+        const action = status === 'RESOLVED' ? 'undo this collection (and subtract points)' : 'revert this reservation back to Pending';
+        if (!confirm(`Are you sure you want to ${action}?`)) return;
+        try {
+            await transactionService.undoTopupRequest(id);
+            message.success('Request reverted');
+            addAuditLog('UNDO_REQUEST', `Undid top-up request ${id} (Previous status: ${status})`);
+            fetchRequests();
+            loadData(); // To sync balance if points were subtracted
+        } catch (e) {
+            console.error('Undo error:', e);
+            message.error(e.response?.data?.message || 'Failed to undo');
+        }
     };
 
     const handleApproveRequest = async (id) => {
@@ -1226,6 +1242,10 @@ export default function AdminDashboard({ onLogout }) {
                                         <option value="Lunch">Lunch</option>
                                         <option value="Dismissal">Dismissal</option>
                                     </select>
+                                    <div style={{ display: 'flex', alignItems: 'center', gap: '5px', marginLeft: '10px' }}>
+                                        <label style={{ fontSize: '11px' }}>Show Collected:</label>
+                                        <input type="checkbox" checked={showRequestHistory} onChange={e => setShowRequestHistory(e.target.checked)} />
+                                    </div>
                                 </div>
                             </div>
                             <div className="win98-table-wrapper">
@@ -1240,7 +1260,8 @@ export default function AdminDashboard({ onLogout }) {
                                                     req.studentId.toLowerCase().includes(searchLower);
                                                 const matchesDate = !reqFilterDate || req.date === reqFilterDate;
                                                 const matchesSlot = reqFilterSlot === 'ALL' || req.timeSlot === reqFilterSlot;
-                                                return matchesSearch && matchesDate && matchesSlot;
+                                                const matchesHistory = showRequestHistory || req.status !== 'RESOLVED';
+                                                return matchesSearch && matchesDate && matchesSlot && matchesHistory;
                                             })
                                             .length === 0 ? (
                                             <tr><td colSpan={5} style={{ textAlign: 'center' }}>No requests found for this filter.</td></tr>
@@ -1253,10 +1274,11 @@ export default function AdminDashboard({ onLogout }) {
                                                         req.studentId.toLowerCase().includes(searchLower);
                                                     const matchesDate = !reqFilterDate || req.date === reqFilterDate;
                                                     const matchesSlot = reqFilterSlot === 'ALL' || req.timeSlot === reqFilterSlot;
-                                                    return matchesSearch && matchesDate && matchesSlot;
+                                                    const matchesHistory = showRequestHistory || req.status !== 'RESOLVED';
+                                                    return matchesSearch && matchesDate && matchesSlot && matchesHistory;
                                                 })
                                                 .map((req, i) => (
-                                                    <tr key={i}>
+                                                    <tr key={i} style={{ opacity: req.status === 'RESOLVED' ? 0.7 : 1 }}>
                                                         <td>{req.date} <span style={{ color: '#888' }}>({req.timeSlot || 'Not Specified'})</span></td>
                                                         <td style={{ fontWeight: 'bold' }}>
                                                             {req.studentName} ({req.studentId})
@@ -1272,13 +1294,18 @@ export default function AdminDashboard({ onLogout }) {
                                                             )}
                                                         </td>
                                                         <td>{req.gradeSection || 'Unknown'}</td>
-                                                        <td style={{ color: 'green', fontWeight: 'bold' }}>SAR {req.amount.toFixed(2)}</td>
+                                                        <td style={{ color: 'green', fontWeight: 'bold' }}>SAR {req.amount.toFixed(2)} {req.status === 'RESOLVED' && <span style={{ color: '#888', fontSize: '10px' }}>(COLLECTED)</span>}</td>
                                                         <td>
                                                             {req.status === 'PENDING' ? (
                                                                 <div style={{ display: 'flex', gap: '5px' }}>
                                                                     <button className="win98-btn" style={{ padding: '2px 8px', backgroundColor: '#000080', color: 'white' }} onClick={() => handleApproveRequest(req.id)}>Accept Reservation</button>
                                                                     <button className="win98-btn" style={{ padding: '2px 8px' }} onClick={() => { setRescheduleId(req.id); setRescheduleForm({ date: req.date, timeSlot: req.timeSlot || 'HRO' }); setShowRescheduleModal(true); }}>Reschedule</button>
                                                                     <button className="win98-btn" style={{ padding: '2px 8px', backgroundColor: '#800000', color: 'white' }} onClick={() => handleRejectRequest(req.id)}>Reject</button>
+                                                                </div>
+                                                            ) : req.status === 'RESOLVED' ? (
+                                                                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                                                                    <span style={{ fontSize: '11px', color: '#000080', fontWeight: 'bold' }}>COLLECTED ✔</span>
+                                                                    <button className="win98-btn" style={{ padding: '2px 8px', fontSize: '10px' }} onClick={() => handleUndoRequest(req.id, 'RESOLVED')}>Retake / Undo</button>
                                                                 </div>
                                                             ) : (
                                                                 <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
@@ -1323,7 +1350,7 @@ export default function AdminDashboard({ onLogout }) {
                                                                         }
                                                                     })()}
                                                                     <button className="win98-btn" style={{ padding: '2px 8px' }} onClick={() => { setRescheduleId(req.id); setRescheduleForm({ date: req.date, timeSlot: req.timeSlot || 'HRO' }); setShowRescheduleModal(true); }}>Reschedule</button>
-                                                                    <button className="win98-btn" style={{ padding: '2px 8px', fontSize: '10px' }} onClick={() => handleRejectRequest(req.id)}>Cancel</button>
+                                                                    <button className="win98-btn" style={{ padding: '2px 8px', fontSize: '10px' }} onClick={() => handleUndoRequest(req.id, 'ACCEPTED')}>Undo Accept</button>
                                                                 </div>
                                                             )}
                                                         </td>
@@ -1567,17 +1594,24 @@ export default function AdminDashboard({ onLogout }) {
                                         </table>
                                     ) : (
                                         <table className="win98-table">
-                                            <thead><tr><th>Date</th><th>Slot</th><th>Amount</th><th>Status</th></tr></thead>
+                                            <thead><tr><th>Date</th><th>Slot</th><th>Amount</th><th>Status</th><th>Action</th></tr></thead>
                                             <tbody>
                                                 {topupRequests.filter(r => r.studentId === selectedStudent?.studentId).length === 0 ? (
-                                                    <tr><td colSpan={4}>No pending requests.</td></tr>
+                                                    <tr><td colSpan={5}>No requests found.</td></tr>
                                                 ) : (
                                                     topupRequests.filter(r => r.studentId === selectedStudent?.studentId).map((r, i) => (
-                                                        <tr key={i}>
+                                                        <tr key={i} style={{ opacity: r.status === 'RESOLVED' ? 0.7 : 1 }}>
                                                             <td>{r.date}</td>
                                                             <td>{r.timeSlot}</td>
                                                             <td style={{ color: 'green', fontWeight: 'bold' }}>SAR {parseFloat(r.amount).toFixed(2)}</td>
-                                                            <td style={{ color: r.status === 'ACCEPTED' ? 'green' : 'orange' }}>{r.status}</td>
+                                                            <td style={{ color: r.status === 'ACCEPTED' ? 'green' : r.status === 'RESOLVED' ? '#000080' : 'orange', fontWeight: 'bold' }}>
+                                                                {r.status}
+                                                            </td>
+                                                            <td>
+                                                                {(r.status === 'ACCEPTED' || r.status === 'RESOLVED') && (
+                                                                    <button className="win98-btn" style={{ fontSize: '10px', padding: '1px 4px' }} onClick={() => handleUndoRequest(r.id, r.status)}>Undo</button>
+                                                                )}
+                                                            </td>
                                                         </tr>
                                                     ))
                                                 )}

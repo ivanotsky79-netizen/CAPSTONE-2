@@ -39,6 +39,7 @@ export const transactionService = {
     approveTopupRequest: (id) => api.put(`/topup-requests/${id}/approve`),
     rejectTopupRequest: (id) => api.put(`/topup-requests/${id}/reject`),
     rescheduleTopupRequest: (id, date, timeSlot) => api.put(`/topup-requests/${id}/reschedule`, { date, timeSlot }),
+    undoTopupRequest: (id) => api.put(`/topup-requests/${id}/undo`),
     getNotifications: (studentId) => api.get(`/student/${studentId}/notifications`),
     markNotificationRead: (id) => api.put(`/notifications/${id}/read`)
 };
