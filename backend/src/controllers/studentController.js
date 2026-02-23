@@ -16,8 +16,23 @@ exports.createStudent = async (req, res) => {
             return res.status(400).json({ status: 'error', message: 'Name and Passkey are required' });
         }
 
-        // Generate Student ID: S-(Year)-(Random 4 digits)
-        const studentId = `S${new Date().getFullYear()}-${Math.floor(1000 + Math.random() * 9000)}`;
+        // Generate Unique Student ID: S-(Year)-(Random 6 digits)
+        let studentId;
+        let isUnique = false;
+        let attempts = 0;
+
+        while (!isUnique && attempts < 10) {
+            studentId = `S${new Date().getFullYear()}-${Math.floor(100000 + Math.random() * 900000)}`;
+            const existingDoc = await db.collection('students').doc(studentId).get();
+            if (!existingDoc.exists) {
+                isUnique = true;
+            }
+            attempts++;
+        }
+
+        if (!isUnique) {
+            throw new Error('Failed to generate a unique Student ID after multiple attempts.');
+        }
 
         // Hash Passkey
         const passkeyHash = await bcrypt.hash(passkey, SALT_ROUNDS);
