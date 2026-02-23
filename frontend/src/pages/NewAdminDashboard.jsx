@@ -356,11 +356,29 @@ export default function AdminDashboard({ onLogout }) {
     };
 
     const handleReschedule = async () => {
-        if (!rescheduleId || !rescheduleForm.date) return;
+        if (!rescheduleForm.date) return;
         try {
-            await transactionService.rescheduleTopupRequest(rescheduleId, rescheduleForm.date, rescheduleForm.timeSlot);
-            message.success('Request Rescheduled');
-            addAuditLog('RESCHEDULE_REQUEST', `Rescheduled top-up request ${rescheduleId} to ${rescheduleForm.date} (${rescheduleForm.timeSlot})`);
+            if (rescheduleId) {
+                await transactionService.rescheduleTopupRequest(rescheduleId, rescheduleForm.date, rescheduleForm.timeSlot);
+                message.success('Request Rescheduled');
+                addAuditLog('RESCHEDULE_REQUEST', `Rescheduled top-up request ${rescheduleId} to ${rescheduleForm.date} (${rescheduleForm.timeSlot})`);
+            } else if (selectedRequestIds.size > 0) {
+                const toProcess = topupRequests.filter(r => selectedRequestIds.has(r.id) && r.status === 'PENDING');
+                if (toProcess.length === 0) { message.warning('Only Pending requests can be rescheduled'); return; }
+
+                let ok = 0;
+                for (const r of toProcess) {
+                    try {
+                        await transactionService.rescheduleTopupRequest(r.id, rescheduleForm.date, rescheduleForm.timeSlot);
+                        ok++;
+                    } catch (e) { }
+                }
+                message.success(`Rescheduled ${ok} requests`);
+                addAuditLog('BULK_RESCHEDULE', `Bulk rescheduled ${ok} requests to ${rescheduleForm.date}`);
+                setSelectedRequestIds(new Set());
+            } else {
+                return;
+            }
             setShowRescheduleModal(false);
             fetchRequests();
         } catch (e) { message.error('Failed to reschedule'); }
@@ -1414,6 +1432,18 @@ export default function AdminDashboard({ onLogout }) {
                                         style={{ backgroundColor: selectedRequestIds.size > 0 ? '#008000' : '#c0c0c0', color: selectedRequestIds.size > 0 ? 'white' : '#888' }}
                                     >
                                         Bulk Collect
+                                    </button>
+                                    <button
+                                        className="win98-btn"
+                                        disabled={selectedRequestIds.size === 0}
+                                        onClick={() => {
+                                            setRescheduleId(null);
+                                            setRescheduleForm({ date: reqFilterDate, timeSlot: 'HRO' });
+                                            setShowRescheduleModal(true);
+                                        }}
+                                        style={{ backgroundColor: selectedRequestIds.size > 0 ? '#808000' : '#c0c0c0', color: selectedRequestIds.size > 0 ? 'white' : '#888' }}
+                                    >
+                                        Bulk Reschedule
                                     </button>
                                 </div>
                             </div>
