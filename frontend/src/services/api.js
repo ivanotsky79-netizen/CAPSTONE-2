@@ -22,6 +22,7 @@ export const studentService = {
     getCreditStatus: (studentId) => api.get(`/student/${studentId}`),
     createStudent: (data) => api.post('/student', data),
     deleteStudent: (studentId) => api.delete(`/student/${studentId}`),
+    updateStudent: (studentId, data) => api.put(`/student/${studentId}`, data),
 };
 
 export const transactionService = {

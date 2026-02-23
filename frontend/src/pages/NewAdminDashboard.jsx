@@ -39,6 +39,8 @@ export default function AdminDashboard({ onLogout }) {
     const [showProfileModal, setShowProfileModal] = useState(false);
     const [showDeductModal, setShowDeductModal] = useState(false);
     const [showRescheduleModal, setShowRescheduleModal] = useState(false);
+    const [showEditModal, setShowEditModal] = useState(false);
+    const [editForm, setEditForm] = useState({ fullName: '', gradeSection: '', lrn: '', studentId: '' });
     const [rescheduleForm, setRescheduleForm] = useState({ date: '', timeSlot: 'HRO' });
     const [rescheduleId, setRescheduleId] = useState(null);
 
@@ -247,6 +249,44 @@ export default function AdminDashboard({ onLogout }) {
         }
     };
 
+    const runDiagnostics = () => {
+        const orphans = topupRequests.filter(req => !students.find(s => s.studentId === req.studentId));
+
+        const idMap = {};
+        const collisions = [];
+        students.forEach(s => {
+            if (idMap[s.studentId]) {
+                collisions.push(s.studentId);
+            }
+            idMap[s.studentId] = true;
+        });
+
+        // Detect Name Mismatches (Same ID, Different Name in Request vs DB)
+        const mismatches = topupRequests.filter(req => {
+            const student = students.find(s => s.studentId === req.studentId);
+            return student && student.fullName.toLowerCase() !== req.studentName.toLowerCase();
+        });
+
+        setDiagnostics({ orphanRequests: orphans, collisionIds: [...new Set(collisions)], nameMismatches: mismatches });
+        setShowDiagnostics(true);
+        if (orphans.length === 0 && collisions.length === 0) {
+            message.success('No database issues found! System is healthy.');
+        } else {
+            message.warning(`Found ${orphans.length} orphan requests and ${collisions.length} ID collisions.`);
+        }
+    };
+
+    const handleRestoreOrphan = (req) => {
+        setAddForm({
+            fullName: req.studentName,
+            gradeSection: req.gradeSection || '',
+            lrn: '',
+            studentId: req.studentId // Pre-fill with the ID from request
+        });
+        message.info(`Pre-filled form with data for ${req.studentName}. If this ID collides, please change it slightly.`);
+        setShowAddModal(true);
+    };
+
     const handleReschedule = async () => {
         if (!rescheduleId || !rescheduleForm.date) return;
         try {
@@ -329,14 +369,35 @@ export default function AdminDashboard({ onLogout }) {
     };
 
     // Actions
+    const handleEditStudent = async () => {
+        if (!selectedStudent) return;
+        try {
+            await studentService.updateStudent(selectedStudent.studentId, editForm);
+            addAuditLog('EDIT_STUDENT', `Updated student: ${editForm.fullName} (${editForm.studentId})`);
+            message.success('Student Updated');
+            setShowEditModal(false);
+            loadData();
+        } catch (e) {
+            console.error('Edit failure:', e);
+            message.error(e.response?.data?.message || 'Failed to update student');
+        }
+    };
+
     const handleAddStudent = async () => {
         try {
-            if (!generatedPasskey) { message.error('Invalid LRN'); return; }
-            await studentService.createStudent({ ...addForm, passkey: generatedPasskey });
-            addAuditLog('ADD_STUDENT', `Created student: ${addForm.fullName} (${addForm.lrn})`);
+            const passkey = addForm.lrn.length === 12 ? generatedPasskey : (prompt("Enter a 4-digit passkey for this student:", "1234") || "1234");
+            if (!passkey || passkey.length !== 4) { message.error('Valid 4-digit passkey required'); return; }
+
+            await studentService.createStudent({ ...addForm, passkey });
+            addAuditLog('ADD_STUDENT', `Created student: ${addForm.fullName} (${addForm.studentId || 'Auto-ID'})`);
             message.success('Student Added');
-            setShowAddModal(false); setAddForm({ fullName: '', gradeSection: '', lrn: '' }); loadData();
-        } catch (e) { message.error('Failed'); }
+            setShowAddModal(false);
+            setAddForm({ fullName: '', gradeSection: '', lrn: '', studentId: '' });
+            loadData();
+        } catch (e) {
+            console.error('Add student error:', e);
+            message.error(e.response?.data?.message || 'Failed to add student');
+        }
     };
 
     const handleTopUp = async () => {
@@ -808,7 +869,12 @@ export default function AdminDashboard({ onLogout }) {
                                                     <td>{s.gradeSection}</td>
                                                     <td style={{ color: parseFloat(s.balance) < 0 ? 'red' : 'green' }}>SAR {parseFloat(s.balance).toFixed(2)}</td>
                                                     <td>
-                                                        <button className="win98-btn" style={{ padding: '2px 5px', fontSize: 11 }} onClick={() => { setSelectedStudent(s); setShowQrModal(true); }}>QR</button>
+                                                        <button className="win98-btn" style={{ padding: '2px 5px', fontSize: 11, marginRight: 5 }} onClick={() => { setSelectedStudent(s); setShowQrModal(true); }}>QR</button>
+                                                        <button className="win98-btn" style={{ padding: '2px 5px', fontSize: 11 }} onClick={() => {
+                                                            setSelectedStudent(s);
+                                                            setEditForm({ fullName: s.fullName, gradeSection: s.gradeSection, lrn: s.lrn || '', studentId: s.studentId });
+                                                            setShowEditModal(true);
+                                                        }}>Edit</button>
                                                     </td>
                                                 </tr>
                                             ))}
@@ -1023,9 +1089,45 @@ export default function AdminDashboard({ onLogout }) {
                                     <div className="win98-card-value" style={{ color: 'blue' }}>SAR {dailyStats.system?.todayTopups?.toFixed(2)}</div>
                                 </div>
                             </div>
-                            <div className="win98-toolbar">
+                            <div className="win98-toolbar" style={{ gap: '10px' }}>
                                 <button className="win98-btn" onClick={() => setShowWithdrawModal(true)}>Withdraw Cash</button>
+                                <button className="win98-btn" onClick={runDiagnostics} style={{ backgroundColor: '#000080', color: 'white' }}>🔍 Run System Diagnosis</button>
                             </div>
+
+                            {showDiagnostics && (diagnostics.orphanRequests.length > 0 || diagnostics.collisionIds.length > 0) && (
+                                <div style={{ margin: '10px', padding: '10px', border: '2px solid red', backgroundColor: '#fff' }}>
+                                    <h4 style={{ color: 'red', marginTop: 0 }}>⚠️ Data Integrity Issues Found</h4>
+
+                                    {diagnostics.orphanRequests.map((req, idx) => (
+                                        <div key={idx} style={{ fontSize: '11px', marginBottom: '5px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                                            <span>Orphan Request: <b>{req.studentName}</b> ({req.studentId}) is missing from database.</span>
+                                            <button className="win98-btn" style={{ fontSize: '9px' }} onClick={() => handleRestoreOrphan(req)}>Fix: Restore Student</button>
+                                        </div>
+                                    ))}
+
+                                    {diagnostics.nameMismatches?.map((req, idx) => (
+                                        <div key={`m-${idx}`} style={{ fontSize: '11px', marginBottom: '5px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid #eee', paddingBottom: '3px' }}>
+                                            <span>Mismatch: Request name <b>{req.studentName}</b> != DB name <b>{students.find(s => s.studentId === req.studentId)?.fullName}</b> for ID <b>{req.studentId}</b>.</span>
+                                            <button className="win98-btn" style={{ fontSize: '9px' }} onClick={() => {
+                                                setAddForm({
+                                                    fullName: req.studentName,
+                                                    gradeSection: req.gradeSection || '',
+                                                    lrn: '',
+                                                    studentId: req.studentId + '_FIXED'
+                                                });
+                                                message.info(`Restoring ${req.studentName} with a modified ID to avoid collision.`);
+                                                setShowAddModal(true);
+                                            }}>Fix: Restore as New ID</button>
+                                        </div>
+                                    ))}
+
+                                    {diagnostics.collisionIds.map((id, idx) => (
+                                        <div key={idx} style={{ fontSize: '11px', color: 'red' }}>
+                                            Collision: Multiple students found with ID <b>{id}</b>. Please edit one of them.
+                                        </div>
+                                    ))}
+                                </div>
+                            )}
                             <div className="win98-table-wrapper">
                                 <table className="win98-table">
                                     <thead><tr><th>Time</th><th>Type</th><th>Amount</th></tr></thead>
@@ -1113,7 +1215,19 @@ export default function AdminDashboard({ onLogout }) {
                                                 .map((req, i) => (
                                                     <tr key={i}>
                                                         <td>{req.date} <span style={{ color: '#888' }}>({req.timeSlot || 'Not Specified'})</span></td>
-                                                        <td style={{ fontWeight: 'bold' }}>{req.studentName} ({req.studentId})</td>
+                                                        <td style={{ fontWeight: 'bold' }}>
+                                                            {req.studentName} ({req.studentId})
+                                                            {!students.find(s => s.studentId === req.studentId) && (
+                                                                <span style={{
+                                                                    marginLeft: '8px',
+                                                                    color: 'red',
+                                                                    backgroundColor: '#ffeeee',
+                                                                    padding: '2px 4px',
+                                                                    fontSize: '10px',
+                                                                    border: '1px solid red'
+                                                                }}>⚠️ MISSING FROM LIST</span>
+                                                            )}
+                                                        </td>
                                                         <td>{req.gradeSection || 'Unknown'}</td>
                                                         <td style={{ color: 'green', fontWeight: 'bold' }}>SAR {req.amount.toFixed(2)}</td>
                                                         <td>
@@ -1126,7 +1240,11 @@ export default function AdminDashboard({ onLogout }) {
                                                             ) : (
                                                                 <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
                                                                     <span style={{ fontSize: '11px', color: '#008000', fontWeight: 'bold' }}>ACCEPTED ✔</span>
-                                                                    <button className="win98-btn" style={{ padding: '2px 8px' }} onClick={() => handleResolveRequest(req.id)}>Mark Collected</button>
+                                                                    {students.find(s => s.studentId === req.studentId) ? (
+                                                                        <button className="win98-btn" style={{ padding: '2px 8px' }} onClick={() => handleResolveRequest(req.id)}>Mark Collected</button>
+                                                                    ) : (
+                                                                        <button className="win98-btn" style={{ padding: '2px 8px', backgroundColor: '#ffd700', fontWeight: 'bold' }} onClick={() => handleRestoreOrphan(req)}>Restore Student First</button>
+                                                                    )}
                                                                     <button className="win98-btn" style={{ padding: '2px 8px' }} onClick={() => { setRescheduleId(req.id); setRescheduleForm({ date: req.date, timeSlot: req.timeSlot || 'HRO' }); setShowRescheduleModal(true); }}>Reschedule</button>
                                                                     <button className="win98-btn" style={{ padding: '2px 8px', fontSize: '10px' }} onClick={() => handleRejectRequest(req.id)}>Cancel</button>
                                                                 </div>
@@ -1144,6 +1262,37 @@ export default function AdminDashboard({ onLogout }) {
             </div>
 
             {/* Modals */}
+            {showEditModal && (
+                <div className="win98-modal-overlay">
+                    <div className="win98-modal">
+                        <div className="win98-title-bar"><span>Edit Student Settings</span><div className="win98-control-btn" onClick={() => setShowEditModal(false)}>×</div></div>
+                        <div className="win98-content">
+                            <div className="win98-field">
+                                <label>Full Name:</label>
+                                <input className="win98-input" value={editForm.fullName} onChange={e => setEditForm({ ...editForm, fullName: e.target.value })} />
+                            </div>
+                            <div className="win98-field">
+                                <label>Grade / Section:</label>
+                                <input className="win98-input" value={editForm.gradeSection} onChange={e => setEditForm({ ...editForm, gradeSection: e.target.value })} />
+                            </div>
+                            <div className="win98-field">
+                                <label>LRN:</label>
+                                <input className="win98-input" value={editForm.lrn} onChange={e => setEditForm({ ...editForm, lrn: e.target.value })} />
+                            </div>
+                            <div className="win98-field">
+                                <label>Student ID:</label>
+                                <input className="win98-input" value={editForm.studentId} onChange={e => setEditForm({ ...editForm, studentId: e.target.value })} />
+                                <small style={{ color: '#666', fontSize: '9px' }}>Warning: Changing ID will update their QR code.</small>
+                            </div>
+                            <div style={{ display: 'flex', gap: 10, justifyContent: 'flex-end', marginTop: 15 }}>
+                                <button className="win98-btn" onClick={() => setShowEditModal(false)}>Cancel</button>
+                                <button className="win98-btn" style={{ backgroundColor: '#000080', color: 'white' }} onClick={handleEditStudent}>Save Changes</button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            )}
+
             {showAddModal && (
                 <div className="win98-modal-overlay">
                     <div className="win98-modal">
@@ -1151,8 +1300,20 @@ export default function AdminDashboard({ onLogout }) {
                         <div className="win98-content">
                             <div className="vb-form-group"><label>Name</label><input className="win98-input" value={addForm.fullName} onChange={e => setAddForm({ ...addForm, fullName: e.target.value })} style={{ width: '95%' }} /></div>
                             <div className="vb-form-group"><label>Grade</label><input className="win98-input" value={addForm.gradeSection} onChange={e => setAddForm({ ...addForm, gradeSection: e.target.value })} style={{ width: '95%' }} /></div>
-                            <div className="vb-form-group"><label>LRN</label><input className="win98-input" value={addForm.lrn} onChange={e => setAddForm({ ...addForm, lrn: e.target.value })} maxLength={12} placeholder="12 digits" style={{ width: '95%' }} /></div>
-                            <div className="vb-form-group"><label>Passkey</label><input className="win98-input" value={generatedPasskey} disabled style={{ background: '#eee', width: '95%' }} /></div>
+                            <div className="vb-form-group"><label>LRN</label><input className="win98-input" name="lrn" value={addForm.lrn} onChange={e => setAddForm({ ...addForm, lrn: e.target.value })} maxLength={12} placeholder="12 digits" style={{ width: '95%' }} /></div>
+                            <div className="vb-form-group"><label>Student ID (Optional)</label><input className="win98-input" name="studentId" value={addForm.studentId} onChange={e => setAddForm({ ...addForm, studentId: e.target.value })} placeholder="Auto-generate if blank" style={{ width: '95%' }} /></div>
+                            <div className="vb-form-group">
+                                <label>Passkey {addForm.lrn.length < 12 && '(Manual)'}</label>
+                                <input
+                                    className="win98-input"
+                                    value={addForm.lrn.length === 12 ? generatedPasskey : (addForm.passkey || '')}
+                                    onChange={e => setAddForm({ ...addForm, passkey: e.target.value })}
+                                    disabled={addForm.lrn.length === 12}
+                                    maxLength={4}
+                                    placeholder="XXXX"
+                                    style={{ background: addForm.lrn.length === 12 ? '#eee' : '#fff', width: '95%' }}
+                                />
+                            </div>
                             <div style={{ display: 'flex', gap: 10, justifyContent: 'flex-end', marginTop: 10 }}>
                                 <button className="win98-btn" onClick={() => setShowAddModal(false)}>Cancel</button>
                                 <button className="win98-btn" onClick={handleAddStudent}>Save</button>
