@@ -108,6 +108,8 @@ export default function AdminDashboard({ onLogout }) {
     // Auto-refresh Activity tab every 30s
     useEffect(() => {
         if (view !== 'activity') return;
+        setLogData(null); // Clear old data when switching dates
+        fetchLogs();
         const interval = setInterval(() => fetchLogs(), 30000);
         return () => clearInterval(interval);
     }, [view, logDate]);
@@ -439,8 +441,9 @@ export default function AdminDashboard({ onLogout }) {
         if (data.length === 0) { message.warning('No data to export'); return; }
 
         const totalSales = reportData?.canteen?.totalSales || 0;
-        const totalCash = reportData?.system?.totalCashOnHand || 0;
-        const totalDebt = reportData?.system?.totalDebt || 0;
+        const isToday = reportDate === new Date().toISOString().split('T')[0];
+        const totalCash = isToday ? totalBal : (reportData?.system?.totalCashOnHand || 0);
+        const totalDebt = isToday ? totalCredit : (reportData?.system?.totalDebt || 0);
 
         let html = `
             <html xmlns:o="urn:schemas-microsoft-com:office:office" xmlns:x="urn:schemas-microsoft-com:office:excel" xmlns="http://www.w3.org/TR/REC-html40">
@@ -789,6 +792,9 @@ export default function AdminDashboard({ onLogout }) {
         // Calculate Monthly Totals
         const monthlySales = allTransactions.filter(t => t.type === 'PURCHASE').reduce((a, c) => a + (parseFloat(c.amount) || 0), 0);
         const monthlyTopups = allTransactions.filter(t => t.type === 'TOPUP' || t.type === 'REPOS_TOPUP').reduce((a, c) => a + (parseFloat(c.amount) || 0), 0);
+        const isCurrentMonth = month === new Date().toISOString().substring(0, 7);
+        const currentCash = isCurrentMonth ? totalBal : 0;
+        const currentDebt = isCurrentMonth ? totalCredit : 0;
 
         let html = `
             <html xmlns:o="urn:schemas-microsoft-com:office:office" xmlns:x="urn:schemas-microsoft-com:office:excel" xmlns="http://www.w3.org/TR/REC-html40">
@@ -808,6 +814,10 @@ export default function AdminDashboard({ onLogout }) {
                     <tr><td colspan="2" class="sub-header">Monthly Summary</td></tr>
                     <tr><td><b>Total Sales for Month:</b></td><td style="color: green;">SAR ${monthlySales.toFixed(2)}</td></tr>
                     <tr><td><b>Total Top-ups for Month:</b></td><td>SAR ${monthlyTopups.toFixed(2)}</td></tr>
+                    ${isCurrentMonth ? `
+                        <tr><td><b>Current Cash on Hand:</b></td><td style="color: green;">SAR ${currentCash.toFixed(2)}</td></tr>
+                        <tr><td><b>Current System Debt:</b></td><td style="color: red;">SAR ${currentDebt.toFixed(2)}</td></tr>
+                    ` : ''}
                     <tr><td></td></tr>
                 </table>
                 <table class="data-table">
@@ -1191,10 +1201,17 @@ export default function AdminDashboard({ onLogout }) {
                                 <table className="win98-table">
                                     <thead><tr><th>Time</th><th>Role</th><th>Type</th><th>Student</th><th>Amount</th><th>Details</th></tr></thead>
                                     <tbody>
-                                        {combinedLogs.length === 0 ? (
-                                            <tr><td colSpan={6} style={{ textAlign: 'center' }}>No activity found for this date.</td></tr>
-                                        ) : (
-                                            combinedLogs.map((t, i) => (
+                                        {(() => {
+                                            const source = logData || dailyStats;
+                                            const logs = [
+                                                ...localAuditLogs.filter(l => l.timestamp?.startsWith(logDate)),
+                                                ...(source.system?.transactions || []).filter(t => t.timestamp?.startsWith(logDate)).map(t => ({ ...t, location: 'ADMIN' })),
+                                                ...(source.canteen?.transactions || []).filter(t => t.timestamp?.startsWith(logDate)).map(t => ({ ...t, location: 'CASHIER' }))
+                                            ].sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp));
+
+                                            if (logs.length === 0) return <tr><td colSpan={6} style={{ textAlign: 'center' }}>No activity found for this date.</td></tr>;
+
+                                            return logs.map((t, i) => (
                                                 <tr key={i}>
                                                     <td>{new Date(t.timestamp).toLocaleString()}</td>
                                                     <td style={{ fontWeight: 'bold', color: t.location === 'ADMIN' || t.isLocal ? 'blue' : 'green' }}>
@@ -1205,8 +1222,8 @@ export default function AdminDashboard({ onLogout }) {
                                                     <td>{t.amount ? `SAR ${parseFloat(t.amount).toFixed(2)}` : '-'}</td>
                                                     <td>{t.description || (t.cashAmount > 0 && t.creditAmount > 0 ? 'Mixed' : t.cashAmount > 0 ? 'Cash' : t.creditAmount > 0 ? 'Credit' : '')}</td>
                                                 </tr>
-                                            ))
-                                        )}
+                                            ));
+                                        })()}
                                     </tbody>
                                 </table>
                             </div>
@@ -1250,11 +1267,15 @@ export default function AdminDashboard({ onLogout }) {
                                         </div>
                                         <div className="win98-card">
                                             <div className="win98-card-label">Total Cash</div>
-                                            <div className="win98-card-value">SAR {(parseFloat(reportData.system?.totalCashOnHand) || 0).toFixed(2)}</div>
+                                            <div className="win98-card-value" style={{ color: 'green' }}>
+                                                SAR {(reportDate === new Date().toISOString().split('T')[0] ? totalBal : (parseFloat(reportData.system?.totalCashOnHand) || 0)).toFixed(2)}
+                                            </div>
                                         </div>
                                         <div className="win98-card">
                                             <div className="win98-card-label">Total Debt</div>
-                                            <div className="win98-card-value" style={{ color: 'red' }}>SAR {(parseFloat(reportData.system?.totalDebt) || 0).toFixed(2)}</div>
+                                            <div className="win98-card-value" style={{ color: 'red' }}>
+                                                SAR {(reportDate === new Date().toISOString().split('T')[0] ? totalCredit : (parseFloat(reportData.system?.totalDebt) || 0)).toFixed(2)}
+                                            </div>
                                         </div>
                                     </div>
                                     {reportInsights && (
@@ -1357,13 +1378,17 @@ export default function AdminDashboard({ onLogout }) {
                             )}
                             <div className="win98-table-wrapper">
                                 <table className="win98-table">
-                                    <thead><tr><th>Time</th><th>Type</th><th>Amount</th></tr></thead>
+                                    <thead><tr><th>Time</th><th>Student</th><th>Grade/Section</th><th>Type</th><th>Amount</th></tr></thead>
                                     <tbody>
                                         {(dailyStats.system?.transactions || []).map((t, i) => (
                                             <tr key={i}>
                                                 <td>{t.timestamp ? new Date(t.timestamp).toLocaleTimeString() : 'N/A'}</td>
+                                                <td>{t.studentName || 'Admin'}</td>
+                                                <td>{t.gradeSection || '-'}</td>
                                                 <td>{t.type}</td>
-                                                <td>SAR {(parseFloat(t.amount) || 0).toFixed(2)}</td>
+                                                <td style={{ fontWeight: 'bold', color: t.type === 'TOPUP' ? 'green' : 'black' }}>
+                                                    SAR {(parseFloat(t.amount) || 0).toFixed(2)}
+                                                </td>
                                             </tr>
                                         ))}
                                     </tbody>
