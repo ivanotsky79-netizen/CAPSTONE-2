@@ -52,6 +52,7 @@ export default function AdminDashboard({ onLogout }) {
 
     const [selectedStudent, setSelectedStudent] = useState(null);
     const [userTransactions, setUserTransactions] = useState([]);
+    const [profileTab, setProfileTab] = useState('transactions');
 
     // Forms
     const [addForm, setAddForm] = useState({ fullName: '', gradeSection: '', lrn: '' });
@@ -1116,7 +1117,7 @@ export default function AdminDashboard({ onLogout }) {
                             <div className="win98-stats-row">
                                 <div className="win98-card">
                                     <div className="win98-card-label">Cash on Hand</div>
-                                    <div className="win98-card-value" style={{ color: 'green' }}>SAR {(parseFloat(dailyStats.system?.totalCashOnHand) || 0).toFixed(2)}</div>
+                                    <div className="win98-card-value" style={{ color: 'green' }}>SAR {(parseFloat(totalBal) || 0).toFixed(2)}</div>
                                 </div>
                                 <div className="win98-card">
                                     <div className="win98-card-label">Total Debt</div>
@@ -1128,7 +1129,7 @@ export default function AdminDashboard({ onLogout }) {
                                 </div>
                                 <div className="win98-card">
                                     <div className="win98-card-label">Points Collected Today</div>
-                                    <div className="win98-card-value" style={{ color: 'blue' }}>SAR {(parseFloat(dailyStats.system?.todayTopups) || 0).toFixed(2)}</div>
+                                    <div className="win98-card-value" style={{ color: 'blue' }}>SAR {(parseFloat(dailyStats.canteen?.totalSales) || 0).toFixed(2)}</div>
                                 </div>
                             </div>
                             <div className="win98-toolbar" style={{ gap: '10px' }}>
@@ -1529,24 +1530,60 @@ export default function AdminDashboard({ onLogout }) {
                                 </div>
                             </div>
 
-                            <div style={{ flex: 1, display: 'flex', flexDirection: 'column' }}>
+                            <div style={{ flex: 1, display: 'flex', flexDirection: 'column', minHeight: 0 }}>
+                                <div style={{ display: 'flex', gap: 5, marginBottom: 5 }}>
+                                    <button
+                                        className="win98-btn"
+                                        style={{ backgroundColor: profileTab === 'transactions' ? '#000080' : '#c0c0c0', color: profileTab === 'transactions' ? 'white' : 'black', fontSize: '11px' }}
+                                        onClick={() => setProfileTab('transactions')}
+                                    >
+                                        Transactions
+                                    </button>
+                                    <button
+                                        className="win98-btn"
+                                        style={{ backgroundColor: profileTab === 'requests' ? '#000080' : '#c0c0c0', color: profileTab === 'requests' ? 'white' : 'black', fontSize: '11px' }}
+                                        onClick={() => setProfileTab('requests')}
+                                    >
+                                        Requests ({topupRequests.filter(r => r.studentId === selectedStudent?.studentId).length})
+                                    </button>
+                                </div>
                                 <div className="win98-table-wrapper" style={{ flex: 1 }}>
-                                    <table className="win98-table">
-                                        <thead><tr><th>Time</th><th>Type</th><th>Amount</th></tr></thead>
-                                        <tbody>
-                                            {userTransactions.length === 0 ? (
-                                                <tr><td colSpan={3}>No transactions found.</td></tr>
-                                            ) : (
-                                                userTransactions.map((t, i) => (
-                                                    <tr key={i}>
-                                                        <td>{new Date(t.timestamp).toLocaleString()}</td>
-                                                        <td>{t.type}</td>
-                                                        <td>SAR {parseFloat(t.amount).toFixed(2)}</td>
-                                                    </tr>
-                                                ))
-                                            )}
-                                        </tbody>
-                                    </table>
+                                    {profileTab === 'transactions' ? (
+                                        <table className="win98-table">
+                                            <thead><tr><th>Time</th><th>Type</th><th>Amount</th></tr></thead>
+                                            <tbody>
+                                                {userTransactions.length === 0 ? (
+                                                    <tr><td colSpan={3}>No transactions found.</td></tr>
+                                                ) : (
+                                                    userTransactions.map((t, i) => (
+                                                        <tr key={i}>
+                                                            <td>{new Date(t.timestamp).toLocaleString()}</td>
+                                                            <td>{t.type}</td>
+                                                            <td>SAR {parseFloat(t.amount).toFixed(2)}</td>
+                                                        </tr>
+                                                    ))
+                                                )}
+                                            </tbody>
+                                        </table>
+                                    ) : (
+                                        <table className="win98-table">
+                                            <thead><tr><th>Date</th><th>Slot</th><th>Amount</th><th>Status</th></tr></thead>
+                                            <tbody>
+                                                {topupRequests.filter(r => r.studentId === selectedStudent?.studentId).length === 0 ? (
+                                                    <tr><td colSpan={4}>No pending requests.</td></tr>
+                                                ) : (
+                                                    topupRequests.filter(r => r.studentId === selectedStudent?.studentId).map((r, i) => (
+                                                        <tr key={i}>
+                                                            <td>{r.date}</td>
+                                                            <td>{r.timeSlot}</td>
+                                                            <td style={{ color: 'green', fontWeight: 'bold' }}>SAR {parseFloat(r.amount).toFixed(2)}</td>
+                                                            <td style={{ color: r.status === 'ACCEPTED' ? 'green' : 'orange' }}>{r.status}</td>
+                                                        </tr>
+                                                    ))
+                                                )}
+                                            </tbody>
+                                        </table>
+                                    )}
                                 </div>
                             </div>
                         </div>
