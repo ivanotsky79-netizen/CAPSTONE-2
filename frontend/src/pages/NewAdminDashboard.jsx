@@ -363,8 +363,8 @@ export default function AdminDashboard({ onLogout }) {
                 message.success('Request Rescheduled');
                 addAuditLog('RESCHEDULE_REQUEST', `Rescheduled top-up request ${rescheduleId} to ${rescheduleForm.date} (${rescheduleForm.timeSlot})`);
             } else if (selectedRequestIds.size > 0) {
-                const toProcess = topupRequests.filter(r => selectedRequestIds.has(r.id) && r.status === 'PENDING');
-                if (toProcess.length === 0) { message.warning('Only Pending requests can be rescheduled'); return; }
+                const toProcess = topupRequests.filter(r => selectedRequestIds.has(r.id) && (r.status === 'PENDING' || r.status === 'ACCEPTED'));
+                if (toProcess.length === 0) { message.warning('Only Pending or Accepted requests can be rescheduled'); return; }
 
                 let ok = 0;
                 for (const r of toProcess) {
