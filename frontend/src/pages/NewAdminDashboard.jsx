@@ -878,7 +878,13 @@ export default function AdminDashboard({ onLogout }) {
 
     // Rendering Helpers
     const filtered = students
-        .filter(s => s.fullName.toLowerCase().includes(searchText.toLowerCase()) || s.studentId.toLowerCase().includes(searchText.toLowerCase()))
+        .filter(s => {
+            const matchesSearch = s.fullName.toLowerCase().includes(searchText.toLowerCase()) ||
+                s.studentId.toLowerCase().includes(searchText.toLowerCase());
+            if (usersViewMode === 'withPoints') return matchesSearch && parseFloat(s.balance) > 0;
+            if (usersViewMode === 'noPoints') return matchesSearch && parseFloat(s.balance) === 0;
+            return matchesSearch;
+        })
         .sort((a, b) => {
             const dateA = new Date(a.createdAt || 0);
             const dateB = new Date(b.createdAt || 0);
@@ -1015,12 +1021,14 @@ export default function AdminDashboard({ onLogout }) {
 
                             <div className="win98-toolbar">
                                 <button className={`win98-btn ${usersViewMode === 'all' ? 'active' : ''}`} onClick={() => setUsersViewMode('all')}>All Students</button>
+                                <button className={`win98-btn ${usersViewMode === 'withPoints' ? 'active' : ''}`} onClick={() => setUsersViewMode('withPoints')}>With Points</button>
+                                <button className={`win98-btn ${usersViewMode === 'noPoints' ? 'active' : ''}`} onClick={() => setUsersViewMode('noPoints')}>No Points</button>
                                 <button className={`win98-btn ${usersViewMode === 'debtors' ? 'active' : ''}`} onClick={() => setUsersViewMode('debtors')}>Students with Credit</button>
                                 <button className={`win98-btn ${usersViewMode === 'requests' ? 'active' : ''}`} onClick={() => setUsersViewMode('requests')}>
                                     Pending Requests {topupRequests.length > 0 && <span style={{ background: 'red', color: 'white', borderRadius: '50%', padding: '0 5px', fontSize: 10 }}>{topupRequests.length}</span>}
                                 </button>
                                 <div style={{ flex: 1 }}></div>
-                                {(usersViewMode === 'all' || usersViewMode === 'requests') && (
+                                {(usersViewMode === 'all' || usersViewMode === 'withPoints' || usersViewMode === 'noPoints' || usersViewMode === 'requests') && (
                                     <>
                                         <input
                                             className="win98-input"
@@ -1028,7 +1036,7 @@ export default function AdminDashboard({ onLogout }) {
                                             value={usersViewMode === 'requests' ? requestSearch : searchText}
                                             onChange={e => usersViewMode === 'requests' ? setRequestSearch(e.target.value) : setSearchText(e.target.value)}
                                         />
-                                        {usersViewMode === 'all' && (
+                                        {(usersViewMode === 'all' || usersViewMode === 'withPoints' || usersViewMode === 'noPoints') && (
                                             <select
                                                 className="win98-input"
                                                 value={sortOrder}
@@ -1039,7 +1047,7 @@ export default function AdminDashboard({ onLogout }) {
                                                 <option value="oldest">First Joined</option>
                                             </select>
                                         )}
-                                        {usersViewMode === 'all' && <button className="win98-btn" onClick={() => setShowAddModal(true)}>+ Add</button>}
+                                        {(usersViewMode === 'all' || usersViewMode === 'withPoints' || usersViewMode === 'noPoints') && <button className="win98-btn" onClick={() => setShowAddModal(true)}>+ Add</button>}
                                         <button className="win98-btn" onClick={() => {
                                             if (selectedIds.size === 0) { message.warning('Please select a student to Top Up.'); return; }
                                             if (selectedIds.size > 1) { message.warning('Please select only one student.'); return; }
@@ -1066,7 +1074,7 @@ export default function AdminDashboard({ onLogout }) {
                             </div>
 
                             <div className="win98-table-wrapper">
-                                {usersViewMode === 'all' ? (
+                                {(usersViewMode === 'all' || usersViewMode === 'withPoints' || usersViewMode === 'noPoints') ? (
                                     <table className="win98-table">
                                         <thead>
                                             <tr>
