@@ -378,42 +378,24 @@ exports.getDailyStats = async (req, res) => {
         let globalTotalCredit = 0;
         let totalSystemCash = 0;
 
-        // Always calculate Global Debt
-        const studentsSnapshot = await db.collection('students').where('balance', '<', 0).get();
-        studentsSnapshot.forEach(doc => {
-            const bal = parseFloat(doc.data().balance || 0);
-            if (bal < 0) {
-                globalTotalCredit += Math.abs(bal);
-            }
+        // Always calculate Global Debt and Cash
+        const allStudents = await db.collection('students').get();
+        totalSystemCash = 0;
+        globalTotalCredit = 0;
+        allStudents.forEach(doc => {
+            const b = parseFloat(doc.data().balance || 0);
+            if (b > 0) totalSystemCash += b;
+            else if (b < 0) globalTotalCredit += Math.abs(b);
         });
 
-        // Only calculate Total System Cash if we need it (Admin or System Data)
-        // Or if location is not specified
-        if (!location || location === 'ADMIN') {
-            const allTopups = await db.collection('transactions').where('type', '==', 'TOPUP').get();
-            let allTimeTopups = 0;
-            allTopups.forEach(d => allTimeTopups += parseFloat(d.data().amount || 0));
-
-            const allWithdrawals = await db.collection('transactions').where('type', '==', 'WITHDRAWAL').get();
-            let allTimeWithdrawals = 0;
-            allWithdrawals.forEach(d => allTimeWithdrawals += parseFloat(d.data().amount || 0));
-
-            totalSystemCash = allTimeTopups - allTimeWithdrawals;
-        }
-
         // Return structured data
-        // For backwards compatibility with mobile app (which expects flat structure), we can map canteenStats to top level if location=CANTEEN
         if (location === 'CANTEEN') {
             res.status(200).json({
                 status: 'success',
                 data: {
                     totalSales: canteenStats.totalSales,
-                    totalCash: canteenStats.cashCollected, // POS Cash
-                    totalCredit: globalTotalCredit, // User asked for "Outstanding Credits" in System Data, but maybe wants Today's Credit Sales?
-                    // Actually, for "in the mobile scanner, the value for the total credits is zero even though there is a 15 sr credit from a user"
-                    // If they mean "Today's Credit Sales", we should send canteenStats.totalCredit.
-                    // If they mean "Global Debt", we send globalTotalCredit (but filter might skip it above).
-                    // Let's ensure Global Debt is sent even if location=CANTEEN because the "SystemDataScreen" asks for "TOTAL SYSTEM DEBT"
+                    totalCash: canteenStats.cashCollected,
+                    totalCredit: globalTotalCredit,
                     todayCreditSales: canteenStats.totalCredit,
                     transactions: canteenStats.transactions.sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp)),
                     cashList: canteenStats.transactions.filter(t => t.cashAmount > 0),
@@ -430,10 +412,10 @@ exports.getDailyStats = async (req, res) => {
                         transactions: canteenStats.transactions.sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp))
                     },
                     system: {
-                        todayTopups: Math.max(0, systemStats.topups - systemStats.withdrawals),
+                        todayTopups: systemStats.topups,
                         todayWithdrawals: systemStats.withdrawals,
-                        totalCashOnHand: totalSystemCash, // The "System Cash"
-                        totalDebt: globalTotalCredit,     // The "Outstanding Credits"
+                        totalCashOnHand: totalSystemCash,
+                        totalDebt: globalTotalCredit,
                         transactions: systemStats.transactions.sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp))
                     }
                 }
@@ -490,7 +472,7 @@ exports.getTopupRequests = async (req, res) => {
     try {
         const { studentId } = req.query;
         let query = db.collection('topUpRequests')
-            .where('status', 'in', ['PENDING', 'ACCEPTED']);
+            .where('status', 'in', ['PENDING', 'ACCEPTED', 'RESOLVED']);
 
         if (studentId) {
             query = query.where('studentId', '==', studentId);
@@ -658,12 +640,35 @@ exports.resolveTopupRequest = async (req, res) => {
             return res.status(400).json({ status: 'error', message: 'Already resolved' });
         }
 
-        const studentRef = db.collection('students').doc(data.studentId);
-        const studentDoc = await studentRef.get();
+        let studentRef = db.collection('students').doc(data.studentId);
+        let studentDoc = await studentRef.get();
+
+        if (!studentDoc.exists) {
+            // Fallback 1: Check studentId field
+            const querySnapshot = await db.collection('students').where('studentId', '==', data.studentId).limit(1).get();
+            if (!querySnapshot.empty) {
+                studentDoc = querySnapshot.docs[0];
+                studentRef = studentDoc.ref;
+            } else {
+                // Fallback 2: Check by Name (for restored/fixed accounts)
+                console.log(`[RESOLVE] ID not found, trying Name fallback for: "${data.studentName}"`);
+                const nameQuery = await db.collection('students')
+                    .where('fullName', '==', data.studentName)
+                    .limit(1)
+                    .get();
+
+                if (!nameQuery.empty) {
+                    studentDoc = nameQuery.docs[0];
+                    studentRef = studentDoc.ref;
+                    console.log(`[RESOLVE] Found student by Name fallback: ${studentDoc.id}`);
+                }
+            }
+        }
 
         if (studentDoc.exists) {
-            const currentBal = parseFloat(studentDoc.data().balance) || 0;
-            const newBal = currentBal + parseFloat(data.amount);
+            const student = studentDoc.data();
+            const currentBal = parseFloat(student.balance) || 0;
+            const newBal = Number((currentBal + parseFloat(data.amount)).toFixed(2));
 
             // 1. Update Student Balance
             await studentRef.update({ balance: newBal });
@@ -701,10 +706,11 @@ exports.resolveTopupRequest = async (req, res) => {
                 io.emit('balanceUpdate', { studentId: data.studentId, newBalance: newBal, type: 'BALANCE_UPDATE' });
             }
         } else {
-            // Just resolve it if student doesn't exist anymore
-            await db.collection('topUpRequests').doc(id).update({
-                status: 'RESOLVED',
-                resolvedAt: new Date().toISOString()
+            console.error(`[RESOLVE_ERROR] Student ${data.studentId} not found for request ${id}`);
+            return res.status(404).json({
+                status: 'error',
+                message: 'STUDENT_NOT_FOUND',
+                details: `Student ${data.studentId} is missing from the database. Please restore them from the request list first.`
             });
         }
 
@@ -760,6 +766,74 @@ exports.getWeeklyStats = async (req, res) => {
         res.status(200).json({ status: 'success', data: chartData });
     } catch (error) {
         console.error('❌ Weekly Stats Error:', error);
+        res.status(500).json({ status: 'error', message: error.message });
+    }
+};
+
+exports.undoTopupRequest = async (req, res) => {
+    try {
+        const { id } = req.params;
+        const reqDoc = await db.collection('topUpRequests').doc(id).get();
+
+        if (!reqDoc.exists) {
+            return res.status(404).json({ status: 'error', message: 'Request not found' });
+        }
+
+        const data = reqDoc.data();
+        let newStatus = 'PENDING';
+        let message = 'Request reverted to Pending';
+
+        if (data.status === 'RESOLVED') {
+            // Undo Top-up: Subtract balance
+            let studentRef = db.collection('students').doc(data.studentId);
+            let studentDoc = await studentRef.get();
+
+            if (!studentDoc.exists) {
+                const querySnapshot = await db.collection('students').where('studentId', '==', data.studentId).limit(1).get();
+                if (!querySnapshot.empty) {
+                    studentDoc = querySnapshot.docs[0];
+                    studentRef = studentDoc.ref;
+                }
+            }
+
+            if (studentDoc.exists) {
+                const student = studentDoc.data();
+                const currentBal = parseFloat(student.balance) || 0;
+                const undoBal = Number((currentBal - parseFloat(data.amount)).toFixed(2));
+                await studentRef.update({ balance: undoBal });
+
+                // Log "Undo" transaction
+                await db.collection('transactions').add({
+                    studentId: data.studentId,
+                    studentName: data.studentName,
+                    type: 'DEDUCTION',
+                    amount: parseFloat(data.amount),
+                    balanceAfter: undoBal,
+                    timestamp: new Date().toISOString(),
+                    description: 'Correction: Undone Top-up Request'
+                });
+
+                const io = req.app.get('io');
+                if (io) {
+                    io.emit('balanceUpdate', { studentId: data.studentId, newBalance: undoBal, type: 'BALANCE_UPDATE' });
+                }
+            }
+            newStatus = 'ACCEPTED';
+            message = 'Top-up undone. Request reverted to Accepted state.';
+        } else if (data.status === 'ACCEPTED') {
+            newStatus = 'PENDING';
+            message = 'Reservation acceptance undone. Request reverted to Pending state.';
+        } else {
+            return res.status(400).json({ status: 'error', message: 'Cannot undo a request in ' + data.status + ' state.' });
+        }
+
+        await db.collection('topUpRequests').doc(id).update({
+            status: newStatus,
+            undoneAt: new Date().toISOString()
+        });
+
+        res.status(200).json({ status: 'success', message });
+    } catch (error) {
         res.status(500).json({ status: 'error', message: error.message });
     }
 };

@@ -12,40 +12,51 @@ exports.createStudent = async (req, res) => {
         console.log("[CREATE_STUDENT] Received request:", req.body);
         const { fullName, grade, section, gradeSection, passkey, lrn } = req.body;
 
-        if (!fullName || !passkey) {
-            return res.status(400).json({ status: 'error', message: 'Name and Passkey are required' });
+        if (!fullName) {
+            return res.status(400).json({ status: 'error', message: 'Name is required' });
         }
 
-        // Generate Unique Student ID: S-(Year)-(Random 6 digits)
-        let studentId;
+        // Use provided studentId or generate a unique one: S-(Year)-(Random 6 digits)
+        let studentId = req.body.studentId?.trim()?.toUpperCase();
         let isUnique = false;
         let attempts = 0;
 
-        while (!isUnique && attempts < 10) {
-            studentId = `S${new Date().getFullYear()}-${Math.floor(100000 + Math.random() * 900000)}`;
+        if (studentId) {
+            // Check if provided ID is unique
             const existingDoc = await db.collection('students').doc(studentId).get();
             if (!existingDoc.exists) {
                 isUnique = true;
+            } else {
+                return res.status(400).json({ status: 'error', message: `Student ID "${studentId}" is already in use.` });
             }
-            attempts++;
+        } else {
+            while (!isUnique && attempts < 10) {
+                studentId = `S${new Date().getFullYear()}-${Math.floor(100000 + Math.random() * 900000)}`;
+                const existingDoc = await db.collection('students').doc(studentId).get();
+                if (!existingDoc.exists) {
+                    isUnique = true;
+                }
+                attempts++;
+            }
         }
 
         if (!isUnique) {
             throw new Error('Failed to generate a unique Student ID after multiple attempts.');
         }
 
-        // Hash Passkey
-        const passkeyHash = await bcrypt.hash(passkey, SALT_ROUNDS);
+        // Hash Passkey (Defaults to 1234 if missing)
+        const finalPasskey = passkey || "1234";
+        const passkeyHash = await bcrypt.hash(finalPasskey, SALT_ROUNDS);
 
         const studentData = {
-            studentId,
             fullName,
             grade: grade || '',
             section: section || '',
-            gradeSection: gradeSection || `${grade || ''} ${section || ''}`.trim(),
+            gradeSection: gradeSection || `${grade} - ${section}`,
+            studentId,
             lrn: lrn || '',
-            balance: 0.00,
             passkeyHash,
+            balance: 0.00,
             qrData: `FUGEN:${studentId}`,
             accountLocked: false,
             failedAttempts: 0,
@@ -79,7 +90,15 @@ exports.verifyPasskey = async (req, res) => {
         studentDoc = await db.collection('students').doc(studentId).get();
 
         if (!studentDoc.exists) {
-            const querySnapshot = await db.collection('students').where('studentId', '==', studentId).limit(1).get();
+            // Fallback 1: Search by 'studentId' field
+            let querySnapshot = await db.collection('students').where('studentId', '==', studentId).limit(1).get();
+
+            // Fallback 2: Search by 'lrn' field
+            if (querySnapshot.empty) {
+                console.log(`[VERIFY] ID not found in studentId field, trying LRN fallback for: "${studentId}"`);
+                querySnapshot = await db.collection('students').where('lrn', '==', studentId).limit(1).get();
+            }
+
             if (!querySnapshot.empty) {
                 studentDoc = querySnapshot.docs[0];
             }
@@ -87,8 +106,6 @@ exports.verifyPasskey = async (req, res) => {
 
         if (!studentDoc?.exists) {
             console.warn(`[VERIFY] Student ID "${studentId}" not found.`);
-            const allDocs = await db.collection('students').get();
-            console.log(`[DIAGNOSTIC] IDs available:`, allDocs.docs.map(d => `"${d.id}"`).join(', '));
             return res.status(404).json({ status: 'error', message: 'Student not found in database' });
         }
 
@@ -152,7 +169,15 @@ exports.getStudent = async (req, res) => {
 
         let doc = await db.collection('students').doc(studentId).get();
         if (!doc.exists) {
-            const querySnapshot = await db.collection('students').where('studentId', '==', studentId).limit(1).get();
+            // Fallback 1: Search by 'studentId' field
+            let querySnapshot = await db.collection('students').where('studentId', '==', studentId).limit(1).get();
+
+            // Fallback 2: Search by 'lrn' field
+            if (querySnapshot.empty) {
+                console.log(`[GET_STUDENT] ID not found in studentId field, trying LRN fallback for: "${studentId}"`);
+                querySnapshot = await db.collection('students').where('lrn', '==', studentId).limit(1).get();
+            }
+
             if (!querySnapshot.empty) {
                 doc = querySnapshot.docs[0];
             }
@@ -184,15 +209,23 @@ exports.deleteStudent = async (req, res) => {
         const { studentId } = req.params;
         console.log(`[DELETE_STUDENT] Attempting to delete: ${studentId}`);
 
-        const studentRef = db.collection('students').doc(studentId);
-        const doc = await studentRef.get();
+        let studentRef = db.collection('students').doc(studentId);
+        let doc = await studentRef.get();
 
         if (!doc.exists) {
+            const querySnapshot = await db.collection('students').where('studentId', '==', studentId).limit(1).get();
+            if (!querySnapshot.empty) {
+                doc = querySnapshot.docs[0];
+                studentRef = doc.ref;
+            }
+        }
+
+        if (!doc?.exists) {
             return res.status(404).json({ status: 'error', message: 'Student not found' });
         }
 
         await studentRef.delete();
-        console.log(`[DELETE_STUDENT] Successfully deleted: ${studentId}`);
+        console.log(`[DELETE_STUDENT] Successfully deleted actual ID: ${studentRef.id}`);
 
         /** @type {import('socket.io').Server} */
         const io = req.app.get('io');
@@ -216,10 +249,18 @@ exports.updatePasskey = async (req, res) => {
             return res.status(400).json({ status: 'error', message: 'New Passkey must be exactly 4 digits.' });
         }
 
-        const studentRef = db.collection('students').doc(studentId);
-        const doc = await studentRef.get();
+        let studentRef = db.collection('students').doc(studentId);
+        let doc = await studentRef.get();
 
         if (!doc.exists) {
+            const querySnapshot = await db.collection('students').where('studentId', '==', studentId).limit(1).get();
+            if (!querySnapshot.empty) {
+                doc = querySnapshot.docs[0];
+                studentRef = doc.ref;
+            }
+        }
+
+        if (!doc?.exists) {
             return res.status(404).json({ status: 'error', message: 'Student not found' });
         }
 
@@ -272,6 +313,89 @@ exports.markNotificationRead = async (req, res) => {
         });
         res.status(200).json({ status: 'success', message: 'Notification marked as read' });
     } catch (error) {
+        res.status(500).json({ status: 'error', message: error.message });
+    }
+};
+
+exports.updateStudent = async (req, res) => {
+    try {
+        const { studentId: rawOldId } = req.params;
+        const oldStudentId = rawOldId?.trim()?.toUpperCase();
+        const { fullName, gradeSection, studentId: rawNewId, lrn, newPasskey } = req.body;
+        const newStudentId = rawNewId?.trim()?.toUpperCase();
+
+        let studentRef = db.collection('students').doc(oldStudentId);
+        let doc = await studentRef.get();
+
+        if (!doc.exists) {
+            const querySnapshot = await db.collection('students').where('studentId', '==', oldStudentId).limit(1).get();
+            if (!querySnapshot.empty) {
+                doc = querySnapshot.docs[0];
+                studentRef = doc.ref;
+            }
+        }
+
+        if (!doc?.exists) {
+            return res.status(404).json({ status: 'error', message: 'Student not found in database' });
+        }
+
+        const currentData = doc.data();
+        const finalId = newStudentId || currentData.studentId || oldStudentId;
+
+        // Sync grade/section if gradeSection is provided
+        let grade = currentData.grade || '';
+        let section = currentData.section || '';
+        if (gradeSection && gradeSection.includes('-')) {
+            const parts = gradeSection.split('-');
+            grade = parts[0].trim();
+            section = parts[1].trim();
+        }
+
+        const updates = {
+            fullName: fullName || currentData.fullName,
+            gradeSection: gradeSection || currentData.gradeSection,
+            grade: grade,
+            section: section,
+            lrn: lrn || currentData.lrn || '',
+            studentId: finalId,
+            qrData: `FUGEN:${finalId}` // Ensure QR updates if ID changes
+        };
+
+        if (newPasskey) {
+            updates.passkeyHash = await bcrypt.hash(newPasskey, SALT_ROUNDS);
+        }
+
+        // If studentId changed, move the document
+        if (finalId !== currentData.studentId) {
+            const clash = await db.collection('students').doc(finalId).get();
+            if (clash.exists) {
+                return res.status(400).json({ status: 'error', message: 'The new Student ID is already in use.' });
+            }
+
+            const newData = { ...currentData, ...updates };
+            await db.collection('students').doc(finalId).set(newData);
+            await studentRef.delete();
+            console.log(`[UPDATE_STUDENT] Moved student ${oldStudentId} to ${finalId}`);
+        } else {
+            await studentRef.update(updates);
+            console.log(`[UPDATE_STUDENT] Updated student ${finalId}`);
+        }
+
+        /** @type {import('socket.io').Server} */
+        const io = req.app.get('io');
+        if (io) {
+            // Emit a balanceUpdate to force refresh across the system
+            io.emit('balanceUpdate', { studentId: finalId, type: 'PROFILE_UPDATE' });
+            if (finalId !== oldStudentId) {
+                io.emit('studentDeleted', { studentId: oldStudentId });
+                io.emit('studentCreated', { studentId: finalId });
+            }
+        }
+
+        return res.status(200).json({ status: 'success', message: 'Student information updated' });
+
+    } catch (error) {
+        console.error("[UPDATE_STUDENT] Error:", error);
         res.status(500).json({ status: 'error', message: error.message });
     }
 };
