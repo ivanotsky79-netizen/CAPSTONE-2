@@ -2,9 +2,32 @@ const { db } = require('../config/firebase');
 const bcrypt = require('bcryptjs');
 const { v4: uuidv4 } = require('uuid');
 
+/**
+ * Helper to find a student doc by ID (case-insensitive)
+ */
+async function findStudentDoc(studentId) {
+    if (!studentId) return null;
+    const cleanId = studentId.trim().toUpperCase();
+
+    // Try Doc ID lookup (Uppercase)
+    let docRef = db.collection('students').doc(cleanId);
+    let doc = await docRef.get();
+    if (doc.exists) return { doc, ref: docRef };
+
+    // Try Doc ID lookup (Original Case)
+    docRef = db.collection('students').doc(studentId.trim());
+    doc = await docRef.get();
+    if (doc.exists) return { doc, ref: docRef };
+
+    // Try studentId field search
+    let snapshot = await db.collection('students').where('studentId', '==', cleanId).limit(1).get();
+    if (!snapshot.empty) return { doc: snapshot.docs[0], ref: snapshot.docs[0].ref };
+
+    return null;
+}
+
 exports.topUp = async (req, res) => {
     const { studentId: rawStudentId, amount, location } = req.body;
-    const studentId = rawStudentId?.trim()?.toUpperCase();
     const topUpAmount = parseFloat(amount);
 
     if (topUpAmount <= 0) {
@@ -13,30 +36,16 @@ exports.topUp = async (req, res) => {
 
     try {
         await db.runTransaction(async (t) => {
-            const studentRef = db.collection('students').doc(studentId);
-            const studentDoc = await t.get(studentRef);
+            const result = await findStudentDoc(rawStudentId);
+            if (!result) throw new Error('Student not found');
 
-            let studentDocActual = studentDoc;
-            let studentRefActual = studentRef;
-
-            if (!studentDoc.exists) {
-                // Fallback: search by studentId field
-                const querySnapshot = await t.get(db.collection('students').where('studentId', '==', studentId).limit(1));
-                if (querySnapshot.empty) {
-                    throw new Error('Student not found');
-                }
-                studentDocActual = querySnapshot.docs[0];
-                studentRefActual = studentDocActual.ref;
-            }
-
+            const studentDocActual = result.doc;
+            const studentRefActual = result.ref;
             const student = studentDocActual.data();
+            const studentId = student.studentId; // Use normalized ID
+
             const currentBalance = parseFloat(student.balance || 0);
-
-            console.log(`[TOPUP] Student: ${studentId}, Current: ${currentBalance}, Adding: ${topUpAmount}`);
-
-            // Explicitly ensure we are doing math, not string concatenation
             const newBalance = Number((currentBalance + topUpAmount).toFixed(2));
-            console.log(`[TOPUP] New Balance Calculation: ${currentBalance} + ${topUpAmount} = ${newBalance}`);
 
             const transaction = {
                 id: uuidv4(),
@@ -57,11 +66,8 @@ exports.topUp = async (req, res) => {
             t.set(transRef, transaction);
         });
 
-        /** @type {import('socket.io').Server} */
         const io = req.app.get('io');
-        if (io) {
-            io.emit('balanceUpdate', { studentId, type: 'TOPUP' });
-        }
+        if (io) io.emit('balanceUpdate', { studentId: rawStudentId?.toUpperCase(), type: 'TOPUP' });
 
         res.status(200).json({ status: 'success', message: 'Topup successful' });
     } catch (error) {
@@ -72,13 +78,9 @@ exports.topUp = async (req, res) => {
 exports.deduct = async (req, res) => {
     try {
         const { studentId: rawStudentId, amount, location, adminPin } = req.body;
-        console.log(`[DEDUCT_REQUEST] Student: ${rawStudentId}, Amount: ${amount}, Admin PIN Provided: ${!!adminPin}`);
-
-        const studentId = rawStudentId?.trim()?.toUpperCase();
         const deductAmount = parseFloat(amount);
 
         if (adminPin !== '170206') {
-            console.log(`[DEDUCT_ERROR] Invalid Admin PIN attempt for ${studentId}`);
             return res.status(401).json({ status: 'error', message: 'Invalid Admin PIN' });
         }
 
@@ -87,30 +89,19 @@ exports.deduct = async (req, res) => {
         }
 
         await db.runTransaction(async (t) => {
-            const studentRef = db.collection('students').doc(studentId);
-            const studentDoc = await t.get(studentRef);
+            const result = await findStudentDoc(rawStudentId);
+            if (!result) throw new Error('Student not found');
 
-            let studentDocActual = studentDoc;
-            let studentRefActual = studentRef;
-
-            if (!studentDoc.exists) {
-                const querySnapshot = await t.get(db.collection('students').where('studentId', '==', studentId).limit(1));
-                if (querySnapshot.empty) {
-                    throw new Error('Student not found in database');
-                }
-                studentDocActual = querySnapshot.docs[0];
-                studentRefActual = studentDocActual.ref;
-            }
-
+            const studentDocActual = result.doc;
+            const studentRefActual = result.ref;
             const student = studentDocActual.data();
+
             const currentBalance = parseFloat(student.balance || 0);
             const newBalance = Number((currentBalance - deductAmount).toFixed(2));
 
-            console.log(`[DEDUCT_EXEC] Student: ${student.fullName}, Balance: ${currentBalance} -> ${newBalance}`);
-
             const transaction = {
                 id: uuidv4(),
-                studentId: student.studentId, // Use exact ID from DB
+                studentId: student.studentId,
                 studentName: student.fullName,
                 grade: student.grade || '',
                 section: student.section || '',
@@ -127,69 +118,43 @@ exports.deduct = async (req, res) => {
             t.set(transRef, transaction);
         });
 
-        /** @type {import('socket.io').Server} */
         const io = req.app.get('io');
-        if (io) io.emit('balanceUpdate', { studentId, type: 'DEDUCTION' });
+        if (io) io.emit('balanceUpdate', { studentId: rawStudentId?.toUpperCase(), type: 'DEDUCTION' });
 
         res.status(200).json({ status: 'success', message: 'Points successfully removed' });
     } catch (error) {
-        console.error(`[DEDUCT_CRITICAL_FAIL] ${error.message}`);
-        res.status(500).json({ status: 'error', message: error.message || 'Server-side deduction error' });
+        res.status(500).json({ status: 'error', message: error.message });
     }
 };
 
 exports.purchase = async (req, res) => {
     const { studentId: rawStudentId, amount, passkey } = req.body;
-    const studentId = rawStudentId?.trim()?.toUpperCase();
     const purchaseAmount = parseFloat(amount);
 
     try {
         await db.runTransaction(async (t) => {
-            const studentRef = db.collection('students').doc(studentId);
-            const studentDoc = await t.get(studentRef);
+            const result = await findStudentDoc(rawStudentId);
+            if (!result) throw new Error('Student not found');
 
-            let studentDocActual = studentDoc;
-            let studentRefActual = studentRef;
-
-            if (!studentDoc.exists) {
-                // Fallback: search by studentId field
-                const querySnapshot = await t.get(db.collection('students').where('studentId', '==', studentId).limit(1));
-                if (querySnapshot.empty) {
-                    throw new Error('Student not found');
-                }
-                studentDocActual = querySnapshot.docs[0];
-                studentRefActual = studentDocActual.ref;
-            }
-
+            const studentDocActual = result.doc;
+            const studentRefActual = result.ref;
             const student = studentDocActual.data();
 
-            if (student.accountLocked) {
-                throw new Error('Account locked');
-            }
+            if (student.accountLocked) throw new Error('Account locked');
 
-            // Verify Passkey (Bypassable for Admin/Proceed flow)
-            if (req.body.bypassPasskey) {
-                console.log(`[PURCHASE] Bypassing passkey check for student: ${studentId}`);
-            } else {
+            if (!req.body.bypassPasskey) {
                 const match = await bcrypt.compare(passkey, student.passkeyHash);
-                if (!match) {
-                    throw new Error('Invalid Passkey');
-                }
+                if (!match) throw new Error('Invalid Passkey');
             }
 
             const currentBalance = parseFloat(student.balance || 0);
             const newBalance = Number((currentBalance - purchaseAmount).toFixed(2));
 
-            console.log(`[PURCHASE] Student: ${studentId}, Current: ${currentBalance}, Deducting: ${purchaseAmount}, Result: ${newBalance}`);
-
-            // Hard credit limit check (-500 SAR)
-            if (newBalance < -500) {
-                throw new Error('Credit limit exceeded (Max debt: SAR 500)');
-            }
+            if (newBalance < -500) throw new Error('Credit limit exceeded (Max debt: SAR 500)');
 
             const transaction = {
                 id: uuidv4(),
-                studentId,
+                studentId: student.studentId,
                 studentName: student.fullName,
                 grade: student.grade,
                 section: student.section,
@@ -202,15 +167,11 @@ exports.purchase = async (req, res) => {
             };
 
             t.update(studentRefActual, { balance: newBalance });
-            const transRef = db.collection('transactions').doc(transaction.id);
-            t.set(transRef, transaction);
+            t.set(db.collection('transactions').doc(transaction.id), transaction);
         });
 
-        /** @type {import('socket.io').Server} */
         const io = req.app.get('io');
-        if (io) {
-            io.emit('balanceUpdate', { studentId, type: 'PURCHASE' });
-        }
+        if (io) io.emit('balanceUpdate', { studentId: rawStudentId?.toUpperCase(), type: 'PURCHASE' });
 
         res.status(200).json({ status: 'success', message: 'Purchase successful' });
     } catch (error) {
@@ -224,26 +185,12 @@ exports.getTransactions = async (req, res) => {
         let transactions = [];
 
         if (studentId) {
-            // Fetch all transactions for this student
-            // We do NOT use orderBy here to avoid Indexing errors on Cloud Firestore
-            const snapshot = await db.collection('transactions')
-                .where('studentId', '==', studentId)
-                .get();
-
+            const snapshot = await db.collection('transactions').where('studentId', '==', studentId).get();
             snapshot.forEach(doc => transactions.push(doc.data()));
-
-            // Sort in memory (Newest first)
             transactions.sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp));
-
-            // Limit to 50 most recent
             transactions = transactions.slice(0, 50);
         } else {
-            // Global fetch (no filter), so single-field orderBy works fine
-            const snapshot = await db.collection('transactions')
-                .orderBy('timestamp', 'desc')
-                .limit(50)
-                .get();
-
+            const snapshot = await db.collection('transactions').orderBy('timestamp', 'desc').limit(50).get();
             snapshot.forEach(doc => transactions.push(doc.data()));
         }
 
@@ -256,28 +203,18 @@ exports.getTransactions = async (req, res) => {
 exports.withdraw = async (req, res) => {
     try {
         const { amount, passkey } = req.body;
-        const withdrawAmount = parseFloat(amount);
-
-        // Hardcoded limit check or passkey check (Admin Pin 170206)
-        if (passkey !== '170206') {
-            return res.status(401).json({ status: 'error', message: 'Invalid Admin PIN' });
-        }
-
-        if (withdrawAmount <= 0) {
-            return res.status(400).json({ status: 'error', message: 'Amount must be positive' });
-        }
+        if (passkey !== '170206') return res.status(401).json({ status: 'error', message: 'Invalid Admin PIN' });
 
         const transaction = {
             id: uuidv4(),
             type: 'WITHDRAWAL',
-            amount: withdrawAmount,
+            amount: parseFloat(amount),
             location: 'ADMIN',
             timestamp: new Date().toISOString(),
             description: 'System Cash Withdrawal'
         };
 
         await db.collection('transactions').doc(transaction.id).set(transaction);
-
         res.status(200).json({ status: 'success', message: 'Withdrawal successful' });
     } catch (error) {
         res.status(500).json({ status: 'error', message: error.message });
@@ -286,554 +223,170 @@ exports.withdraw = async (req, res) => {
 
 exports.getDailyStats = async (req, res) => {
     try {
-        if (!db) {
-            throw new Error("Database not initialized. Check your serviceAccountKey.json");
-        }
-
         const { date, location } = req.query;
         let startOfDay, endOfDay;
 
         if (date) {
-            // Parse date string as UTC to avoid timezone shifts
             const [year, month, day] = date.split('-').map(Number);
             startOfDay = new Date(Date.UTC(year, month - 1, day, 0, 0, 0, 0));
             endOfDay = new Date(Date.UTC(year, month - 1, day, 23, 59, 59, 999));
         } else {
-            // Today in UTC
             const now = new Date();
             startOfDay = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate(), 0, 0, 0, 0));
             endOfDay = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate(), 23, 59, 59, 999));
         }
 
-        // Fetch transactions for the DAY
         const snapshot = await db.collection('transactions')
             .where('timestamp', '>=', startOfDay.toISOString())
             .where('timestamp', '<=', endOfDay.toISOString())
             .get();
 
-        // Initialize Stats
-        let canteenStats = {
-            totalSales: 0,
-            cashCollected: 0,
-            totalCredit: 0, // Sales on credit TODAY
-            transactions: []
-        };
+        let canteenStats = { totalSales: 0, cashCollected: 0, totalCredit: 0, transactions: [] };
+        let systemStats = { topups: 0, withdrawals: 0, transactions: [] };
 
-        let systemStats = {
-            topups: 0, // Cash IN from users
-            withdrawals: 0, // Cash OUT to canteen
-            transactions: []
-        };
-
-        // Process Today's Transactions
         snapshot.forEach(doc => {
             const data = doc.data();
-            const transactionRecord = { id: doc.id, ...data };
-
             if (data.type === 'PURCHASE') {
-                if (location && location !== 'CANTEEN') return; // If filtered for something else
-
-                const amount = parseFloat(data.amount || 0);
+                if (location && location !== 'CANTEEN') return;
+                const amt = parseFloat(data.amount || 0);
                 const prev = parseFloat(data.previousBalance || 0);
-                let creditPart = 0;
-                let cashPart = 0;
+                let creditPart = prev <= 0 ? amt : (prev < amt ? amt - prev : 0);
+                let cashPart = amt - creditPart;
 
-                if (prev <= 0) {
-                    creditPart = amount;
-                } else if (prev < amount) {
-                    cashPart = prev;
-                    creditPart = amount - prev;
-                } else {
-                    cashPart = amount;
-                }
-
-                canteenStats.totalSales += amount;
+                canteenStats.totalSales += amt;
                 canteenStats.cashCollected += cashPart;
                 canteenStats.totalCredit += creditPart;
-
-                transactionRecord.creditAmount = creditPart;
-                transactionRecord.cashAmount = cashPart;
-                canteenStats.transactions.push(transactionRecord);
-
-            } else if (data.type === 'TOPUP') {
-                if (location && location === 'CANTEEN') return; // POS doesn't care about Topups
-
-                const amount = parseFloat(data.amount || 0);
-                systemStats.topups += amount;
-                systemStats.transactions.push(transactionRecord);
-
-            } else if (data.type === 'WITHDRAWAL') {
-                if (location && location === 'CANTEEN') return; // POS doesn't see withdrawals
-
-                const amount = parseFloat(data.amount || 0);
-                systemStats.withdrawals += amount;
-                systemStats.transactions.push(transactionRecord);
-            } else if (data.type === 'DEDUCTION') {
-                if (location && location === 'CANTEEN') return;
-                systemStats.transactions.push(transactionRecord);
+                canteenStats.transactions.push({ ...data, id: doc.id, creditAmount: creditPart, cashAmount: cashPart });
+            } else {
+                if (data.type === 'TOPUP') systemStats.topups += parseFloat(data.amount || 0);
+                if (data.type === 'WITHDRAWAL') systemStats.withdrawals += parseFloat(data.amount || 0);
+                systemStats.transactions.push({ ...data, id: doc.id });
             }
         });
 
-        // Global System Debt (Outstanding Credit - Always needed for System Data Screen)
-        let globalTotalCredit = 0;
-        let totalSystemCash = 0;
-
-        // Always calculate Global Debt and Cash
+        let totalSystemCash = 0, globalTotalCredit = 0;
         const allStudents = await db.collection('students').get();
-        totalSystemCash = 0;
-        globalTotalCredit = 0;
         allStudents.forEach(doc => {
             const b = parseFloat(doc.data().balance || 0);
-            if (b > 0) totalSystemCash += b;
-            else if (b < 0) globalTotalCredit += Math.abs(b);
+            if (b > 0) totalSystemCash += b; else if (b < 0) globalTotalCredit += Math.abs(b);
         });
 
-        // Return structured data
         if (location === 'CANTEEN') {
             res.status(200).json({
                 status: 'success',
                 data: {
-                    totalSales: canteenStats.totalSales,
-                    totalCash: canteenStats.cashCollected,
-                    totalCredit: globalTotalCredit,
-                    todayCreditSales: canteenStats.totalCredit,
-                    transactions: canteenStats.transactions.sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp)),
-                    cashList: canteenStats.transactions.filter(t => t.cashAmount > 0),
-                    creditList: canteenStats.transactions.filter(t => t.creditAmount > 0)
+                    totalSales: canteenStats.totalSales, totalCash: canteenStats.cashCollected, totalCredit: globalTotalCredit, todayCreditSales: canteenStats.totalCredit,
+                    transactions: canteenStats.transactions.sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp))
                 }
             });
         } else {
-            // Admin Response
             res.status(200).json({
                 status: 'success',
                 data: {
-                    canteen: {
-                        ...canteenStats,
-                        transactions: canteenStats.transactions.sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp))
-                    },
-                    system: {
-                        todayTopups: systemStats.topups,
-                        todayWithdrawals: systemStats.withdrawals,
-                        totalCashOnHand: totalSystemCash,
-                        totalDebt: globalTotalCredit,
-                        transactions: systemStats.transactions.sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp))
-                    }
+                    canteen: canteenStats,
+                    system: { todayTopups: systemStats.topups, todayWithdrawals: systemStats.withdrawals, totalCashOnHand: totalSystemCash, totalDebt: globalTotalCredit, transactions: systemStats.transactions }
                 }
             });
         }
-
-    } catch (error) {
-        console.error('❌ Stats Error:', error);
-        res.status(500).json({ status: 'error', message: error.message });
-    }
+    } catch (error) { res.status(500).json({ status: 'error', message: error.message }); }
 };
 
 exports.requestTopup = async (req, res) => {
     try {
         const { studentId, amount, date, timeSlot } = req.body;
+        const result = await findStudentDoc(studentId);
+        const name = result ? result.doc.data().fullName : 'Unknown';
+        const gs = result ? result.doc.data().gradeSection : 'Unknown';
 
-        // Fetch student name real quick to store in request
-        const studentRef = db.collection('students').doc(studentId);
-        const studentDoc = await studentRef.get();
-        let studentName = 'Unknown';
-        let gradeSection = 'Unknown';
-
-        if (studentDoc.exists) {
-            studentName = studentDoc.data().fullName || 'Unknown';
-            gradeSection = studentDoc.data().gradeSection || 'Unknown';
-        } else {
-            // Check studentId field fallback
-            const querySnapshot = await db.collection('students').where('studentId', '==', studentId).limit(1).get();
-            if (!querySnapshot.empty) {
-                studentName = querySnapshot.docs[0].data().fullName || 'Unknown';
-                gradeSection = querySnapshot.docs[0].data().gradeSection || 'Unknown';
-            }
-        }
-
-        const requestDoc = {
-            studentId,
-            studentName,
-            gradeSection,
-            amount: parseFloat(amount),
-            date, // e.g., '2026-02-23'
-            timeSlot: timeSlot || 'Not Specified',
-            status: 'PENDING',
-            timestamp: new Date().toISOString()
-        };
-
-        const docRef = await db.collection('topUpRequests').add(requestDoc);
-        res.status(200).json({ status: 'success', data: { id: docRef.id, ...requestDoc } });
-    } catch (error) {
-        res.status(500).json({ status: 'error', message: error.message });
-    }
+        const doc = { studentId, studentName: name, gradeSection: gs, amount: parseFloat(amount), date, timeSlot, status: 'PENDING', timestamp: new Date().toISOString() };
+        const ref = await db.collection('topUpRequests').add(doc);
+        res.status(200).json({ status: 'success', data: { id: ref.id, ...doc } });
+    } catch (error) { res.status(500).json({ status: 'error', message: error.message }); }
 };
 
 exports.getTopupRequests = async (req, res) => {
     try {
         const { studentId } = req.query;
-        let query = db.collection('topUpRequests')
-            .where('status', 'in', ['PENDING', 'ACCEPTED', 'RESOLVED']);
-
-        if (studentId) {
-            query = query.where('studentId', '==', studentId);
-        }
-
-        const snapshot = await query.get();
-
-        let requests = [];
-        snapshot.forEach(doc => {
-            requests.push({ id: doc.id, ...doc.data() });
-        });
-
-        requests.sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp));
-
-        res.status(200).json({ status: 'success', data: requests });
-    } catch (error) {
-        res.status(500).json({ status: 'error', message: error.message });
-    }
+        let q = db.collection('topUpRequests').where('status', 'in', ['PENDING', 'ACCEPTED', 'RESOLVED']);
+        if (studentId) q = q.where('studentId', '==', studentId);
+        const s = await q.get();
+        let r = []; s.forEach(d => r.push({ id: d.id, ...d.data() }));
+        r.sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp));
+        res.status(200).json({ status: 'success', data: r });
+    } catch (error) { res.status(500).json({ status: 'error', message: error.message }); }
 };
 
 exports.approveTopupRequest = async (req, res) => {
     try {
         const { id } = req.params;
-        const reqDoc = await db.collection('topUpRequests').doc(id).get();
-
-        if (!reqDoc.exists) {
-            return res.status(404).json({ status: 'error', message: 'Request not found' });
-        }
-
-        const data = reqDoc.data();
-
-        if (data.status !== 'PENDING') {
-            return res.status(400).json({ status: 'error', message: 'Request is not in pending state' });
-        }
-
-        // 1. Update status to ACCEPTED
-        await db.collection('topUpRequests').doc(id).update({
-            status: 'ACCEPTED',
-            approvedAt: new Date().toISOString()
-        });
-
-        // 2. Send "Reservation Accepted" notification
-        await db.collection('notifications').add({
-            studentId: data.studentId,
-            title: 'Reservation Accepted',
-            message: `Your top-up reservation of SAR ${parseFloat(data.amount).toFixed(2)} has been reviewed and accepted. Please proceed to the office to complete your payment.`,
-            read: false,
-            timestamp: new Date().toISOString()
-        });
-
-        // 3. Emit socket event to refresh dashboard in real-time
-        const io = req.app.get('io');
-        if (io) {
-            io.emit('balanceUpdate', { studentId: data.studentId, type: 'NOTIFICATION' });
-        }
-
-        res.status(200).json({ status: 'success', message: 'Reservation accepted and user notified' });
-    } catch (error) {
-        res.status(500).json({ status: 'error', message: error.message });
-    }
+        const d = await db.collection('topUpRequests').doc(id).get();
+        if (!d.exists) return res.status(404).json({ status: 'error', message: 'Not found' });
+        const data = d.data();
+        await db.collection('topUpRequests').doc(id).update({ status: 'ACCEPTED', approvedAt: new Date().toISOString() });
+        await db.collection('notifications').add({ studentId: data.studentId, title: 'Reservation Accepted', message: `Top-up of SAR ${data.amount} accepted.`, read: false, timestamp: new Date().toISOString() });
+        const io = req.app.get('io'); if (io) io.emit('balanceUpdate', { studentId: data.studentId, type: 'NOTIFICATION' });
+        res.status(200).json({ status: 'success' });
+    } catch (error) { res.status(500).json({ status: 'error', message: error.message }); }
 };
 
 exports.rejectTopupRequest = async (req, res) => {
     try {
         const { id } = req.params;
-        console.log(`[REJECT_REQUEST] Attempting to reject: ${id}`);
-
-        const reqDoc = await db.collection('topUpRequests').doc(id).get();
-
-        if (!reqDoc.exists) {
-            console.log(`[REJECT_ERROR] Request ${id} not found`);
-            return res.status(404).json({ status: 'error', message: 'Request could not be found' });
-        }
-
-        const data = reqDoc.data();
-        if (data.status === 'RESOLVED' || data.status === 'REJECTED') {
-            return res.status(400).json({ status: 'error', message: 'Request is already finalized as ' + data.status });
-        }
-
-        await db.collection('topUpRequests').doc(id).update({
-            status: 'REJECTED',
-            rejectedAt: new Date().toISOString()
-        });
-
-        // Safe amount formatting
-        const displayAmount = (parseFloat(data.amount) || 0).toFixed(2);
-
-        await db.collection('notifications').add({
-            studentId: data.studentId,
-            title: 'Reservation Rejected',
-            message: `Your top-up reservation of SAR ${displayAmount} has been rejected. Please contact the office if you have questions.`,
-            read: false,
-            timestamp: new Date().toISOString()
-        });
-
-        const io = req.app.get('io');
-        if (io) {
-            io.emit('balanceUpdate', { studentId: data.studentId, type: 'NOTIFICATION' });
-        }
-
-        console.log(`[REJECT_SUCCESS] Request ${id} rejected for student ${data.studentId}`);
-        res.status(200).json({ status: 'success', message: 'Reservation rejected' });
-    } catch (error) {
-        console.error(`[REJECT_FAIL] Error for request ${req.params.id}:`, error.message);
-        res.status(500).json({ status: 'error', message: error.message });
-    }
-};
-
-exports.rescheduleTopupRequest = async (req, res) => {
-    try {
-        const { id } = req.params;
-        const { date, timeSlot } = req.body;
-
-        if (!date || !timeSlot) {
-            return res.status(400).json({ status: 'error', message: 'Date and Time Slot are required' });
-        }
-
-        const reqDoc = await db.collection('topUpRequests').doc(id).get();
-        if (!reqDoc.exists) {
-            return res.status(404).json({ status: 'error', message: 'Request not found' });
-        }
-
-        const data = reqDoc.data();
-        if (data.status === 'RESOLVED' || data.status === 'REJECTED') {
-            return res.status(400).json({ status: 'error', message: 'Cannot reschedule a finalized request' });
-        }
-
-        await db.collection('topUpRequests').doc(id).update({
-            date,
-            timeSlot,
-            updatedAt: new Date().toISOString()
-        });
-
-        await db.collection('notifications').add({
-            studentId: data.studentId,
-            title: 'Reservation Rescheduled',
-            message: `Your top-up reservation has been moved to ${date} (${timeSlot}). Please visit the office at the new time.`,
-            read: false,
-            timestamp: new Date().toISOString()
-        });
-
-        const io = req.app.get('io');
-        if (io) {
-            io.emit('balanceUpdate', { studentId: data.studentId, type: 'NOTIFICATION' });
-        }
-
-        res.status(200).json({ status: 'success', message: 'Reservation rescheduled' });
-    } catch (error) {
-        res.status(500).json({ status: 'error', message: error.message });
-    }
+        const d = await db.collection('topUpRequests').doc(id).get();
+        if (!d.exists) return res.status(404).json({ status: 'error', message: 'Not found' });
+        const data = d.data();
+        await db.collection('topUpRequests').doc(id).update({ status: 'REJECTED', rejectedAt: new Date().toISOString() });
+        await db.collection('notifications').add({ studentId: data.studentId, title: 'Reservation Rejected', message: `Top-up of SAR ${data.amount} rejected.`, read: false, timestamp: new Date().toISOString() });
+        const io = req.app.get('io'); if (io) io.emit('balanceUpdate', { studentId: data.studentId, type: 'NOTIFICATION' });
+        res.status(200).json({ status: 'success' });
+    } catch (error) { res.status(500).json({ status: 'error', message: error.message }); }
 };
 
 exports.resolveTopupRequest = async (req, res) => {
     try {
         const { id } = req.params;
-        const reqDoc = await db.collection('topUpRequests').doc(id).get();
+        const rDoc = await db.collection('topUpRequests').doc(id).get();
+        if (!rDoc.exists) return res.status(404).json({ status: 'error', message: 'Not found' });
+        const data = rDoc.data();
+        const result = await findStudentDoc(data.studentId);
+        if (!result) return res.status(404).json({ status: 'error', message: 'Student not found' });
 
-        if (!reqDoc.exists) {
-            return res.status(404).json({ status: 'error', message: 'Request not found' });
-        }
-
-        const data = reqDoc.data();
-
-        if (data.status === 'RESOLVED') {
-            return res.status(400).json({ status: 'error', message: 'Already resolved' });
-        }
-
-        let studentRef = db.collection('students').doc(data.studentId);
-        let studentDoc = await studentRef.get();
-
-        if (!studentDoc.exists) {
-            // Fallback 1: Check studentId field
-            const querySnapshot = await db.collection('students').where('studentId', '==', data.studentId).limit(1).get();
-            if (!querySnapshot.empty) {
-                studentDoc = querySnapshot.docs[0];
-                studentRef = studentDoc.ref;
-            } else {
-                // Fallback 2: Check by Name (for restored/fixed accounts)
-                console.log(`[RESOLVE] ID not found, trying Name fallback for: "${data.studentName}"`);
-                const nameQuery = await db.collection('students')
-                    .where('fullName', '==', data.studentName)
-                    .limit(1)
-                    .get();
-
-                if (!nameQuery.empty) {
-                    studentDoc = nameQuery.docs[0];
-                    studentRef = studentDoc.ref;
-                    console.log(`[RESOLVE] Found student by Name fallback: ${studentDoc.id}`);
-                }
-            }
-        }
-
-        if (studentDoc.exists) {
-            const student = studentDoc.data();
-            const currentBal = parseFloat(student.balance) || 0;
-            const newBal = Number((currentBal + parseFloat(data.amount)).toFixed(2));
-
-            // 1. Update Student Balance
-            await studentRef.update({ balance: newBal });
-
-            // 2. Log Transaction
-            await db.collection('transactions').add({
-                studentId: data.studentId,
-                studentName: data.studentName,
-                gradeSection: data.gradeSection,
-                type: 'TOPUP',
-                amount: parseFloat(data.amount),
-                balanceAfter: newBal,
-                timestamp: new Date().toISOString(),
-                description: 'Top-up from request'
-            });
-
-            // 3. Send Notification to user's inbox
-            await db.collection('notifications').add({
-                studentId: data.studentId,
-                title: 'Top-Up Completed',
-                message: `Payment received! SAR ${parseFloat(data.amount).toFixed(2)} has been successfully added to your points balance.`,
-                read: false,
-                timestamp: new Date().toISOString()
-            });
-
-            // 4. Update request status
-            await db.collection('topUpRequests').doc(id).update({
-                status: 'RESOLVED',
-                resolvedAt: new Date().toISOString()
-            });
-
-            // 5. Emit socket event
-            const io = req.app.get('io');
-            if (io) {
-                io.emit('balanceUpdate', { studentId: data.studentId, newBalance: newBal, type: 'BALANCE_UPDATE' });
-            }
-        } else {
-            console.error(`[RESOLVE_ERROR] Student ${data.studentId} not found for request ${id}`);
-            return res.status(404).json({
-                status: 'error',
-                message: 'STUDENT_NOT_FOUND',
-                details: `Student ${data.studentId} is missing from the database. Please restore them from the request list first.`
-            });
-        }
-
-        res.status(200).json({ status: 'success', message: 'Request resolved and balance updated' });
-    } catch (error) {
-        res.status(500).json({ status: 'error', message: error.message });
-    }
+        const student = result.doc.data();
+        const newBal = Number((parseFloat(student.balance || 0) + parseFloat(data.amount)).toFixed(2));
+        await result.ref.update({ balance: newBal });
+        await db.collection('transactions').add({ studentId: data.studentId, type: 'TOPUP', amount: parseFloat(data.amount), balanceAfter: newBal, timestamp: new Date().toISOString(), description: 'From request' });
+        await db.collection('topUpRequests').doc(id).update({ status: 'RESOLVED', resolvedAt: new Date().toISOString() });
+        const io = req.app.get('io'); if (io) io.emit('balanceUpdate', { studentId: data.studentId, type: 'BALANCE_UPDATE' });
+        res.status(200).json({ status: 'success' });
+    } catch (error) { res.status(500).json({ status: 'error', message: error.message }); }
 };
 
 exports.getWeeklyStats = async (req, res) => {
     try {
-        if (!db) throw new Error("Database not initialized.");
-
-        // Get date 7 days ago
-        let startOfPeriod = new Date();
-        startOfPeriod.setDate(startOfPeriod.getDate() - 6);
-        startOfPeriod.setHours(0, 0, 0, 0);
-
-        const snapshot = await db.collection('transactions')
-            .where('timestamp', '>=', startOfPeriod.toISOString())
-            .get();
-
-        // Group by day (YYYY-MM-DD)
-        const dailyData = {};
-        for (let i = 0; i < 7; i++) {
-            const d = new Date();
-            d.setDate(d.getDate() - i);
-            const dateStr = d.toISOString().split('T')[0];
-            dailyData[dateStr] = 0;
-        }
-
-        snapshot.forEach(doc => {
-            const data = doc.data();
-            if (data.type === 'PURCHASE') {
-                const dateStr = data.timestamp.split('T')[0];
-                if (dailyData[dateStr] !== undefined) {
-                    dailyData[dateStr] += parseFloat(data.amount || 0);
-                }
-            }
-        });
-
-        // Convert to array format for Recharts
-        const chartData = Object.keys(dailyData).sort().map(dateStr => {
-            const d = new Date(dateStr);
-            const days = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
-            return {
-                name: days[d.getDay()],
-                date: dateStr,
-                sales: dailyData[dateStr]
-            };
-        });
-
-        res.status(200).json({ status: 'success', data: chartData });
-    } catch (error) {
-        console.error('❌ Weekly Stats Error:', error);
-        res.status(500).json({ status: 'error', message: error.message });
-    }
+        let s = new Date(); s.setDate(s.getDate() - 6); s.setHours(0, 0, 0, 0);
+        const snap = await db.collection('transactions').where('timestamp', '>=', s.toISOString()).get();
+        const daily = {}; for (let i = 0; i < 7; i++) { const d = new Date(); d.setDate(d.getDate() - i); daily[d.toISOString().split('T')[0]] = 0; }
+        snap.forEach(doc => { if (doc.data().type === 'PURCHASE') { const dt = doc.data().timestamp.split('T')[0]; if (daily[dt] !== undefined) daily[dt] += parseFloat(doc.data().amount || 0); } });
+        const chart = Object.keys(daily).sort().map(dt => ({ name: ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'][new Date(dt).getDay()], date: dt, sales: daily[dt] }));
+        res.status(200).json({ status: 'success', data: chart });
+    } catch (error) { res.status(500).json({ status: 'error', message: error.message }); }
 };
 
 exports.undoTopupRequest = async (req, res) => {
     try {
         const { id } = req.params;
-        const reqDoc = await db.collection('topUpRequests').doc(id).get();
-
-        if (!reqDoc.exists) {
-            return res.status(404).json({ status: 'error', message: 'Request not found' });
-        }
-
-        const data = reqDoc.data();
-        let newStatus = 'PENDING';
-        let message = 'Request reverted to Pending';
-
+        const rDoc = await db.collection('topUpRequests').doc(id).get();
+        if (!rDoc.exists) return res.status(404).json({ status: 'error', message: 'Not found' });
+        const data = rDoc.data();
         if (data.status === 'RESOLVED') {
-            // Undo Top-up: Subtract balance
-            let studentRef = db.collection('students').doc(data.studentId);
-            let studentDoc = await studentRef.get();
-
-            if (!studentDoc.exists) {
-                const querySnapshot = await db.collection('students').where('studentId', '==', data.studentId).limit(1).get();
-                if (!querySnapshot.empty) {
-                    studentDoc = querySnapshot.docs[0];
-                    studentRef = studentDoc.ref;
-                }
+            const result = await findStudentDoc(data.studentId);
+            if (result) {
+                const b = Number((parseFloat(result.doc.data().balance || 0) - parseFloat(data.amount)).toFixed(2));
+                await result.ref.update({ balance: b });
+                const io = req.app.get('io'); if (io) io.emit('balanceUpdate', { studentId: data.studentId, type: 'BALANCE_UPDATE' });
             }
-
-            if (studentDoc.exists) {
-                const student = studentDoc.data();
-                const currentBal = parseFloat(student.balance) || 0;
-                const undoBal = Number((currentBal - parseFloat(data.amount)).toFixed(2));
-                await studentRef.update({ balance: undoBal });
-
-                // Log "Undo" transaction
-                await db.collection('transactions').add({
-                    studentId: data.studentId,
-                    studentName: data.studentName,
-                    type: 'DEDUCTION',
-                    amount: parseFloat(data.amount),
-                    balanceAfter: undoBal,
-                    timestamp: new Date().toISOString(),
-                    description: 'Correction: Undone Top-up Request'
-                });
-
-                const io = req.app.get('io');
-                if (io) {
-                    io.emit('balanceUpdate', { studentId: data.studentId, newBalance: undoBal, type: 'BALANCE_UPDATE' });
-                }
-            }
-            newStatus = 'ACCEPTED';
-            message = 'Top-up undone. Request reverted to Accepted state.';
-        } else if (data.status === 'ACCEPTED') {
-            newStatus = 'PENDING';
-            message = 'Reservation acceptance undone. Request reverted to Pending state.';
-        } else {
-            return res.status(400).json({ status: 'error', message: 'Cannot undo a request in ' + data.status + ' state.' });
         }
-
-        await db.collection('topUpRequests').doc(id).update({
-            status: newStatus,
-            undoneAt: new Date().toISOString()
-        });
-
-        res.status(200).json({ status: 'success', message });
-    } catch (error) {
-        res.status(500).json({ status: 'error', message: error.message });
-    }
+        await db.collection('topUpRequests').doc(id).update({ status: 'PENDING', undoneAt: new Date().toISOString() });
+        res.status(200).json({ status: 'success' });
+    } catch (error) { res.status(500).json({ status: 'error', message: error.message }); }
 };

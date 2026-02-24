@@ -7,6 +7,34 @@ const SALT_ROUNDS = 4;
 // Limit for negative balance (debt)
 const MAX_DEBT_LIMIT = 500.00;
 
+/**
+ * Helper to find a student doc by ID (case-insensitive)
+ */
+async function findStudentDoc(studentId) {
+    if (!studentId) return null;
+    const cleanId = studentId.trim().toUpperCase();
+
+    // Try Doc ID lookup (Uppercase)
+    let docRef = db.collection('students').doc(cleanId);
+    let doc = await docRef.get();
+    if (doc.exists) return { doc, ref: docRef };
+
+    // Try Doc ID lookup (Original Case)
+    docRef = db.collection('students').doc(studentId.trim());
+    doc = await docRef.get();
+    if (doc.exists) return { doc, ref: docRef };
+
+    // Try studentId field search
+    let snapshot = await db.collection('students').where('studentId', '==', cleanId).limit(1).get();
+    if (!snapshot.empty) return { doc: snapshot.docs[0], ref: snapshot.docs[0].ref };
+
+    // Try LRN fallback
+    snapshot = await db.collection('students').where('lrn', '==', studentId.trim()).limit(1).get();
+    if (!snapshot.empty) return { doc: snapshot.docs[0], ref: snapshot.docs[0].ref };
+
+    return null;
+}
+
 exports.createStudent = async (req, res) => {
     try {
         console.log("[CREATE_STUDENT] Received request:", req.body);
@@ -23,8 +51,8 @@ exports.createStudent = async (req, res) => {
 
         if (studentId) {
             // Check if provided ID is unique
-            const existingDoc = await db.collection('students').doc(studentId).get();
-            if (!existingDoc.exists) {
+            const existing = await findStudentDoc(studentId);
+            if (!existing) {
                 isUnique = true;
             } else {
                 return res.status(400).json({ status: 'error', message: `Student ID "${studentId}" is already in use.` });
@@ -32,8 +60,8 @@ exports.createStudent = async (req, res) => {
         } else {
             while (!isUnique && attempts < 10) {
                 studentId = `S${new Date().getFullYear()}-${Math.floor(100000 + Math.random() * 900000)}`;
-                const existingDoc = await db.collection('students').doc(studentId).get();
-                if (!existingDoc.exists) {
+                const existing = await findStudentDoc(studentId);
+                if (!existing) {
                     isUnique = true;
                 }
                 attempts++;
@@ -82,46 +110,26 @@ exports.createStudent = async (req, res) => {
 exports.verifyPasskey = async (req, res) => {
     const startTime = Date.now();
     try {
-        const { studentId: rawStudentId, passkey } = req.body;
-        const studentId = rawStudentId?.trim()?.toUpperCase();
+        const { studentId, passkey } = req.body;
         console.log(`[VERIFY] PIN check starting for: "${studentId}"`);
 
-        let studentDoc;
-        studentDoc = await db.collection('students').doc(studentId).get();
+        const result = await findStudentDoc(studentId);
 
-        if (!studentDoc.exists) {
-            // Fallback 1: Search by 'studentId' field
-            let querySnapshot = await db.collection('students').where('studentId', '==', studentId).limit(1).get();
-
-            // Fallback 2: Search by 'lrn' field
-            if (querySnapshot.empty) {
-                console.log(`[VERIFY] ID not found in studentId field, trying LRN fallback for: "${studentId}"`);
-                querySnapshot = await db.collection('students').where('lrn', '==', studentId).limit(1).get();
-            }
-
-            if (!querySnapshot.empty) {
-                studentDoc = querySnapshot.docs[0];
-            }
-        }
-
-        if (!studentDoc?.exists) {
+        if (!result) {
             console.warn(`[VERIFY] Student ID "${studentId}" not found.`);
             return res.status(404).json({ status: 'error', message: 'Student not found in database' });
         }
 
-        const student = studentDoc.data();
-        const studentRef = studentDoc.ref; // Get accurate reference for updates
+        const student = result.doc.data();
+        const studentRef = result.ref;
 
         if (student.accountLocked) {
             return res.status(403).json({ status: 'error', message: 'Account locked' });
         }
 
-        const hashStart = Date.now();
-        console.log(`[VERIFY] Comparing "${passkey}" against hash starting with: ${student.passkeyHash?.substring(0, 10)}...`);
         const match = await bcrypt.compare(passkey, student.passkeyHash);
 
         if (match) {
-            // Speed up response: don't await the reset of failed attempts
             if (student.failedAttempts > 0) {
                 studentRef.update({ failedAttempts: 0 }).catch(err => console.error("Update failed:", err));
             }
@@ -129,7 +137,6 @@ exports.verifyPasskey = async (req, res) => {
             console.log(`[VERIFY] SUCCESS TOTAL TIME: ${Date.now() - startTime}ms`);
             return res.status(200).json({ status: 'success', message: 'Verified', student });
         } else {
-            // Increment failed attempts
             const newFailedAttempts = (student.failedAttempts || 0) + 1;
             let updateData = { failedAttempts: newFailedAttempts };
 
@@ -164,37 +171,16 @@ exports.getAllStudents = async (req, res) => {
 
 exports.getStudent = async (req, res) => {
     try {
-        const studentId = req.params.studentId?.trim()?.toUpperCase();
-        console.log(`[GET_STUDENT] Fetching studentId: "${studentId}"`);
+        const { studentId } = req.params;
+        const result = await findStudentDoc(studentId);
 
-        let doc = await db.collection('students').doc(studentId).get();
-        if (!doc.exists) {
-            // Fallback 1: Search by 'studentId' field
-            let querySnapshot = await db.collection('students').where('studentId', '==', studentId).limit(1).get();
-
-            // Fallback 2: Search by 'lrn' field
-            if (querySnapshot.empty) {
-                console.log(`[GET_STUDENT] ID not found in studentId field, trying LRN fallback for: "${studentId}"`);
-                querySnapshot = await db.collection('students').where('lrn', '==', studentId).limit(1).get();
-            }
-
-            if (!querySnapshot.empty) {
-                doc = querySnapshot.docs[0];
-            }
+        if (!result) {
+            return res.status(404).json({ status: 'error', message: 'Student not found' });
         }
 
-        if (!doc?.exists) {
-            console.warn(`[GET_STUDENT] NOT FOUND: "${studentId}"`);
-            const allDocs = await db.collection('students').get();
-            const existingIds = allDocs.docs.map(d => `"${d.id}"`).join(', ');
-            console.log(`[DIAGNOSTIC] Existing IDs in DB: ${existingIds}`);
-            return res.status(404).json({ status: 'error', message: 'Student not found in database' });
-        }
+        const student = result.doc.data();
+        delete student.passkeyHash;
 
-        const student = doc.data();
-        delete student.passkeyHash; // Security: Never send hash to client
-
-        // Add credit information
         student.creditLimit = 500.00;
         student.availableCredit = 500.00 + (parseFloat(student.balance) || 0);
 
@@ -207,35 +193,21 @@ exports.getStudent = async (req, res) => {
 exports.deleteStudent = async (req, res) => {
     try {
         const { studentId } = req.params;
-        console.log(`[DELETE_STUDENT] Attempting to delete: ${studentId}`);
+        const result = await findStudentDoc(studentId);
 
-        let studentRef = db.collection('students').doc(studentId);
-        let doc = await studentRef.get();
-
-        if (!doc.exists) {
-            const querySnapshot = await db.collection('students').where('studentId', '==', studentId).limit(1).get();
-            if (!querySnapshot.empty) {
-                doc = querySnapshot.docs[0];
-                studentRef = doc.ref;
-            }
-        }
-
-        if (!doc?.exists) {
+        if (!result) {
             return res.status(404).json({ status: 'error', message: 'Student not found' });
         }
 
-        await studentRef.delete();
-        console.log(`[DELETE_STUDENT] Successfully deleted actual ID: ${studentRef.id}`);
+        await result.ref.delete();
 
-        /** @type {import('socket.io').Server} */
         const io = req.app.get('io');
         if (io) {
             io.emit('studentDeleted', { studentId });
         }
 
-        res.status(200).json({ status: 'success', message: 'Student deleted successfully' });
+        res.status(200).json({ status: 'success', message: 'Student deleted' });
     } catch (error) {
-        console.error("[DELETE_STUDENT] Error:", error);
         res.status(500).json({ status: 'error', message: error.message });
     }
 };
@@ -244,61 +216,33 @@ exports.updatePasskey = async (req, res) => {
     try {
         const { studentId, currentPasskey, newPasskey } = req.body;
 
-        // Basic Validation
         if (!newPasskey || newPasskey.length !== 4 || isNaN(newPasskey)) {
-            return res.status(400).json({ status: 'error', message: 'New Passkey must be exactly 4 digits.' });
+            return res.status(400).json({ status: 'error', message: 'New Passkey must be 4 digits.' });
         }
 
-        let studentRef = db.collection('students').doc(studentId);
-        let doc = await studentRef.get();
+        const result = await findStudentDoc(studentId);
+        if (!result) return res.status(404).json({ status: 'error', message: 'Student not found' });
 
-        if (!doc.exists) {
-            const querySnapshot = await db.collection('students').where('studentId', '==', studentId).limit(1).get();
-            if (!querySnapshot.empty) {
-                doc = querySnapshot.docs[0];
-                studentRef = doc.ref;
-            }
-        }
-
-        if (!doc?.exists) {
-            return res.status(404).json({ status: 'error', message: 'Student not found' });
-        }
-
-        const student = doc.data();
-
-        // Verify Current Passkey
+        const student = result.doc.data();
         const match = await bcrypt.compare(currentPasskey, student.passkeyHash);
-        if (!match) {
-            return res.status(401).json({ status: 'error', message: 'Current Passkey is incorrect' });
-        }
+        if (!match) return res.status(401).json({ status: 'error', message: 'Current Passkey incorrect' });
 
-        // Hash New Passkey (Cost 4)
-        const newHash = await bcrypt.hash(newPasskey, 4);
+        const newHash = await bcrypt.hash(newPasskey, SALT_ROUNDS);
+        await result.ref.update({ passkeyHash: newHash });
 
-        await studentRef.update({ passkeyHash: newHash });
-
-        console.log(`[UPDATE_PASSKEY] Success for student: ${studentId}`);
-        res.status(200).json({ status: 'success', message: 'Passkey updated successfully' });
-
+        res.status(200).json({ status: 'success', message: 'Passkey updated' });
     } catch (error) {
-        console.error("[UPDATE_PASSKEY] Error:", error);
         res.status(500).json({ status: 'error', message: error.message });
     }
 };
+
 exports.getUserNotifications = async (req, res) => {
     try {
         const { studentId } = req.params;
-        const snapshot = await db.collection('notifications')
-            .where('studentId', '==', studentId)
-            .get();
-
+        const snapshot = await db.collection('notifications').where('studentId', '==', studentId).get();
         const notifications = [];
-        snapshot.forEach(doc => {
-            notifications.push({ id: doc.id, ...doc.data() });
-        });
-
+        snapshot.forEach(doc => notifications.push({ id: doc.id, ...doc.data() }));
         notifications.sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp));
-
         res.status(200).json({ status: 'success', data: notifications });
     } catch (error) {
         res.status(500).json({ status: 'error', message: error.message });
@@ -308,10 +252,8 @@ exports.getUserNotifications = async (req, res) => {
 exports.markNotificationRead = async (req, res) => {
     try {
         const { id } = req.params;
-        await db.collection('notifications').doc(id).update({
-            read: true
-        });
-        res.status(200).json({ status: 'success', message: 'Notification marked as read' });
+        await db.collection('notifications').doc(id).update({ read: true });
+        res.status(200).json({ status: 'success', message: 'Read' });
     } catch (error) {
         res.status(500).json({ status: 'error', message: error.message });
     }
@@ -319,30 +261,23 @@ exports.markNotificationRead = async (req, res) => {
 
 exports.updateStudent = async (req, res) => {
     try {
-        const { studentId: rawOldId } = req.params;
-        const oldStudentId = rawOldId?.trim()?.toUpperCase();
+        const { studentId: oldStudentId } = req.params;
         const { fullName, gradeSection, studentId: rawNewId, lrn, newPasskey } = req.body;
         const newStudentId = rawNewId?.trim()?.toUpperCase();
 
-        let studentRef = db.collection('students').doc(oldStudentId);
-        let doc = await studentRef.get();
+        console.log(`[UPDATE_STUDENT] Attempting update for ${oldStudentId}`);
+        const result = await findStudentDoc(oldStudentId);
 
-        if (!doc.exists) {
-            const querySnapshot = await db.collection('students').where('studentId', '==', oldStudentId).limit(1).get();
-            if (!querySnapshot.empty) {
-                doc = querySnapshot.docs[0];
-                studentRef = doc.ref;
-            }
-        }
-
-        if (!doc?.exists) {
+        if (!result) {
+            console.error(`[UPDATE_STUDENT] Student ${oldStudentId} not found`);
             return res.status(404).json({ status: 'error', message: 'Student not found in database' });
         }
 
-        const currentData = doc.data();
-        const finalId = newStudentId || currentData.studentId || oldStudentId;
+        const currentData = result.doc.data();
+        const currentIdInFields = currentData.studentId;
+        const finalId = newStudentId || currentIdInFields || result.ref.id;
 
-        // Sync grade/section if gradeSection is provided
+        // Parse grade/section
         let grade = currentData.grade || '';
         let section = currentData.section || '';
         if (gradeSection && gradeSection.includes('-')) {
@@ -358,37 +293,39 @@ exports.updateStudent = async (req, res) => {
             section: section,
             lrn: lrn || currentData.lrn || '',
             studentId: finalId,
-            qrData: `FUGEN:${finalId}` // Ensure QR updates if ID changes
+            qrData: `FUGEN:${finalId}`
         };
 
         if (newPasskey) {
             updates.passkeyHash = await bcrypt.hash(newPasskey, SALT_ROUNDS);
         }
 
-        // If studentId changed, move the document
-        if (finalId !== currentData.studentId) {
-            const clash = await db.collection('students').doc(finalId).get();
+        // If ID changed or forced move to uppercase doc ID
+        const targetDocId = finalId;
+        const currentDocId = result.ref.id;
+
+        if (targetDocId !== currentDocId) {
+            // Check clash
+            const clash = await db.collection('students').doc(targetDocId).get();
             if (clash.exists) {
                 return res.status(400).json({ status: 'error', message: 'The new Student ID is already in use.' });
             }
 
             const newData = { ...currentData, ...updates };
-            await db.collection('students').doc(finalId).set(newData);
-            await studentRef.delete();
-            console.log(`[UPDATE_STUDENT] Moved student ${oldStudentId} to ${finalId}`);
+            await db.collection('students').doc(targetDocId).set(newData);
+            await result.ref.delete();
+            console.log(`[UPDATE_STUDENT] Moved student ${currentDocId} to ${targetDocId}`);
         } else {
-            await studentRef.update(updates);
-            console.log(`[UPDATE_STUDENT] Updated student ${finalId}`);
+            await result.ref.update(updates);
+            console.log(`[UPDATE_STUDENT] Updated student ${targetDocId}`);
         }
 
-        /** @type {import('socket.io').Server} */
         const io = req.app.get('io');
         if (io) {
-            // Emit a balanceUpdate to force refresh across the system
             io.emit('balanceUpdate', { studentId: finalId, type: 'PROFILE_UPDATE' });
-            if (finalId !== oldStudentId) {
-                io.emit('studentDeleted', { studentId: oldStudentId });
-                io.emit('studentCreated', { studentId: finalId });
+            if (targetDocId !== currentDocId) {
+                io.emit('studentDeleted', { studentId: currentDocId });
+                io.emit('studentCreated', { studentId: targetDocId });
             }
         }
 
