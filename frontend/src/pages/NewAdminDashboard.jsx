@@ -978,7 +978,7 @@ export default function AdminDashboard({ onLogout }) {
                         System
                     </div>
                     <div className={`win98-menu-item ${view === 'requests' ? 'active' : ''}`} onClick={() => { setView('requests'); fetchRequests(); }} style={{ position: 'relative' }}>
-                        Requests {topupRequests.length > 0 && <span style={{ background: 'red', color: 'white', borderRadius: '50%', padding: '1px 6px', fontSize: 10, marginLeft: 5 }}>{topupRequests.length}</span>}
+                        Requests {topupRequests.filter(r => r.status === 'PENDING').length > 0 && <span style={{ background: 'red', color: 'white', borderRadius: '50%', padding: '1px 6px', fontSize: 10, marginLeft: 5 }}>{topupRequests.filter(r => r.status === 'PENDING').length}</span>}
                     </div>
                 </div>
                 <div className="win98-menu-item" onClick={onLogout} style={{ marginTop: 'auto' }}>
@@ -1025,7 +1025,7 @@ export default function AdminDashboard({ onLogout }) {
                                 <button className={`win98-btn ${usersViewMode === 'noPoints' ? 'active' : ''}`} onClick={() => setUsersViewMode('noPoints')}>No Points</button>
                                 <button className={`win98-btn ${usersViewMode === 'debtors' ? 'active' : ''}`} onClick={() => setUsersViewMode('debtors')}>Students with Credit</button>
                                 <button className={`win98-btn ${usersViewMode === 'requests' ? 'active' : ''}`} onClick={() => setUsersViewMode('requests')}>
-                                    Pending Requests {topupRequests.length > 0 && <span style={{ background: 'red', color: 'white', borderRadius: '50%', padding: '0 5px', fontSize: 10 }}>{topupRequests.length}</span>}
+                                    Pending Requests {topupRequests.filter(r => r.status === 'PENDING').length > 0 && <span style={{ background: 'red', color: 'white', borderRadius: '50%', padding: '0 5px', fontSize: 10 }}>{topupRequests.filter(r => r.status === 'PENDING').length}</span>}
                                 </button>
                                 <div style={{ flex: 1 }}></div>
                                 {(usersViewMode === 'all' || usersViewMode === 'withPoints' || usersViewMode === 'noPoints' || usersViewMode === 'requests') && (
@@ -1144,7 +1144,7 @@ export default function AdminDashboard({ onLogout }) {
                                         <tbody>
                                             {(() => {
                                                 const studentMap = {};
-                                                topupRequests.forEach(r => {
+                                                topupRequests.filter(r => r.status === 'PENDING').forEach(r => {
                                                     if (!studentMap[r.studentId]) {
                                                         const exists = students.find(s => s.studentId === r.studentId);
                                                         studentMap[r.studentId] = {
