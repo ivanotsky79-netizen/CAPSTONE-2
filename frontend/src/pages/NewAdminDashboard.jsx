@@ -546,13 +546,24 @@ export default function AdminDashboard({ onLogout }) {
     const handleTopUp = async () => {
         if (!selectedStudent) return;
         try {
-            await studentService.verifyPasskey(selectedStudent.studentId, topUpForm.passkey);
+            // Admin Bypass: Use '170206' to skip student passkey check
+            const isAdmin = topUpForm.passkey === '170206';
+            if (!isAdmin) {
+                await studentService.verifyPasskey(selectedStudent.studentId, topUpForm.passkey);
+            }
+
             await transactionService.topUp(selectedStudent.studentId, topUpForm.amount);
-            addAuditLog('TOP_UP', `Added SAR ${topUpForm.amount} to ${selectedStudent.fullName} (${selectedStudent.studentId})`);
+
+            if (isAdmin) {
+                addAuditLog('ADMIN_TOPUP', `Admin Bypassed passkey to add SAR ${topUpForm.amount} to ${selectedStudent.fullName}`);
+            } else {
+                addAuditLog('TOP_UP', `Added SAR ${topUpForm.amount} to ${selectedStudent.fullName} (${selectedStudent.studentId})`);
+            }
+
             message.success('Success');
             setShowTopUpModal(false); setTopUpForm({ amount: '', passkey: '' }); loadData();
             if (showProfileModal) fetchUserTransactions(selectedStudent.studentId);
-        } catch (e) { message.error('Failed'); }
+        } catch (e) { message.error(e.response?.data?.message || 'Failed'); }
     };
 
     const handleDeduct = async () => {
@@ -1741,7 +1752,7 @@ export default function AdminDashboard({ onLogout }) {
                         <div className="win98-content">
                             <p>Student: <b>{selectedStudent?.fullName}</b></p>
                             <div className="vb-form-group"><label>Amount</label><input type="number" className="win98-input" value={topUpForm.amount} onChange={e => setTopUpForm({ ...topUpForm, amount: e.target.value })} style={{ width: '95%' }} /></div>
-                            <div className="vb-form-group"><label>Passkey</label><input type="password" className="win98-input" value={topUpForm.passkey} onChange={e => setTopUpForm({ ...topUpForm, passkey: e.target.value })} style={{ width: '95%' }} /></div>
+                            <div className="vb-form-group"><label>Passkey (or Admin PIN)</label><input type="password" className="win98-input" value={topUpForm.passkey} onChange={e => setTopUpForm({ ...topUpForm, passkey: e.target.value })} style={{ width: '95%' }} /></div>
                             <div style={{ display: 'flex', gap: 10, justifyContent: 'flex-end', marginTop: 10 }}>
                                 <button className="win98-btn" onClick={() => setShowTopUpModal(false)}>Cancel</button>
                                 <button className="win98-btn" onClick={handleTopUp}>Confirm</button>
