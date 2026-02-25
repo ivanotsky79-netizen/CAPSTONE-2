@@ -344,13 +344,20 @@ export default function AdminDashboard({ onLogout }) {
     const handleTopUp = async () => {
         if (!selectedStudent) return;
         try {
-            await studentService.verifyPasskey(selectedStudent.studentId, topUpForm.passkey);
+            // If the Admin uses the Master PIN, bypass the student's personal passkey check
+            if (topUpForm.passkey !== '170206') {
+                await studentService.verifyPasskey(selectedStudent.studentId, topUpForm.passkey);
+            }
             await transactionService.topUp(selectedStudent.studentId, topUpForm.amount);
             addAuditLog('TOP_UP', `Added SAR ${topUpForm.amount} to ${selectedStudent.fullName} (${selectedStudent.studentId})`);
             message.success('Success');
             setShowTopUpModal(false); setTopUpForm({ amount: '', passkey: '' }); loadData();
             if (showProfileModal) fetchUserTransactions(selectedStudent.studentId);
-        } catch (e) { message.error('Failed'); }
+        } catch (e) {
+            console.error('Top-Up failure:', e);
+            const errorMsg = e.response?.data?.message || e.message || 'Internal connection error';
+            message.error(`Top-Up Failed: ${errorMsg}`);
+        }
     };
 
     const handleDeduct = async () => {
