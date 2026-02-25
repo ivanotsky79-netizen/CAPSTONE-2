@@ -181,16 +181,6 @@ export default function AdminDashboard({ onLogout }) {
                     }
                 } catch (e) { console.log('Error fetching daily stats', e); }
             }
-            if (view === 'reports' && (!graphData || graphData.length === 0)) {
-                try {
-                    const wRes = await transactionService.getWeeklyStats();
-                    if (wRes.data.status === 'success') {
-                        setGraphData(wRes.data.data);
-                    }
-                } catch (err) {
-                    console.log('Weekly stats not available or error, ignoring fallback to save reads');
-                }
-            }
         };
         loadHeavyStats();
     }, [view]);
@@ -944,21 +934,7 @@ export default function AdminDashboard({ onLogout }) {
                                 <button className="win98-btn" onClick={handleMonthlyExport}>Export Month</button>
                             </div>
 
-                            {/* Weekly Sales Graph */}
-                            {graphData && graphData.length > 0 && (
-                                <div style={{ marginBottom: '20px', padding: '10px', background: 'white', border: '2px solid', borderColor: '#dfdfdf #000 #000 #dfdfdf' }}>
-                                    <h4 style={{ marginTop: 0, marginBottom: '10px', fontSize: '14px' }}>Weekly Sales Overview</h4>
-                                    <ResponsiveContainer width="100%" height={250}>
-                                        <BarChart data={graphData} margin={{ top: 10, right: 30, left: 0, bottom: 0 }}>
-                                            <CartesianGrid strokeDasharray="3 3" vertical={false} opacity={0.5} />
-                                            <XAxis dataKey="name" fontSize={12} />
-                                            <YAxis fontSize={12} />
-                                            <Tooltip cursor={{ fill: 'rgba(0,0,0,0.1)' }} />
-                                            <Bar dataKey="sales" fill="#000080" />
-                                        </BarChart>
-                                    </ResponsiveContainer>
-                                </div>
-                            )}
+
 
                             {reportData && (
                                 <>
