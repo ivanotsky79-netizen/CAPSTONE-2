@@ -284,6 +284,44 @@ exports.withdraw = async (req, res) => {
     }
 };
 
+// Manually set the "Cash on Hand" override value for the System tab
+exports.setCashAdjustment = async (req, res) => {
+    try {
+        const { amount, adminPin, note } = req.body;
+        if (adminPin !== '170206') {
+            return res.status(401).json({ status: 'error', message: 'Invalid Admin PIN' });
+        }
+        const adjustedAmount = parseFloat(amount);
+        if (isNaN(adjustedAmount) || adjustedAmount < 0) {
+            return res.status(400).json({ status: 'error', message: 'Invalid amount' });
+        }
+
+        await db.collection('systemSettings').doc('cashAdjustment').set({
+            amount: adjustedAmount,
+            note: note || '',
+            updatedAt: new Date().toISOString(),
+            updatedBy: 'Admin'
+        });
+
+        res.status(200).json({ status: 'success', message: 'Cash on Hand updated', amount: adjustedAmount });
+    } catch (error) {
+        res.status(500).json({ status: 'error', message: error.message });
+    }
+};
+
+// Get the current manual cash-on-hand override (if any)
+exports.getCashAdjustment = async (req, res) => {
+    try {
+        const doc = await db.collection('systemSettings').doc('cashAdjustment').get();
+        if (!doc.exists) {
+            return res.status(200).json({ status: 'success', data: null });
+        }
+        res.status(200).json({ status: 'success', data: doc.data() });
+    } catch (error) {
+        res.status(500).json({ status: 'error', message: error.message });
+    }
+};
+
 exports.getDailyStats = async (req, res) => {
     try {
         if (!db) {

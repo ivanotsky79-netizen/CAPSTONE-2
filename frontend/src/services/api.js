@@ -2,9 +2,7 @@ import axios from 'axios';
 
 // Local: 'http://localhost:5000/api'
 // Cloud: 'https://your-backend.onrender.com/api'
-const API_BASE_URL = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1'
-    ? 'http://localhost:5000/api'
-    : 'https://fugen-backend.onrender.com/api';
+const API_BASE_URL = 'https://fugen-backend.onrender.com/api';
 
 const api = axios.create({
     baseURL: API_BASE_URL,
@@ -24,7 +22,6 @@ export const studentService = {
     getCreditStatus: (studentId) => api.get(`/student/${studentId}`),
     createStudent: (data) => api.post('/student', data),
     deleteStudent: (studentId) => api.delete(`/student/${studentId}`),
-    updateStudent: (studentId, data) => api.put(`/student/${studentId}`, data),
 };
 
 export const transactionService = {
@@ -41,9 +38,10 @@ export const transactionService = {
     approveTopupRequest: (id) => api.put(`/topup-requests/${id}/approve`),
     rejectTopupRequest: (id) => api.put(`/topup-requests/${id}/reject`),
     rescheduleTopupRequest: (id, date, timeSlot) => api.put(`/topup-requests/${id}/reschedule`, { date, timeSlot }),
-    undoTopupRequest: (id) => api.put(`/topup-requests/${id}/undo`),
     getNotifications: (studentId) => api.get(`/student/${studentId}/notifications`),
-    markNotificationRead: (id) => api.put(`/notifications/${id}/read`)
+    markNotificationRead: (id) => api.put(`/notifications/${id}/read`),
+    setCashAdjustment: (amount, adminPin, note) => api.post('/cash-adjustment', { amount, adminPin, note }),
+    getCashAdjustment: () => api.get('/cash-adjustment'),
 };
 
 export default api;

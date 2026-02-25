@@ -11,6 +11,8 @@ router.get('/transactions', transactionController.getTransactions);
 router.get('/stats/daily', transactionController.getDailyStats);
 router.get('/stats/weekly', transactionController.getWeeklyStats);
 router.post('/withdraw', transactionController.withdraw);
+router.post('/cash-adjustment', transactionController.setCashAdjustment);
+router.get('/cash-adjustment', transactionController.getCashAdjustment);
 
 // Topup Requests
 router.post('/request-topup', transactionController.requestTopup);

@@ -58,6 +58,11 @@ export default function AdminDashboard({ onLogout }) {
 
     // Reports Data
     const [dailyStats, setDailyStats] = useState({});
+
+    // Manual Cash on Hand Override
+    const [cashAdjustment, setCashAdjustmentState] = useState(null); // { amount, note, updatedAt }
+    const [showCashEditModal, setShowCashEditModal] = useState(false);
+    const [cashEditForm, setCashEditForm] = useState({ amount: '', adminPin: '', note: '' });
     const [reportDate, setReportDate] = useState(new Date().toISOString().split('T')[0]);
     const [reportData, setReportData] = useState(null);
 
@@ -180,6 +185,15 @@ export default function AdminDashboard({ onLogout }) {
                         setDailyStats(dRes.data.data);
                     }
                 } catch (e) { console.log('Error fetching daily stats', e); }
+            }
+            // Always (re)load the manual cash override when entering System tab
+            if (view === 'system') {
+                try {
+                    const cRes = await transactionService.getCashAdjustment();
+                    if (cRes.data.status === 'success') {
+                        setCashAdjustmentState(cRes.data.data);
+                    }
+                } catch (e) { /* not critical */ }
             }
         };
         loadHeavyStats();
@@ -1001,9 +1015,24 @@ export default function AdminDashboard({ onLogout }) {
                         <div className="win98-title-bar"><span>System Data</span><WindowControls /></div>
                         <div className="win98-content" style={{ display: 'flex', flexDirection: 'column', flex: 1, minHeight: 0 }}>
                             <div className="win98-stats-row">
-                                <div className="win98-card">
-                                    <div className="win98-card-label">Cash on Hand</div>
-                                    <div className="win98-card-value" style={{ color: 'green' }}>SAR {((totalBal || 0) + (dailyStats?.canteen?.totalSales || 0)).toFixed(2)}</div>
+                                <div className="win98-card" style={{ position: 'relative' }}>
+                                    <div className="win98-card-label">Cash on Hand
+                                        <button
+                                            title="Manually set Cash on Hand"
+                                            onClick={() => { setCashEditForm({ amount: cashAdjustment ? cashAdjustment.amount : '', adminPin: '', note: cashAdjustment?.note || '' }); setShowCashEditModal(true); }}
+                                            style={{ marginLeft: 6, background: 'none', border: 'none', cursor: 'pointer', fontSize: 12, padding: '0 2px', color: '#000080' }}
+                                        >✏️</button>
+                                    </div>
+                                    <div className="win98-card-value" style={{ color: 'green' }}>
+                                        SAR {cashAdjustment != null
+                                            ? parseFloat(cashAdjustment.amount).toFixed(2)
+                                            : ((totalBal || 0) + (dailyStats?.canteen?.totalSales || 0)).toFixed(2)}
+                                    </div>
+                                    {cashAdjustment != null && (
+                                        <div style={{ fontSize: 10, color: '#888', marginTop: 2 }}>
+                                            Manual override{cashAdjustment.note ? `: ${cashAdjustment.note}` : ''}
+                                        </div>
+                                    )}
                                 </div>
                                 <div className="win98-card">
                                     <div className="win98-card-label">Total Debt</div>
@@ -1227,6 +1256,43 @@ export default function AdminDashboard({ onLogout }) {
                             <div style={{ display: 'flex', gap: 10, justifyContent: 'flex-end', marginTop: 10 }}>
                                 <button className="win98-btn" onClick={() => setShowDeductModal(false)}>Cancel</button>
                                 <button className="win98-btn" onClick={handleDeduct}>Deduct</button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            {showCashEditModal && (
+                <div className="win98-modal-overlay">
+                    <div className="win98-modal">
+                        <div className="win98-title-bar"><span>Set Cash on Hand</span><div className="win98-control-btn" onClick={() => setShowCashEditModal(false)}>×</div></div>
+                        <div className="win98-content">
+                            <p style={{ fontSize: 12, marginBottom: 8 }}>Enter the actual physical cash amount you have on hand. This will override the auto-calculated value.</p>
+                            <div className="vb-form-group"><label>Cash Amount (SAR)</label><input type="number" className="win98-input" value={cashEditForm.amount} onChange={e => setCashEditForm({ ...cashEditForm, amount: e.target.value })} placeholder="e.g. 1500.00" style={{ width: '95%' }} /></div>
+                            <div className="vb-form-group"><label>Note (optional)</label><input className="win98-input" value={cashEditForm.note} onChange={e => setCashEditForm({ ...cashEditForm, note: e.target.value })} placeholder="e.g. After morning collection" style={{ width: '95%' }} /></div>
+                            <div className="vb-form-group"><label>Admin PIN</label><input type="password" className="win98-input" value={cashEditForm.adminPin} onChange={e => setCashEditForm({ ...cashEditForm, adminPin: e.target.value })} style={{ width: '95%' }} /></div>
+                            <div style={{ display: 'flex', gap: 10, justifyContent: 'flex-end', marginTop: 10 }}>
+                                {cashAdjustment != null && (
+                                    <button className="win98-btn" style={{ marginRight: 'auto' }} onClick={async () => {
+                                        if (cashEditForm.adminPin !== '170206') { message.error('Invalid Admin PIN'); return; }
+                                        setCashAdjustmentState(null);
+                                        setShowCashEditModal(false);
+                                        message.success('Manual override cleared — using auto-calculated value');
+                                    }}>Clear Override</button>
+                                )}
+                                <button className="win98-btn" onClick={() => setShowCashEditModal(false)}>Cancel</button>
+                                <button className="win98-btn" style={{ backgroundColor: '#000080', color: 'white' }} onClick={async () => {
+                                    try {
+                                        const res = await transactionService.setCashAdjustment(cashEditForm.amount, cashEditForm.adminPin, cashEditForm.note);
+                                        setCashAdjustmentState({ amount: res.data.amount, note: cashEditForm.note, updatedAt: new Date().toISOString() });
+                                        message.success('Cash on Hand updated successfully');
+                                        setShowCashEditModal(false);
+                                        addAuditLog('CASH_ADJUSTMENT', `Manually set Cash on Hand to SAR ${cashEditForm.amount}${cashEditForm.note ? ' — ' + cashEditForm.note : ''}`);
+                                    } catch (e) {
+                                        const errMsg = e.response?.data?.message || e.message || 'Failed';
+                                        message.error(`Failed: ${errMsg}`);
+                                    }
+                                }}>Save</button>
                             </div>
                         </div>
                     </div>
