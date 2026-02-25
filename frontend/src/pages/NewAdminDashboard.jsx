@@ -1027,14 +1027,16 @@ export default function AdminDashboard({ onLogout }) {
                                         SAR {(() => {
                                             const withdrawals = dailyStats?.system?.todayWithdrawals || 0;
                                             if (cashAdjustment != null) {
-                                                return Math.max(0, parseFloat(cashAdjustment.amount) - withdrawals).toFixed(2);
+                                                // Manual: admin typed the actual physical count — show it exactly as-is
+                                                return parseFloat(cashAdjustment.amount).toFixed(2);
                                             }
+                                            // Auto: calculated from balances + sales, minus any withdrawals
                                             return Math.max(0, (totalBal || 0) + (dailyStats?.canteen?.totalSales || 0) - withdrawals).toFixed(2);
                                         })()}
                                     </div>
                                     {cashAdjustment != null && (
                                         <div style={{ fontSize: 10, color: '#888', marginTop: 2 }}>
-                                            Manual override{cashAdjustment.note ? `: ${cashAdjustment.note}` : ''} Recounted
+                                            Manual override{cashAdjustment.note ? `: ${cashAdjustment.note}` : ''}
                                         </div>
                                     )}
                                 </div>
