@@ -83,9 +83,38 @@ export default function AdminDashboard({ onLogout }) {
         loadLocalLogs();
         fetchRequests(); // load count for badge
         const socket = io('https://fugen-backend.onrender.com');
-        socket.on('balanceUpdate', loadData);
-        socket.on('studentCreated', loadData);
-        socket.on('studentDeleted', loadData);
+
+        const singleUpdate = async (data) => {
+            // ONLY fetch the ONE student that changed, not the entire school!
+            if (!data || !data.studentId) return;
+            try {
+                const res = await studentService.getStudent(data.studentId);
+                if (res.data && res.data.data) {
+                    setStudents(prev => {
+                        const updated = res.data.data;
+                        const newStudents = [...prev];
+                        const idx = newStudents.findIndex(s => s.studentId === updated.studentId);
+                        if (idx >= 0) newStudents[idx] = updated;
+                        else newStudents.unshift(updated);
+
+                        // Recalculate totals locally without hitting DB
+                        setTotalBal(newStudents.filter(s => parseFloat(s.balance) > 0).reduce((a, c) => a + (parseFloat(c.balance) || 0), 0));
+                        setTotalCredit(newStudents.filter(s => parseFloat(s.balance) < 0).reduce((a, c) => a + Math.abs(parseFloat(c.balance)), 0));
+
+                        return newStudents;
+                    });
+                }
+                // Refresh Daily Stats very cheaply since we removed the full student scan from the backend route
+                const dRes = await transactionService.getDailyStats(null, true);
+                if (dRes.data && dRes.data.status === 'success') {
+                    setDailyStats(dRes.data.data);
+                }
+            } catch (e) { console.error("Socket update error:", e); }
+        };
+
+        socket.on('balanceUpdate', singleUpdate);
+        socket.on('studentCreated', loadData); // Rare event, full reload is okay
+        socket.on('studentDeleted', loadData); // Rare event, full reload is okay
         return () => socket.disconnect();
     }, []);
 

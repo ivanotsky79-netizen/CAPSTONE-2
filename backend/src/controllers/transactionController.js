@@ -378,15 +378,9 @@ exports.getDailyStats = async (req, res) => {
         let globalTotalCredit = 0;
         let totalSystemCash = 0;
 
-        // Always calculate Global Debt and Cash
-        const allStudents = await db.collection('students').get();
-        totalSystemCash = 0;
-        globalTotalCredit = 0;
-        allStudents.forEach(doc => {
-            const b = parseFloat(doc.data().balance || 0);
-            if (b > 0) totalSystemCash += b;
-            else if (b < 0) globalTotalCredit += Math.abs(b);
-        });
+        // NOTE: Removed massive full-table scan (db.collection('students').get()) to prevent quota exhaustion.
+        // The Admin Dashboard now calculates totalSystemCash and globalTotalCredit LOCALLY 
+        // using the array it receives from getAllStudents. 
 
         // Return structured data
         if (location === 'CANTEEN') {
