@@ -1024,13 +1024,17 @@ export default function AdminDashboard({ onLogout }) {
                                         >✏️</button>
                                     </div>
                                     <div className="win98-card-value" style={{ color: 'green' }}>
-                                        SAR {cashAdjustment != null
-                                            ? parseFloat(cashAdjustment.amount).toFixed(2)
-                                            : ((totalBal || 0) + (dailyStats?.canteen?.totalSales || 0)).toFixed(2)}
+                                        SAR {(() => {
+                                            const withdrawals = dailyStats?.system?.todayWithdrawals || 0;
+                                            if (cashAdjustment != null) {
+                                                return Math.max(0, parseFloat(cashAdjustment.amount) - withdrawals).toFixed(2);
+                                            }
+                                            return Math.max(0, (totalBal || 0) + (dailyStats?.canteen?.totalSales || 0) - withdrawals).toFixed(2);
+                                        })()}
                                     </div>
                                     {cashAdjustment != null && (
                                         <div style={{ fontSize: 10, color: '#888', marginTop: 2 }}>
-                                            Manual override{cashAdjustment.note ? `: ${cashAdjustment.note}` : ''}
+                                            Manual override{cashAdjustment.note ? `: ${cashAdjustment.note}` : ''} Recounted
                                         </div>
                                     )}
                                 </div>
