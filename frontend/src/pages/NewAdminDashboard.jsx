@@ -104,11 +104,7 @@ export default function AdminDashboard({ onLogout }) {
                         return newStudents;
                     });
                 }
-                // Refresh Daily Stats very cheaply since we removed the full student scan from the backend route
-                const dRes = await transactionService.getDailyStats(null, true);
-                if (dRes.data && dRes.data.status === 'success') {
-                    setDailyStats(dRes.data.data);
-                }
+                // No longer fetching daily stats on every socket ping to save massive reads
             } catch (e) { console.error("Socket update error:", e); }
         };
 
@@ -164,54 +160,40 @@ export default function AdminDashboard({ onLogout }) {
     const loadData = async () => {
         setLoading(true);
         try {
-            const [sRes, dRes] = await Promise.all([
-                studentService.getAllStudents(),
-                transactionService.getDailyStats(null, true)
-            ]);
+            const sRes = await studentService.getAllStudents();
 
             const allStudents = sRes.data.data;
             setStudents(allStudents);
             setTotalBal(allStudents.reduce((a, c) => a + (parseFloat(c.balance) || 0), 0));
             setTotalCredit(allStudents.filter(s => parseFloat(s.balance) < 0).reduce((a, c) => a + Math.abs(parseFloat(c.balance)), 0));
 
-            if (dRes.data.status === 'success') {
-                setDailyStats(dRes.data.data);
-            }
-
-            try {
-                const wRes = await transactionService.getWeeklyStats();
-                if (wRes.data.status === 'success') {
-                    setGraphData(wRes.data.data);
-                }
-            } catch (err) {
-                console.log('Weekly stats not available yet server-side, computing via dailies fallback...');
-                try {
-                    const days = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
-                    const promises = [];
-                    for (let i = 0; i < 7; i++) {
-                        const d = new Date();
-                        d.setDate(d.getDate() - i);
-                        const dateStr = d.toISOString().split('T')[0];
-                        promises.push(transactionService.getDailyStats(dateStr, true).then(r => ({ dateStr, dayName: days[d.getDay()], data: r.data })));
-                    }
-                    const results = await Promise.all(promises);
-
-                    const fallbackData = results.map(r => {
-                        let totalSales = 0;
-                        if (r.data && r.data.status === 'success' && r.data.data.canteen) {
-                            totalSales = r.data.data.canteen.totalSales || 0;
-                        }
-                        return { name: r.dayName, date: r.dateStr, sales: totalSales };
-                    }).sort((a, b) => a.date.localeCompare(b.date));
-
-                    setGraphData(fallbackData);
-                } catch (e2) {
-                    console.log('Error computing fallback graph data:', e2.message);
-                }
-            }
-
         } catch (e) { console.error('Error loading main data:', e); } finally { setLoading(false); }
     };
+
+    // Load Heavy Stats ONLY when user explicitly asks for them (System or Reports view)
+    useEffect(() => {
+        const loadHeavyStats = async () => {
+            if ((view === 'system' || view === 'reports') && !dailyStats?.system) {
+                try {
+                    const dRes = await transactionService.getDailyStats(null, true);
+                    if (dRes.data.status === 'success') {
+                        setDailyStats(dRes.data.data);
+                    }
+                } catch (e) { console.log('Error fetching daily stats', e); }
+            }
+            if (view === 'reports' && (!graphData || graphData.length === 0)) {
+                try {
+                    const wRes = await transactionService.getWeeklyStats();
+                    if (wRes.data.status === 'success') {
+                        setGraphData(wRes.data.data);
+                    }
+                } catch (err) {
+                    console.log('Weekly stats not available or error, ignoring fallback to save reads');
+                }
+            }
+        };
+        loadHeavyStats();
+    }, [view]);
 
     const fetchReport = async () => {
         if (!reportDate) return;
@@ -1038,7 +1020,7 @@ export default function AdminDashboard({ onLogout }) {
                             <div className="win98-stats-row">
                                 <div className="win98-card">
                                     <div className="win98-card-label">Cash on Hand</div>
-                                    <div className="win98-card-value" style={{ color: 'green' }}>SAR {dailyStats.system?.totalCashOnHand?.toFixed(2)}</div>
+                                    <div className="win98-card-value" style={{ color: 'green' }}>SAR {((totalBal || 0) + (dailyStats?.canteen?.totalSales || 0)).toFixed(2)}</div>
                                 </div>
                                 <div className="win98-card">
                                     <div className="win98-card-label">Total Debt</div>
@@ -1046,13 +1028,14 @@ export default function AdminDashboard({ onLogout }) {
                                 </div>
                                 <div className="win98-card">
                                     <div className="win98-card-label">Withdrawals</div>
-                                    <div className="win98-card-value" style={{ color: 'orange' }}>SAR {dailyStats.system?.todayWithdrawals?.toFixed(2)}</div>
+                                    <div className="win98-card-value" style={{ color: 'orange' }}>SAR {dailyStats?.system?.todayWithdrawals?.toFixed(2)}</div>
                                 </div>
                                 <div className="win98-card">
                                     <div className="win98-card-label">Points Collected Today</div>
-                                    <div className="win98-card-value" style={{ color: 'blue' }}>SAR {dailyStats.system?.todayTopups?.toFixed(2)}</div>
+                                    <div className="win98-card-value" style={{ color: 'blue' }}>SAR {(dailyStats?.canteen?.totalSales || 0).toFixed(2)}</div>
                                 </div>
                             </div>
+
                             <div className="win98-toolbar">
                                 <button className="win98-btn" onClick={() => setShowWithdrawModal(true)}>Withdraw Cash</button>
                             </div>
