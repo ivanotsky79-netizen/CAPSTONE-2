@@ -126,8 +126,15 @@ exports.verifyPasskey = async (req, res) => {
                 studentRef.update({ failedAttempts: 0 }).catch(err => console.error("Update failed:", err));
             }
 
+            const jwt = require('jsonwebtoken');
+            const token = jwt.sign(
+                { studentId: student.studentId, role: 'student' },
+                process.env.JWT_SECRET || 'fugen_secret_key_2026',
+                { expiresIn: '30d' }
+            );
+
             console.log(`[VERIFY] SUCCESS TOTAL TIME: ${Date.now() - startTime}ms`);
-            return res.status(200).json({ status: 'success', message: 'Verified', student });
+            return res.status(200).json({ status: 'success', message: 'Verified', student, token });
         } else {
             // Increment failed attempts
             const newFailedAttempts = (student.failedAttempts || 0) + 1;

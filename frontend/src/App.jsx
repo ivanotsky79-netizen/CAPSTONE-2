@@ -44,6 +44,8 @@ function App() {
   const handleLogout = () => {
     setAuth(null);
     localStorage.removeItem('fugen_auth');
+    localStorage.removeItem('fugen_token');
+    localStorage.removeItem('fugen_user');
   };
 
   // Don't render anything until we've checked localStorage (prevents flash of login page)

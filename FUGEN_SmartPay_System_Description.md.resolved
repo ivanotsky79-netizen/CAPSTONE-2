@@ -1,0 +1,694 @@
+# FUGEN SmartPay — Complete System Description & Summary
+
+---
+
+## 📌 1. System Overview
+
+**FUGEN SmartPay** is a **School ID–Based Cashless Canteen Management System** developed as a Capstone Project for the **Future Generation Philippine International School (FGPIS)** in Riyadh, Saudi Arabia. The system replaces traditional cash-based canteen payments with a secure, QR code–based digital wallet solution, enabling students to make purchases using a pre-loaded points balance linked to their student ID.
+
+The platform supports **automated balance tracking**, reduces waiting time during canteen transactions, minimizes cash handling errors, and provides **transparent transaction records** accessible only to authorized school personnel.
+
+### Core Concepts
+
+| Concept | Description |
+|---|---|
+| **Currency** | Points-based system (displayed as Points/Pts) |
+| **Authentication** | Student ID QR Code + 4-Digit Passkey |
+| **Credit/Debt Logic** | Students can go up to -500 points (credit limit); debts are auto-deducted from next top-up |
+| **Real-Time Sync** | All platforms (web, mobile, student portal) stay synchronized via Socket.IO |
+
+---
+
+## 👥 2. Project Team
+
+| Role | Name |
+|---|---|
+| **Developer** | Samuel Ivan Malavi |
+| **Implementers** | Irish Nhycole Barber, John Kenneth Gerona, Julia Mendanao |
+| **School** | Future Generation Philippine International School (FGPIS) |
+| **Year** | 2026 |
+
+---
+
+## 🏗️ 3. System Architecture
+
+FUGEN SmartPay follows a **three-tier client-server architecture** consisting of:
+
+```mermaid
+graph TB
+    subgraph "Frontend Clients"
+        A["🖥️ Admin Dashboard<br>(React + Vite + Electron)"]
+        B["📱 Mobile POS App<br>(React Native + Expo)"]
+        C["🎓 Student Portal<br>(React Web)"]
+    end
+
+    subgraph "Backend Server"
+        D["🔧 Node.js + Express API<br>(Port 5000)"]
+        E["🔌 Socket.IO Server<br>(Real-Time Events)"]
+    end
+
+    subgraph "Cloud Database"
+        F["🔥 Google Firebase<br>Cloud Firestore"]
+    end
+
+    A <-->|HTTP + WebSocket| D
+    B <-->|HTTP + WebSocket| D
+    C <-->|HTTP + WebSocket| D
+    D <--> E
+    D <-->|Firebase Admin SDK| F
+```
+
+### Key Architectural Decisions
+
+1. **Firebase Admin SDK Only** — All clients communicate through the Node.js backend API. **No client directly accesses Firestore**, ensuring all data operations are controlled and validated server-side. Firestore security rules deny all direct client access (`allow read, write: if false`).
+2. **Socket.IO for Real-Time** — Every mutation (purchase, top-up, student creation/deletion) emits a Socket.IO event, causing all connected clients to refresh their data automatically.
+3. **Electron for Desktop** — The Admin Dashboard can run as a native desktop application via Electron, or as a standard web app in the browser.
+4. **Cloud Deployment** — Backend is deployed to **Render.com** (`https://fugen-backend.onrender.com`), frontend is deployable to Replit or any static host.
+
+---
+
+## 🔧 4. Technology Stack
+
+### Backend
+
+| Technology | Purpose | Version |
+|---|---|---|
+| **Node.js** | Server runtime | — |
+| **Express.js** | HTTP API framework | v5.2.1 |
+| **Firebase Admin SDK** | Cloud Firestore database access | v12.7.0 |
+| **Socket.IO** | Real-time bi-directional communication | v4.8.3 |
+| **bcryptjs** | Password/passkey hashing | v3.0.3 |
+| **Helmet** | HTTP security headers | v8.1.0 |
+| **CORS** | Cross-Origin Resource Sharing | v2.8.6 |
+| **Joi** | Request validation | v18.0.2 |
+| **date-fns** | Date utility functions | v4.1.0 |
+| **dotenv** | Environment variable management | v17.2.3 |
+| **uuid** | Unique transaction ID generation | (via `uuid` package) |
+
+### Frontend (Admin Dashboard)
+
+| Technology | Purpose | Version |
+|---|---|---|
+| **React** | UI component framework | v18.3.1 |
+| **Vite** | Build tool & dev server | v7.2.4 |
+| **Electron** | Desktop application wrapper | v40.2.1 |
+| **Ant Design (antd)** | UI component library | v6.2.3 |
+| **Recharts** | Data visualization (charts) | v3.7.0 |
+| **Axios** | HTTP client | v1.13.4 |
+| **Socket.IO Client** | Real-time updates | v4.8.3 |
+| **qrcode / qrcode.react** | QR code generation | v1.5.4 / v4.2.0 |
+| **React Router DOM** | Client-side routing | v7.13.0 |
+| **Day.js** | Date formatting | v1.11.19 |
+| **electron-builder** | Desktop app packaging | v26.7.0 |
+
+### Mobile App (Canteen POS)
+
+| Technology | Purpose | Version |
+|---|---|---|
+| **React Native** | Cross-platform mobile framework | v0.76.9 |
+| **Expo** | React Native development toolkit | SDK ~52.0.0 |
+| **expo-camera** | QR code scanning | v16.0.0 |
+| **expo-av** | Audio feedback (success sounds) | v15.0.2 |
+| **React Navigation** | Mobile screen navigation (Stack) | v7.x |
+| **AsyncStorage** | Local data persistence | v1.23.1 |
+| **Axios** | HTTP client | v1.7.9 |
+| **Socket.IO Client** | Real-time updates | v4.8.3 |
+| **Firebase** | (Client SDK — used for reference) | v11.2.0 / v12.8.0 |
+
+### Database
+
+| Technology | Purpose |
+|---|---|
+| **Google Cloud Firestore** | NoSQL document database (serverless, auto-scaling) |
+
+### Firestore Collections
+
+| Collection | Purpose |
+|---|---|
+| `students` | Student profiles, balances, passkey hashes, QR data |
+| `transactions` | All financial transaction records (top-ups, purchases, withdrawals, deductions) |
+| `topUpRequests` | Student-initiated top-up reservation requests |
+| `notifications` | In-app notification inbox for students |
+| `systemSettings` | System configuration (e.g., manual cash adjustment overrides) |
+
+---
+
+## 📂 5. Project Structure
+
+```
+CAPSTONE-2/
+├── backend/                        # Node.js + Express API Server
+│   ├── server.js                   # Express app, Socket.IO, static file serving
+│   ├── package.json                # Backend dependencies
+│   ├── serviceAccountKey.json      # Firebase credentials (local dev)
+│   ├── firestore.rules             # Firestore security rules
+│   ├── vercel.json                 # Vercel deployment config
+│   ├── check_db.js                 # Database diagnostic utility
+│   └── src/
+│       ├── config/
+│       │   └── firebase.js         # Firebase Admin SDK initialization
+│       ├── controllers/
+│       │   ├── studentController.js    # Student CRUD, passkey verification/update
+│       │   └── transactionController.js # Top-ups, purchases, deductions, withdrawals, stats, top-up requests
+│       ├── routes/
+│       │   └── apiRoutes.js        # All API route definitions
+│       └── scripts/
+│           └── seed.js             # Database seeding script
+│
+├── frontend/                       # React + Vite Admin Dashboard
+│   ├── index.html                  # HTML entry point
+│   ├── package.json                # Frontend dependencies
+│   ├── vite.config.js              # Vite build configuration
+│   ├── electron/
+│   │   └── main.cjs                # Electron desktop app entry
+│   ├── dist/                       # Production build output
+│   ├── dist_electron/              # Electron packaged output
+│   └── src/
+│       ├── main.jsx                # React app entry point
+│       ├── App.jsx                 # Root component (auth routing)
+│       ├── App.css                 # Global styles
+│       ├── index.css               # Base styles
+│       ├── pages/
+│       │   ├── LoginPage.jsx       # Multi-role login (Admin / Student)
+│       │   ├── LoginPage.css       # Login page styles
+│       │   ├── NewAdminDashboard.jsx    # Full admin dashboard (1,400+ lines)
+│       │   ├── Windows98Dashboard.css   # Dashboard styles
+│       │   ├── StudentDashboard.jsx     # Student self-service portal
+│       │   └── StudentDashboard.css     # Student portal styles
+│       └── services/
+│           └── api.js              # Axios API service layer
+│
+├── mobile-app/                     # React Native + Expo Mobile App
+│   ├── App.js                      # Navigation stack setup
+│   ├── app.json                    # Expo configuration
+│   ├── index.js                    # App entry point
+│   ├── package.json                # Mobile dependencies
+│   └── src/
+│       ├── screens/
+│       │   ├── LoginScreen.js          # Mobile admin login
+│       │   ├── HomeScreen.js           # Main dashboard (Scan, System, Users, Reports)
+│       │   ├── ScanScreen.js           # QR code scanner with live stats
+│       │   ├── PasskeyScreen.js        # Student passkey verification
+│       │   ├── PurchaseScreen.js       # POS transaction entry
+│       │   ├── SystemDataScreen.js     # System overview (cash, debt)
+│       │   ├── TransactionHistoryScreen.js  # Student user list
+│       │   ├── ReportsScreen.js        # Historical reports browser
+│       │   ├── DayDetailsScreen.js     # Day-by-day report detail
+│       │   └── TopupRequestsScreen.js  # Top-up request management
+│       └── services/
+│           ├── api.js                  # Axios API + Socket.IO client
+│           └── dailyReportService.js   # Auto-save daily reports at 3:30 PM
+│
+├── start_app.bat                   # Batch file to start all services
+├── clean_build_mobile.bat          # Mobile app clean build script
+├── README.md                       # Project overview
+├── DEPLOYMENT_GUIDE.md             # Cloud deployment instructions
+└── ADMIN_SYSTEM_REVISION.md        # Admin system revision log
+```
+
+---
+
+## 🔐 6. Authentication & Security
+
+### 6.1 Admin Authentication
+- **Username/Password** system: `grpfive` / `170206`
+- Used on both the **web dashboard** and the **mobile POS app**
+- Web dashboard stores session in `localStorage` with a **24-hour timeout**
+- Mobile app uses `AsyncStorage` with a "Keep me Signed In" option
+
+### 6.2 Student Authentication
+- **Student ID + 4-Digit Passkey** (QR code contains the Student ID in `FUGEN:S2026-XXXXXX` format)
+- Passkeys are **hashed with bcrypt** (cost factor 4) before storage — plaintext never stored
+- **Account lockout** after 5 failed passkey attempts (`accountLocked: true`)
+- Failed attempt counter resets on successful login
+
+### 6.3 LRN-Based Passkey Generation
+- When a student is registered, their 12-digit **Learner Reference Number (LRN)** is used to auto-generate a 4-digit passkey
+- **Formula**: Extract the **3rd, 6th, 9th, and 12th digits** of the LRN
+- Example: LRN `123456789012` → Passkey `3692`
+- Benefits: Consistent, recoverable (admin can re-derive), not obvious from LRN
+
+### 6.4 Passkey Bypass (Canteen POS)
+- When scanning a QR code on the mobile POS, the operator has two options:
+  - **🚀 PROCEED (SKIP PASSKEY)** — Bypasses passkey verification for speed
+  - **🛡️ REQUIRE PASSKEY** — Forces the student to enter their passkey before a purchase
+
+### 6.5 Firestore Security Rules
+- All collections (`students`, `transactions`, `system_totals`) have `allow read, write: if false`
+- Only the **Firebase Admin SDK** (used by the backend) can access Firestore, not client-side SDKs
+
+---
+
+## 💰 7. Core Functionalities
+
+### 7.1 Student Management
+
+| Feature | Description |
+|---|---|
+| **Create Student** | Register with Full Name, Grade/Section, LRN; auto-generates Student ID (`S2026-XXXXXX`) and passkey |
+| **View Students** | Table with Student ID, Name, Grade/Section, Balance (color-coded green/red), Actions |
+| **Search Students** | Search by name, ID, or grade |
+| **Edit Student** | Update name, grade/section, Student ID, LRN, and passkey |
+| **Delete Student** | Single or bulk checkbox selection with confirmation dialog |
+| **Bulk Import** | CSV file upload to create multiple students at once |
+| **Export Data** | Export student list and transaction data as CSV |
+| **View QR Code** | Generate and display QR code card for each student |
+| **Download/Print QR** | Download QR as image or print directly; bulk PDF download available |
+
+### 7.2 Financial Transactions
+
+| Transaction Type | Location | Description |
+|---|---|---|
+| **TOPUP** | Admin Dashboard | Add points to a student's balance (cash intake at the office) |
+| **PURCHASE** | Canteen POS (Mobile) | Deduct points for a canteen purchase |
+| **DEDUCTION** | Admin Dashboard | Manually deduct points (requires Admin PIN) |
+| **WITHDRAWAL** | Admin Dashboard | Record cash withdrawal from the system (requires Admin PIN) |
+| **CREDIT** | Canteen POS | Automatic when a purchase exceeds the student's balance (up to -500 points limit) |
+
+### 7.3 Credit System
+- Students can go into **negative balance** up to a maximum debt of **-500 points**
+- Purchases that would exceed the credit limit are **blocked**
+- When a student's balance is negative, a **credit warning** is shown before proceeding
+- Debts are displayed in **red** across all interfaces
+- The system distinguishes between the **cash portion** and **credit portion** of each purchase
+
+### 7.4 Top-Up Request System
+- **Students** can submit a reservation request to top-up their balance through the Student Portal
+- Requests include: **Amount**, **Preferred Date**, and **Time Slot**
+- **Admin** can manage requests with the following actions:
+  - ✅ **Approve** — Accepts the reservation and notifies the student
+  - ❌ **Reject** — Denies the reservation with a notification
+  - 📅 **Reschedule** — Moves the reservation to a new date/time
+  - 💰 **Resolve** — Completes the top-up (adds balance, logs transaction, notifies student)
+  - ↩️ **Undo** — Reverses a resolved request
+- Each action sends an **in-app notification** to the student
+
+### 7.5 Notification System
+- Students receive notifications in their portal for:
+  - Reservation accepted / rejected / rescheduled
+  - Top-up completed
+- Notifications can be marked as read
+- Fetched via `GET /api/student/:studentId/notifications`
+
+### 7.6 Cash Management
+- **Cash on Hand**: Calculated from total top-ups minus withdrawals
+- **Manual Cash Adjustment**: Admin can set a manual override for the cash-on-hand display (requires Admin PIN)
+- **System Debt**: Sum of all negative student balances (outstanding credit)
+
+### 7.7 Reporting & Statistics
+
+| Report | Description |
+|---|---|
+| **Daily Stats** | Total sales (canteen), cash collected vs. credit, top-ups, withdrawals for a given day |
+| **Weekly Stats** | 7-day bar chart of canteen purchase totals |
+| **Historical Reports** | Browse saved daily reports by month and day |
+| **Monthly Export** | Export monthly reports as CSV |
+| **Audit Log** | Local log of admin actions (stored in browser `localStorage`) |
+
+### 7.8 Daily Report Auto-Save
+- The mobile app runs a **DailyReportService** that automatically saves a snapshot of daily statistics to `AsyncStorage` at **3:30 PM** every day
+- Reports can be browsed in the **Reports** screen on the mobile app
+- Each report captures: canteen sales, cash collected, credit sales, system top-ups, withdrawals, cash-on-hand, and outstanding credit
+
+---
+
+## 📡 8. API Endpoints
+
+### Student Routes
+
+| Method | Endpoint | Description |
+|---|---|---|
+| `POST` | `/api/student` | Create a new student |
+| `GET` | `/api/students` | Get all students |
+| `GET` | `/api/student/:studentId` | Get a specific student |
+| `PUT` | `/api/student/:studentId` | Update student info |
+| `DELETE` | `/api/student/:studentId` | Delete a student |
+| `POST` | `/api/verify-passkey` | Verify student passkey (login) |
+| `POST` | `/api/student/update-passkey` | Change student passkey |
+| `GET` | `/api/student/:studentId/notifications` | Get student notifications |
+| `PUT` | `/api/notifications/:id/read` | Mark notification as read |
+
+### Transaction Routes
+
+| Method | Endpoint | Description |
+|---|---|---|
+| `POST` | `/api/topup` | Add balance to a student |
+| `POST` | `/api/deduct` | Remove balance (admin only) |
+| `POST` | `/api/purchase` | Process a canteen purchase |
+| `POST` | `/api/withdraw` | Record a cash withdrawal |
+| `GET` | `/api/transactions` | Get transaction history (optional `?studentId=`) |
+| `GET` | `/api/stats/daily` | Get daily statistics (optional `?date=&location=`) |
+| `GET` | `/api/stats/weekly` | Get 7-day sales chart data |
+| `POST` | `/api/cash-adjustment` | Set manual cash-on-hand override |
+| `GET` | `/api/cash-adjustment` | Get current cash adjustment |
+
+### Top-Up Request Routes
+
+| Method | Endpoint | Description |
+|---|---|---|
+| `POST` | `/api/request-topup` | Submit a top-up reservation request |
+| `GET` | `/api/topup-requests` | Get all pending/accepted requests |
+| `PUT` | `/api/topup-requests/:id/approve` | Approve a request |
+| `PUT` | `/api/topup-requests/:id/reject` | Reject a request |
+| `PUT` | `/api/topup-requests/:id/reschedule` | Reschedule a request |
+| `PUT` | `/api/topup-requests/:id/resolve` | Complete the top-up |
+| `PUT` | `/api/topup-requests/:id/undo` | Undo a resolved request |
+
+---
+
+## 🔌 9. Real-Time Synchronization (Socket.IO)
+
+All platforms connect to the same Socket.IO server for live data synchronization.
+
+| Event Name | Trigger | Effect |
+|---|---|---|
+| `balanceUpdate` | After any top-up, purchase, deduction, withdrawal, or notification | All connected clients refresh their data (stats, balances, transactions) |
+| `studentCreated` | After a new student is registered | Student lists refresh across all clients |
+| `studentDeleted` | After a student is removed | Student lists refresh across all clients |
+
+---
+
+## 🖥️ 10. Platform Descriptions
+
+### 10.1 Web Admin Dashboard (Desktop / Browser)
+
+The **primary management interface** for school administrators. Built with React, Vite, and Ant Design.
+
+**Access Flow**: Intro/About Page → Select Portal (Admin or Student) → Login → Dashboard
+
+**Admin Dashboard Features** (Sidebar Navigation):
+1. **Users Tab** — Student management table with search, add/edit/delete, QR code generation, bulk import/export
+2. **Canteen Tab** — Live canteen transaction feed with daily stats (total sales, points scanned, credits)
+3. **Reports Tab** — Historical daily report browser with weekly sales chart, monthly CSV export
+4. **Top-Up Requests Tab** — Manage student reservation requests (approve/reject/reschedule/resolve)
+5. **System Tab** — Cash-on-hand display (with manual override), total system debt, creditor list, withdrawal functionality
+6. **Audit Log** — View admin action history
+
+**Student Dashboard Features** (accessible via Student Portal login):
+1. **Balance Display** — Current points balance with color-coded positive/negative
+2. **QR Code** — Personal QR code for canteen scanning
+3. **Transaction History** — View past top-ups, purchases, and deductions
+4. **Top-Up Request** — Submit a reservation to top-up balance
+5. **Notifications** — In-app notification inbox
+6. **Change Passkey** — Update personal 4-digit passkey
+7. **Spending Chart** — Visual history of transactions
+
+### 10.2 Mobile POS App (Canteen Terminal)
+
+The **canteen point-of-sale terminal** used by canteen staff to process student purchases. Built with React Native and Expo.
+
+**Screen Flow**: Login → Home → Scan QR → Identify Student → Passkey Verification (optional) → Purchase Entry → Confirmation
+
+**Mobile Screens**:
+1. **LoginScreen** — Admin credentials login with "Keep me Signed In" option
+2. **HomeScreen** — Main dashboard with large SCAN button, plus quick access to System, Requests, Users, and Reports
+3. **ScanScreen** — Live camera QR scanner with daily sales stats footer; identifies `FUGEN:` prefixed QR codes; haptic vibration on scan
+4. **PasskeyScreen** — 4-digit passkey verification (or bypass option)
+5. **PurchaseScreen** — Transaction entry with student info, balance display, amount input, quick preset buttons (5, 10, 15, 20), credit limit enforcement, and success sound effect
+6. **SystemDataScreen** — System overview (cash-on-hand, total debt)
+7. **TransactionHistoryScreen** — Browse all student users
+8. **ReportsScreen** — Browse auto-saved daily reports
+9. **DayDetailsScreen** — Drill-down into a specific day's report
+10. **TopupRequestsScreen** — View and manage top-up requests from mobile
+
+---
+
+## 🔄 11. Data Flow Diagrams
+
+### 11.1 Student Registration Flow
+
+```mermaid
+sequenceDiagram
+    actor Admin
+    participant Web as Admin Dashboard
+    participant API as Backend API
+    participant DB as Firestore
+    participant WS as Socket.IO
+
+    Admin->>Web: Fill form (Name, Grade, LRN)
+    Web->>Web: Auto-generate passkey from LRN
+    Web->>API: POST /api/student
+    API->>API: Generate Student ID (S2026-XXXXXX)
+    API->>API: Hash passkey with bcrypt
+    API->>DB: Store student document
+    API->>WS: Emit 'studentCreated'
+    WS-->>Web: Refresh student list
+    API-->>Web: Return Student ID + QR data
+    Web->>Admin: Display success modal with credentials
+```
+
+### 11.2 Canteen Purchase Flow
+
+```mermaid
+sequenceDiagram
+    actor Staff as Canteen Staff
+    participant App as Mobile POS
+    participant API as Backend API
+    participant DB as Firestore
+    participant WS as Socket.IO
+    participant Web as Admin Dashboard
+
+    Staff->>App: Scan Student QR Code
+    App->>App: Parse FUGEN:StudentID
+    App->>Staff: Show "Student Identified" modal
+    Staff->>App: Choose Proceed or Require Passkey
+    
+    alt Require Passkey
+        App->>API: POST /api/verify-passkey
+        API->>DB: Verify bcrypt hash
+        API-->>App: Verified
+    end
+    
+    Staff->>App: Enter purchase amount
+    App->>API: POST /api/purchase
+    API->>DB: Firestore Transaction (atomic)
+    Note over API,DB: Deduct balance, log transaction
+    API->>WS: Emit 'balanceUpdate'
+    WS-->>Web: Dashboard refreshes stats
+    WS-->>App: POS refreshes daily stats
+    API-->>App: Success
+    App->>App: Play success sound 🔊
+    App->>App: Navigate back to Scan screen
+```
+
+### 11.3 Top-Up Request Flow
+
+```mermaid
+sequenceDiagram
+    actor Student
+    participant Portal as Student Portal
+    participant API as Backend API
+    participant DB as Firestore
+    participant WS as Socket.IO
+    participant Admin as Admin Dashboard
+
+    Student->>Portal: Submit top-up request (amount, date, time)
+    Portal->>API: POST /api/request-topup
+    API->>DB: Store in topUpRequests collection
+    API-->>Portal: Request confirmed
+
+    Admin->>Admin: View pending requests
+    Admin->>API: PUT /api/topup-requests/:id/approve
+    API->>DB: Update status to ACCEPTED
+    API->>DB: Create notification for student
+    API->>WS: Emit 'balanceUpdate'
+    WS-->>Portal: Student sees notification
+
+    Note over Admin: Student visits office with cash
+    Admin->>API: PUT /api/topup-requests/:id/resolve
+    API->>DB: Add balance, log transaction
+    API->>DB: Update status to RESOLVED
+    API->>DB: Create "Top-Up Completed" notification
+    API->>WS: Emit 'balanceUpdate'
+    WS-->>Portal: Balance updates in real-time
+```
+
+---
+
+## 🛠️ 12. Step-by-Step Development Process
+
+### Phase 1: Planning & Design
+1. Analyzed the canteen payment problem at FGPIS (long queues, cash handling errors, no transaction tracking)
+2. Designed a cashless solution using QR codes on student IDs
+3. Selected technology stack: React (web), React Native (mobile), Node.js (backend), Firebase (database)
+4. Designed the database schema with Firestore collections: `students`, `transactions`, `topUpRequests`, `notifications`, `systemSettings`
+
+### Phase 2: Backend Development
+1. Initialized Node.js + Express project with Firebase Admin SDK
+2. Created [firebase.js](file:///c:/Users/melma/OneDrive/Desktop/CAPSTONE-2/backend/src/config/firebase.js) config with support for local file and environment variable credentials
+3. Built [studentController.js](file:///c:/Users/melma/OneDrive/Desktop/CAPSTONE-2/backend/src/controllers/studentController.js) with CRUD operations:
+   - Student creation with auto-generated IDs and bcrypt-hashed passkeys
+   - Passkey verification with failed attempt tracking and account lockout
+   - LRN-based passkey generation algorithm
+4. Built [transactionController.js](file:///c:/Users/melma/OneDrive/Desktop/CAPSTONE-2/backend/src/controllers/transactionController.js) with financial operations:
+   - Top-up, Purchase, Deduction, and Withdrawal handlers using Firestore transactions (atomic operations)
+   - Daily and weekly statistics aggregation
+   - Credit/cash split calculation for purchases
+5. Implemented Socket.IO for real-time event broadcasting
+6. Defined RESTful API routes in [apiRoutes.js](file:///c:/Users/melma/OneDrive/Desktop/CAPSTONE-2/backend/src/routes/apiRoutes.js)
+7. Added security middleware (Helmet, CORS)
+8. Configured the server to serve the frontend build as static files for cloud deployment
+
+### Phase 3: Admin Dashboard (Frontend)
+1. Initialized React project with Vite
+2. Installed Ant Design for UI components and Recharts for data visualization
+3. Built [LoginPage.jsx](file:///c:/Users/melma/OneDrive/Desktop/CAPSTONE-2/frontend/src/pages/LoginPage.jsx) with multi-role authentication:
+   - Intro/About page with project overview and team credits
+   - Portal selection (Admin vs Student)
+   - Admin login form and Student login/registration forms
+4. Built [NewAdminDashboard.jsx](file:///c:/Users/melma/OneDrive/Desktop/CAPSTONE-2/frontend/src/pages/NewAdminDashboard.jsx) (1,400+ lines) as the main admin interface:
+   - Sidebar navigation with Users, Canteen, Reports, Requests, System tabs
+   - Student management table with search, filters, checkbox selection
+   - QR code generation and composite card builder (QR + student info)
+   - Bulk import (CSV), bulk PDF export, and data export functionality
+   - Real-time transaction feed with daily statistics
+   - Weekly sales bar chart
+   - Top-up request management with approve/reject/reschedule/resolve actions
+   - System cash management with manual override capability
+   - Audit log tracking
+5. Built [StudentDashboard.jsx](file:///c:/Users/melma/OneDrive/Desktop/CAPSTONE-2/frontend/src/pages/StudentDashboard.jsx) as the student self-service portal:
+   - Balance display, QR code viewer, transaction history
+   - Top-up request submission with date/time selection
+   - Notifications inbox with real-time updates
+   - Passkey change functionality
+   - Spending chart visualization
+6. Set up Socket.IO client for real-time data synchronization
+7. Configured Electron wrapper for desktop application distribution
+
+### Phase 4: Mobile POS App
+1. Initialized React Native project with Expo
+2. Set up React Navigation (Stack Navigator) for screen navigation
+3. Built [LoginScreen.js](file:///c:/Users/melma/OneDrive/Desktop/CAPSTONE-2/mobile-app/src/screens/LoginScreen.js) with credential authentication and AsyncStorage persistence
+4. Built [HomeScreen.js](file:///c:/Users/melma/OneDrive/Desktop/CAPSTONE-2/mobile-app/src/screens/HomeScreen.js) as the main navigation hub with a large Scan button
+5. Built [ScanScreen.js](file:///c:/Users/melma/OneDrive/Desktop/CAPSTONE-2/mobile-app/src/screens/ScanScreen.js) with Expo Camera QR scanner:
+   - Barcode scanning with validation (`FUGEN:` prefix check)
+   - "Student Identified" modal with passkey bypass option
+   - Live daily statistics footer
+   - Haptic feedback on successful scan
+6. Built [PasskeyScreen.js](file:///c:/Users/melma/OneDrive/Desktop/CAPSTONE-2/mobile-app/src/screens/PasskeyScreen.js) for student identity verification
+7. Built [PurchaseScreen.js](file:///c:/Users/melma/OneDrive/Desktop/CAPSTONE-2/mobile-app/src/screens/PurchaseScreen.js) for POS transaction entry:
+   - Quick amount buttons (5, 10, 15, 20 points)
+   - Credit limit enforcement with confirmation dialogs
+   - Success sound effect on completed purchase
+8. Built supporting screens: SystemData, TransactionHistory, Reports, DayDetails, TopupRequests
+9. Implemented [dailyReportService.js](file:///c:/Users/melma/OneDrive/Desktop/CAPSTONE-2/mobile-app/src/services/dailyReportService.js) for automated daily report saving at 3:30 PM
+
+### Phase 5: Integration & Real-Time
+1. Connected all three platforms (web admin, student portal, mobile POS) to the same backend
+2. Implemented Socket.IO event handling across all clients:
+   - `balanceUpdate` → refresh stats and balances
+   - `studentCreated` / `studentDeleted` → refresh student lists
+3. Verified cross-platform synchronization: a purchase on the mobile POS instantly reflects on the admin dashboard and student portal
+
+### Phase 6: Cloud Deployment
+1. Deployed backend to **Render.com** as a Node.js web service
+2. Configured Firebase credentials via **Base64-encoded environment variable** (`FIREBASE_SERVICE_ACCOUNT_BASE64`) for secure cloud deployment
+3. Built frontend production bundle with Vite and configured the backend to serve it as static files
+4. Updated all API base URLs in frontend and mobile app to point to the Render deployment
+5. Prepared **Replit** deployment guide as an alternative hosting option
+
+### Phase 7: Polish & Refinement
+1. Updated currency labels from "SAR" to "Points/Pts" across all interfaces
+2. Implemented session persistence (localStorage on web, AsyncStorage on mobile)
+3. Added manual cash adjustment override for the System tab
+4. Enhanced QR code recognition format (`FUGEN:StudentID`) for reliable scanning
+5. Optimized Firestore queries to prevent quota exhaustion (removed full-table scans)
+6. Added credit transaction categorization (PURCHASE vs CREDIT distinction)
+7. Themed the mobile scanner "Student Identified" alert to match the app's dark blue and purple color scheme
+8. Implemented the student top-up request/reservation workflow with notification system
+
+---
+
+## 🚀 13. How to Run the System
+
+### Prerequisites
+- **Node.js** (v18+)
+- **npm** (v9+)
+- **Expo Go** app on mobile device (for mobile POS)
+- **Firebase Project** with a Service Account Key
+
+### Quick Start
+
+**Terminal 1 — Backend:**
+```bash
+cd backend
+npm install
+npm run dev
+```
+> Server runs on `http://localhost:5000`
+
+**Terminal 2 — Admin Dashboard:**
+```bash
+cd frontend
+npm install
+npm run dev
+```
+> Access at `http://localhost:5173`
+
+**Terminal 3 — Mobile POS:**
+```bash
+cd mobile-app
+npx expo start
+```
+> Scan the Expo QR code with Expo Go on your phone
+
+### Desktop App (Electron):
+```bash
+cd frontend
+npm run electron-dev
+```
+
+### Build Desktop Installer:
+```bash
+cd frontend
+npm run app:build
+```
+> Output in `frontend/dist_electron/`
+
+---
+
+## 📊 14. Summary of Key Metrics
+
+| Metric | Value |
+|---|---|
+| **Total Source Files** | ~30 custom source files |
+| **Backend Controllers** | 2 files (~1,274 lines) |
+| **Frontend Pages** | 6 files (~2,700+ lines) |
+| **Mobile Screens** | 10 screens (~860+ lines) |
+| **API Endpoints** | 24 RESTful endpoints |
+| **Socket.IO Events** | 3 event types |
+| **Firestore Collections** | 5 collections |
+| **npm Packages (Backend)** | 9 dependencies |
+| **npm Packages (Frontend)** | 14 dependencies + 9 dev dependencies |
+| **npm Packages (Mobile)** | 12 dependencies |
+| **Deployment Platforms** | Render.com (backend), Replit (full-stack alternative) |
+
+---
+
+## ✅ 15. Implemented Features Summary
+
+- ✅ Multi-role login system (Admin + Student + Mobile POS)
+- ✅ Student CRUD with auto-generated IDs and LRN-based passkeys
+- ✅ QR code generation, download, print, and bulk PDF export
+- ✅ Cashless canteen POS with QR scanning and quick purchase entry
+- ✅ Points-based balance system with credit limit enforcement (-500 max)
+- ✅ Real-time synchronization across all platforms (Socket.IO)
+- ✅ Transaction history with categorization (TOPUP, PURCHASE, DEDUCTION, WITHDRAWAL, CREDIT)
+- ✅ Daily and weekly statistics with data visualization (Recharts)
+- ✅ Top-up reservation request system with notification workflow
+- ✅ In-app notification inbox for students
+- ✅ Cash management with manual override capability
+- ✅ Automated daily report saving (3:30 PM auto-save)
+- ✅ Bulk import (CSV) and data export functionality
+- ✅ Audit logging for admin actions
+- ✅ Desktop application via Electron
+- ✅ Cloud deployment (Render.com)
+- ✅ Session persistence with timeout (24-hour web, AsyncStorage mobile)
+- ✅ Account lockout after 5 failed passkey attempts
+- ✅ bcrypt password hashing for security
+- ✅ Atomic Firestore transactions for financial operations
+- ✅ Responsive, professional UI/UX design
+
+---
+
+> **© 2026 Future Generation Philippine International School — FUGEN SmartPay Capstone Project**

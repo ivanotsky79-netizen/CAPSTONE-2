@@ -1,15 +1,10 @@
 import React, { useState } from 'react'; // Force Vercel Build
 import { Form, Input, Button, Card, message, Typography, Space, Modal, Row, Col, Select } from 'antd';
 import { UserOutlined, LockOutlined, IdcardOutlined, ArrowLeftOutlined, UserAddOutlined } from '@ant-design/icons';
-import { studentService } from '../services/api';
+import { studentService, authService } from '../services/api';
 import './LoginPage.css';
 
 const { Title, Text } = Typography;
-
-const ADMIN_CREDENTIALS = {
-    username: 'grpfive',
-    password: '170206'
-};
 
 export default function LoginPage({ onLogin }) {
     const [loading, setLoading] = useState(false);
@@ -18,15 +13,19 @@ export default function LoginPage({ onLogin }) {
     // Admin Login Handler
     const handleAdminLogin = async (values) => {
         setLoading(true);
-        setTimeout(() => {
-            if (values.username === ADMIN_CREDENTIALS.username && values.password === ADMIN_CREDENTIALS.password) {
+        try {
+            const data = await authService.login(values.username, values.password);
+            if (data.status === 'success') {
                 message.success('Admin login successful!');
-                onLogin('admin');
+                onLogin(data.user.role, data.user);
             } else {
-                message.error('Invalid admin credentials');
+                message.error(data.message || 'Invalid admin credentials');
             }
+        } catch (err) {
+            message.error(err.response?.data?.message || 'Login failed. Check server connection.');
+        } finally {
             setLoading(false);
-        }, 800);
+        }
     };
 
     // Student Login Handler
@@ -34,6 +33,9 @@ export default function LoginPage({ onLogin }) {
         setLoading(true);
         try {
             const response = await studentService.verifyPasskey(values.studentId, values.passkey);
+            if (response.data.token) {
+                localStorage.setItem('fugen_token', response.data.token);
+            }
             message.success(`Welcome back, ${response.data.student.fullName}!`);
             onLogin('student', response.data.student);
         } catch (err) {

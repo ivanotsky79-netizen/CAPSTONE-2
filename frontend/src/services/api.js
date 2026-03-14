@@ -11,6 +11,55 @@ const api = axios.create({
     },
 });
 
+// Add a request interceptor to attach the JWT token
+api.interceptors.request.use(
+    (config) => {
+        const token = localStorage.getItem('fugen_token');
+        if (token) {
+            config.headers.Authorization = `Bearer ${token}`;
+        }
+        return config;
+    },
+    (error) => {
+        return Promise.reject(error);
+    }
+);
+
+// Add a response interceptor to handle 401 errors
+api.interceptors.response.use(
+    (response) => response,
+    (error) => {
+        if (error.response && error.response.status === 401) {
+            // Only redirect if we're not already on the login page
+            if (!window.location.pathname.includes('/login')) {
+                localStorage.removeItem('fugen_token');
+                window.location.href = '/login';
+            }
+        }
+        return Promise.reject(error);
+    }
+);
+
+export const authService = {
+    login: async (username, password) => {
+        const response = await api.post('/login', { username, password });
+        if (response.data.token) {
+            localStorage.setItem('fugen_token', response.data.token);
+            localStorage.setItem('fugen_user', JSON.stringify(response.data.user));
+        }
+        return response.data;
+    },
+    logout: () => {
+        localStorage.removeItem('fugen_token');
+        localStorage.removeItem('fugen_user');
+        window.location.href = '/login';
+    },
+    getCurrentUser: () => {
+        const user = localStorage.getItem('fugen_user');
+        return user ? JSON.parse(user) : null;
+    }
+};
+
 export const studentService = {
     // Passkey Verification
     verifyPasskey: (studentId, passkey) => api.post('/verify-passkey', { studentId, passkey }),

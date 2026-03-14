@@ -77,7 +77,8 @@ exports.deduct = async (req, res) => {
         const studentId = rawStudentId?.trim()?.toUpperCase();
         const deductAmount = parseFloat(amount);
 
-        if (adminPin !== '170206') {
+        const ADMIN_PIN = process.env.ADMIN_PIN || '170206';
+        if (adminPin !== ADMIN_PIN) {
             console.log(`[DEDUCT_ERROR] Invalid Admin PIN attempt for ${studentId}`);
             return res.status(401).json({ status: 'error', message: 'Invalid Admin PIN' });
         }
@@ -258,8 +259,9 @@ exports.withdraw = async (req, res) => {
         const { amount, passkey } = req.body;
         const withdrawAmount = parseFloat(amount);
 
-        // Hardcoded limit check or passkey check (Admin Pin 170206)
-        if (passkey !== '170206') {
+        // Use Admin Pin from environment
+        const ADMIN_PIN = process.env.ADMIN_PIN || '170206';
+        if (passkey !== ADMIN_PIN) {
             return res.status(401).json({ status: 'error', message: 'Invalid Admin PIN' });
         }
 
@@ -288,7 +290,8 @@ exports.withdraw = async (req, res) => {
 exports.setCashAdjustment = async (req, res) => {
     try {
         const { amount, adminPin, note } = req.body;
-        if (adminPin !== '170206') {
+        const ADMIN_PIN = process.env.ADMIN_PIN || '170206';
+        if (adminPin !== ADMIN_PIN) {
             return res.status(401).json({ status: 'error', message: 'Invalid Admin PIN' });
         }
         const adjustedAmount = parseFloat(amount);
