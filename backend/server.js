@@ -24,20 +24,6 @@ app.use(helmet());
 app.use(cors());
 app.use(express.json());
 
-// Rate Limiting to prevent brute-force and DoS
-const rateLimit = require('express-rate-limit');
-const limiter = rateLimit({
-  windowMs: 15 * 60 * 1000, // 15 minutes
-  max: 100, // limit each IP to 100 requests per windowMs
-  message: {
-    status: 'error',
-    message: 'Too many requests from this IP, please try again after 15 minutes'
-  }
-});
-
-// Apply rate limiting to all requests
-app.use('/api', limiter);
-
 // Make io accessible to our routes
 app.set('io', io);
 

@@ -3,7 +3,6 @@ import { StyleSheet, Text, View, TextInput, TouchableOpacity, Alert, ActivityInd
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { authService } from '../services/api';
 
 export default function LoginScreen({ navigation }) {
     const [username, setUsername] = useState('');
@@ -33,28 +32,18 @@ export default function LoginScreen({ navigation }) {
 
         setLoading(true);
 
-        // Call authentic backend
-        handleAuthLogin(username, password);
-    };
-
-    const handleAuthLogin = async (u, p) => {
-        try {
-            const data = await authService.login(u, p);
-            if (data.status === 'success') {
+        // Simulate network delay
+        setTimeout(async () => {
+            if (username === 'grpfive' && password === '170206') {
                 if (keepSignedIn) {
-                    // Note: authService handles storing 'fugen_token' internally
                     await AsyncStorage.setItem('fugen_pos_auth', 'true');
                 }
                 navigation.replace('Home');
             } else {
-                Alert.alert('Login Failed', data.message || 'Invalid username or password.');
+                Alert.alert('Login Failed', 'Invalid username or password.');
+                setLoading(false);
             }
-        } catch (err) {
-            console.error(err);
-            Alert.alert('Error', err.response?.data?.message || 'Login failed. Check server connection.');
-        } finally {
-            setLoading(false);
-        }
+        }, 800);
     };
 
     return (

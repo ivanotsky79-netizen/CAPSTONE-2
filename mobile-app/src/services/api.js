@@ -12,8 +12,6 @@ const API_BASE_URL = `${BASE_URL}/api`;
 import { io } from 'socket.io-client';
 export const socket = io(BASE_URL);
 
-import AsyncStorage from '@react-native-async-storage/async-storage';
-
 const api = axios.create({
     baseURL: API_BASE_URL,
     timeout: 10000,
@@ -22,17 +20,9 @@ const api = axios.create({
     },
 });
 
-// Add a request interceptor to attach the JWT token
+// Add request timing interceptor
 api.interceptors.request.use(async (config) => {
     config.metadata = { startTime: new Date() };
-    try {
-        const token = await AsyncStorage.getItem('fugen_token');
-        if (token) {
-            config.headers.Authorization = `Bearer ${token}`;
-        }
-    } catch (e) {
-        console.error('Error fetching token from storage', e);
-    }
     return config;
 });
 
@@ -45,35 +35,9 @@ api.interceptors.response.use(
     async (error) => {
         const duration = new Date() - error.config.metadata.startTime;
         console.log(`[API ERROR] ${error.config.url} failed after ${duration}ms`);
-        
-        if (error.response && error.response.status === 401) {
-            // Handle unauthorized - clear token and maybe trigger some global event/navigation
-            await AsyncStorage.removeItem('fugen_token');
-            await AsyncStorage.removeItem('fugen_user');
-        }
-        
         return Promise.reject(error);
     }
 );
-
-export const authService = {
-    login: async (username, password) => {
-        const response = await api.post('/login', { username, password });
-        if (response.data.token) {
-            await AsyncStorage.setItem('fugen_token', response.data.token);
-            await AsyncStorage.setItem('fugen_user', JSON.stringify(response.data.user));
-        }
-        return response.data;
-    },
-    logout: async () => {
-        await AsyncStorage.removeItem('fugen_token');
-        await AsyncStorage.removeItem('fugen_user');
-    },
-    getCurrentUser: async () => {
-        const user = await AsyncStorage.getItem('fugen_user');
-        return user ? JSON.parse(user) : null;
-    }
-};
 
 export const studentService = {
     getStudent: (studentId) => api.get(`/student/${studentId}`),
