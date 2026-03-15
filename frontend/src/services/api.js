@@ -1,10 +1,10 @@
 import axios from 'axios';
 
-// Detect if we are running locally or on Render
+// Detect if we are running locally or in production (Vercel)
 const isLocal = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
 const API_BASE_URL = isLocal 
     ? 'http://localhost:5000/api' 
-    : 'https://fugen-backend.onrender.com/api';
+    : 'https://fugen-backend.onrender.com/api'; // Explicit Render URL for Vercel
 
 const api = axios.create({
     baseURL: API_BASE_URL,
