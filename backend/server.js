@@ -63,7 +63,8 @@ console.log('Current __dirname:', __dirname);
 
 // List possible locations where frontend/dist could be
 const possiblePaths = [
-  path.join(__dirname, '../frontend/dist'), // If server.js is in backend/
+  path.join(__dirname, '../frontend/dist'), // If server.js is in backend/ and repo root is base
+  path.join(__dirname, 'dist'),             // If frontend was copied into backend/dist (Render friendly)
   path.join(__dirname, 'frontend/dist'),    // If server.js is at root and frontend is a child
   path.join(__dirname, '../dist')           // Alternative structure
 ];
