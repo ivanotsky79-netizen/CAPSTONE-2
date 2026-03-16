@@ -433,7 +433,7 @@ export default function AdminDashboard({ onLogout }) {
 
         for (const id of ids) {
             try {
-                await transactionService.deductPoints(id, bulkDeductAmount, bulkDeductAdminPin);
+                await transactionService.deduct(id, bulkDeductAmount, bulkDeductAdminPin);
                 successCount++;
             } catch (e) { console.error(`Failed to deduct from ${id}`, e); }
         }
