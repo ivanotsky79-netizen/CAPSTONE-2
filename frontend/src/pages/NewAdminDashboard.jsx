@@ -792,12 +792,13 @@ export default function AdminDashboard({ onLogout }) {
 
                             <div className="win98-toolbar">
                                 <button className={`win98-btn ${usersViewMode === 'all' ? 'active' : ''}`} onClick={() => setUsersViewMode('all')}>All Students</button>
+                                <button className={`win98-btn ${usersViewMode === 'positive' ? 'active' : ''}`} onClick={() => setUsersViewMode('positive')}>Students with Points</button>
                                 <button className={`win98-btn ${usersViewMode === 'debtors' ? 'active' : ''}`} onClick={() => setUsersViewMode('debtors')}>Students with Credit</button>
                                 <button className={`win98-btn ${usersViewMode === 'requests' ? 'active' : ''}`} onClick={() => setUsersViewMode('requests')}>
                                     Pending Requests {topupRequests.filter(r => r.status === 'PENDING').length > 0 && <span style={{ background: 'red', color: 'white', borderRadius: '50%', padding: '0 5px', fontSize: 10 }}>{topupRequests.filter(r => r.status === 'PENDING').length}</span>}
                                 </button>
                                 <div style={{ flex: 1 }}></div>
-                                {(usersViewMode === 'all' || usersViewMode === 'requests') && (
+                                {(usersViewMode === 'all' || usersViewMode === 'requests' || usersViewMode === 'positive') && (
                                     <>
                                         <input
                                             className="win98-input"
@@ -876,6 +877,39 @@ export default function AdminDashboard({ onLogout }) {
                                                     </td>
                                                 </tr>
                                             ))}
+                                        </tbody>
+                                    </table>
+                                ) : usersViewMode === 'positive' ? (
+                                    <table className="win98-table">
+                                        <thead><tr><th>ID</th><th>Name</th><th>Grade</th><th>Points Balance</th><th>Action</th></tr></thead>
+                                        <tbody>
+                                            {students.filter(s => parseFloat(s.balance) > 0).length === 0 ? (
+                                                <tr><td colSpan={5} style={{ textAlign: 'center' }}>No students with positive points.</td></tr>
+                                            ) : (
+                                                students
+                                                    .filter(s => parseFloat(s.balance) > 0)
+                                                    .filter(s => s.fullName.toLowerCase().includes(searchText.toLowerCase()) || s.studentId.includes(searchText))
+                                                    .sort((a, b) => {
+                                                        const dateA = new Date(a.createdAt || 0);
+                                                        const dateB = new Date(b.createdAt || 0);
+                                                        return sortOrder === 'newest' ? dateB - dateA : dateA - dateB;
+                                                    })
+                                                    .map(s => (
+                                                        <tr key={s.studentId}>
+                                                            <td>{s.studentId}</td>
+                                                            <td style={{ fontWeight: 'bold' }}>
+                                                                <span onClick={() => handleOpenProfile(s)} style={{ textDecoration: 'underline', cursor: 'pointer' }}>
+                                                                    {s.fullName}
+                                                                </span>
+                                                            </td>
+                                                            <td>{s.gradeSection}</td>
+                                                            <td style={{ color: 'green', fontWeight: 'bold' }}>{parseFloat(s.balance).toFixed(2)} Points</td>
+                                                            <td>
+                                                                <button className="win98-btn" style={{ padding: '2px 5px' }} onClick={() => { setSelectedStudent(s); setShowDeductModal(true); }}>Deduct</button>
+                                                            </td>
+                                                        </tr>
+                                                    ))
+                                            )}
                                         </tbody>
                                     </table>
                                 ) : usersViewMode === 'debtors' ? (
