@@ -333,17 +333,29 @@ exports.getDailyStats = async (req, res) => {
 
         const { date, location } = req.query;
         let startOfDay, endOfDay;
+        const OFFSET = 3; // GMT+3 Shift
 
         if (date) {
-            // Parse date string as UTC to avoid timezone shifts
             const [year, month, day] = date.split('-').map(Number);
+            // Calculate UTC range for the local day (00:00 to 23:59 GMT+3)
             startOfDay = new Date(Date.UTC(year, month - 1, day, 0, 0, 0, 0));
+            startOfDay.setUTCHours(startOfDay.getUTCHours() - OFFSET);
+
             endOfDay = new Date(Date.UTC(year, month - 1, day, 23, 59, 59, 999));
+            endOfDay.setUTCHours(endOfDay.getUTCHours() - OFFSET);
         } else {
-            // Today in UTC
+            // "Today" logic shifted for GMT+3
             const now = new Date();
-            startOfDay = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate(), 0, 0, 0, 0));
-            endOfDay = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate(), 23, 59, 59, 999));
+            const localNow = new Date(now.getTime() + (OFFSET * 60 * 60 * 1000));
+            const year = localNow.getUTCFullYear();
+            const month = localNow.getUTCMonth();
+            const day = localNow.getUTCDate();
+
+            startOfDay = new Date(Date.UTC(year, month, day, 0, 0, 0, 0));
+            startOfDay.setUTCHours(startOfDay.getUTCHours() - OFFSET);
+
+            endOfDay = new Date(Date.UTC(year, month, day, 23, 59, 59, 999));
+            endOfDay.setUTCHours(endOfDay.getUTCHours() - OFFSET);
         }
 
         // Fetch transactions for the DAY

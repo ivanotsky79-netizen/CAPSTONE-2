@@ -27,7 +27,7 @@ export default function AdminDashboard({ onLogout }) {
     const [totalCredit, setTotalCredit] = useState(0);
     const [topupRequests, setTopupRequests] = useState([]);
     const [requestSearch, setRequestSearch] = useState('');
-    const [reqFilterDate, setReqFilterDate] = useState(new Date().toISOString().split('T')[0]);
+    const [reqFilterDate, setReqFilterDate] = useState(new Date().toLocaleDateString('en-CA'));
     const [reqFilterSlot, setReqFilterSlot] = useState('ALL');
     const [sortOrder, setSortOrder] = useState('newest'); // 'newest' (Last Joined) or 'oldest' (First Joined)
 
@@ -63,11 +63,11 @@ export default function AdminDashboard({ onLogout }) {
     const [cashAdjustment, setCashAdjustmentState] = useState(null); // { amount, note, updatedAt }
     const [showCashEditModal, setShowCashEditModal] = useState(false);
     const [cashEditForm, setCashEditForm] = useState({ amount: '', adminPin: '', note: '' });
-    const [reportDate, setReportDate] = useState(new Date().toISOString().split('T')[0]);
+    const [reportDate, setReportDate] = useState(new Date().toLocaleDateString('en-CA'));
     const [reportData, setReportData] = useState(null);
 
     // System Tab Date Filter
-    const [systemDate, setSystemDate] = useState(new Date().toISOString().split('T')[0]);
+    const [systemDate, setSystemDate] = useState(new Date().toLocaleDateString('en-CA'));
 
     // Graph Data
     const [graphData, setGraphData] = useState([]);
@@ -76,15 +76,18 @@ export default function AdminDashboard({ onLogout }) {
     const [localAuditLogs, setLocalAuditLogs] = useState([]);
 
     // Logs Filter
-    const [logDate, setLogDate] = useState(new Date().toISOString().split('T')[0]);
+    const [logDate, setLogDate] = useState(new Date().toLocaleDateString('en-CA'));
     const [logData, setLogData] = useState(null);
 
     // Online/Offline Status
     const [isOnline, setIsOnline] = useState(navigator.onLine);
 
-    // Bulk Top-Up
+    // Bulk Actions
     const [showBulkTopUpModal, setShowBulkTopUpModal] = useState(false);
     const [bulkTopUpAmount, setBulkTopUpAmount] = useState('');
+    const [showBulkDeductModal, setShowBulkDeductModal] = useState(false);
+    const [bulkDeductAmount, setBulkDeductAmount] = useState('');
+    const [bulkDeductAdminPin, setBulkDeductAdminPin] = useState('');
 
     useEffect(() => {
         loadData();
@@ -418,6 +421,31 @@ export default function AdminDashboard({ onLogout }) {
         if (newSet.has(id)) newSet.delete(id);
         else newSet.add(id);
         setSelectedIds(newSet);
+    };
+
+    const handleBulkDeduct = async () => {
+        if (!bulkDeductAmount || parseFloat(bulkDeductAmount) <= 0) { message.warning('Please enter a valid amount'); return; }
+        if (!bulkDeductAdminPin) { message.warning('Admin PIN required'); return; }
+
+        const hide = message.loading(`Deducting from ${selectedIds.size} students...`, 0);
+        let successCount = 0;
+        const ids = Array.from(selectedIds);
+
+        for (const id of ids) {
+            try {
+                await transactionService.deductPoints(id, bulkDeductAmount, bulkDeductAdminPin);
+                successCount++;
+            } catch (e) { console.error(`Failed to deduct from ${id}`, e); }
+        }
+
+        hide();
+        message.success(`Successfully deducted from ${successCount} students.`);
+        setShowBulkDeductModal(false);
+        setBulkDeductAmount('');
+        setBulkDeductAdminPin('');
+        setSelectedIds(new Set());
+        loadData();
+        addAuditLog('BULK_DEDUCT', `Bulk deducted SAR ${bulkDeductAmount} from ${successCount} students`);
     };
 
     const handleSelectAll = (e) => {
@@ -809,6 +837,7 @@ export default function AdminDashboard({ onLogout }) {
                                         </label>
                                         <button className="win98-btn" onClick={handleDeleteSelected}>Delete ({selectedIds.size})</button>
                                         <button className="win98-btn" onClick={() => { if (selectedIds.size === 0) { message.warning('Select students first'); return; } setShowBulkTopUpModal(true); }}>Bulk Top Up ({selectedIds.size})</button>
+                                        <button className="win98-btn" onClick={() => { if (selectedIds.size === 0) { message.warning('Select students first'); return; } setShowBulkDeductModal(true); }}>Bulk Deduct ({selectedIds.size})</button>
                                         <button className="win98-btn" onClick={bulkDownloadPDF}>📄 Bulk Download PDF {selectedIds.size > 0 ? `(${selectedIds.size})` : '(All)'}</button>
                                     </>
                                 )}
@@ -1413,6 +1442,22 @@ export default function AdminDashboard({ onLogout }) {
                             <div style={{ display: 'flex', gap: 10, justifyContent: 'flex-end', marginTop: 10 }}>
                                 <button className="win98-btn" onClick={() => setShowBulkTopUpModal(false)}>Cancel</button>
                                 <button className="win98-btn" onClick={handleBulkTopUp}>Confirm</button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            )}
+            {showBulkDeductModal && (
+                <div className="win98-modal-overlay">
+                    <div className="win98-modal">
+                        <div className="win98-title-bar"><span>Bulk Deduct Points</span><div className="win98-control-btn" onClick={() => setShowBulkDeductModal(false)}>×</div></div>
+                        <div className="win98-content">
+                            <p>Deduct from <b>{selectedIds.size}</b> selected students:</p>
+                            <div className="vb-form-group"><label>Amount to remove</label><input type="number" className="win98-input" value={bulkDeductAmount} onChange={e => setBulkDeductAmount(e.target.value)} style={{ width: '95%' }} /></div>
+                            <div className="vb-form-group"><label>Admin PIN</label><input type="password" className="win98-input" value={bulkDeductAdminPin} onChange={e => setBulkDeductAdminPin(e.target.value)} style={{ width: '95%' }} /></div>
+                            <div style={{ display: 'flex', gap: 10, justifyContent: 'flex-end', marginTop: 10 }}>
+                                <button className="win98-btn" onClick={() => setShowBulkDeductModal(false)}>Cancel</button>
+                                <button className="win98-btn" onClick={handleBulkDeduct}>Confirm</button>
                             </div>
                         </div>
                     </div>
