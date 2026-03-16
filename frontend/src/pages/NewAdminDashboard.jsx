@@ -66,6 +66,9 @@ export default function AdminDashboard({ onLogout }) {
     const [reportDate, setReportDate] = useState(new Date().toISOString().split('T')[0]);
     const [reportData, setReportData] = useState(null);
 
+    // System Tab Date Filter
+    const [systemDate, setSystemDate] = useState(new Date().toISOString().split('T')[0]);
+
     // Graph Data
     const [graphData, setGraphData] = useState([]);
 
@@ -175,25 +178,34 @@ export default function AdminDashboard({ onLogout }) {
         } catch (e) { console.error('Error loading main data:', e); } finally { setLoading(false); }
     };
 
+    // Fetch system stats for a specific date
+    const fetchSystemStats = async (date) => {
+        try {
+            const dRes = await transactionService.getDailyStats(date || null, true);
+            if (dRes.data.status === 'success') {
+                setDailyStats(dRes.data.data);
+            }
+        } catch (e) { console.log('Error fetching system stats', e); }
+    };
+
     // Load Heavy Stats when entering System/Reports view — always refresh so today's transactions show up
     useEffect(() => {
         const loadHeavyStats = async () => {
-            if (view === 'system' || view === 'reports') {
-                try {
-                    const dRes = await transactionService.getDailyStats(null, true);
-                    if (dRes.data.status === 'success') {
-                        setDailyStats(dRes.data.data);
-                    }
-                } catch (e) { console.log('Error fetching daily stats', e); }
-            }
-            // Always (re)load the manual cash override when entering System tab
             if (view === 'system') {
+                await fetchSystemStats(systemDate);
                 try {
                     const cRes = await transactionService.getCashAdjustment();
                     if (cRes.data.status === 'success') {
                         setCashAdjustmentState(cRes.data.data);
                     }
                 } catch (e) { /* not critical */ }
+            } else if (view === 'reports') {
+                try {
+                    const dRes = await transactionService.getDailyStats(null, true);
+                    if (dRes.data.status === 'success') {
+                        setDailyStats(dRes.data.data);
+                    }
+                } catch (e) { console.log('Error fetching daily stats', e); }
             }
         };
         loadHeavyStats();
@@ -1049,12 +1061,20 @@ export default function AdminDashboard({ onLogout }) {
                                     <div className="win98-card-value" style={{ color: 'orange' }}>SAR {dailyStats?.system?.todayWithdrawals?.toFixed(2)}</div>
                                 </div>
                                 <div className="win98-card">
-                                    <div className="win98-card-label">Points Collected Today</div>
+                                    <div className="win98-card-label">Points Collected ({systemDate})</div>
                                     <div className="win98-card-value" style={{ color: 'blue' }}>SAR {(dailyStats?.canteen?.totalSales || 0).toFixed(2)}</div>
                                 </div>
                             </div>
 
                             <div className="win98-toolbar">
+                                <input
+                                    type="date"
+                                    className="win98-input"
+                                    value={systemDate}
+                                    onChange={e => setSystemDate(e.target.value)}
+                                />
+                                <button className="win98-btn" onClick={() => fetchSystemStats(systemDate)}>Load</button>
+                                <div style={{ borderLeft: '1px solid #888', height: 20, margin: '0 4px' }}></div>
                                 <button className="win98-btn" onClick={() => setShowWithdrawModal(true)}>Withdraw Cash</button>
                             </div>
                             <div className="win98-table-wrapper">
