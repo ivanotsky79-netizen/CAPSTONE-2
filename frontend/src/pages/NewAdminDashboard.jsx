@@ -881,10 +881,28 @@ export default function AdminDashboard({ onLogout }) {
                                     </table>
                                 ) : usersViewMode === 'positive' ? (
                                     <table className="win98-table">
-                                        <thead><tr><th>ID</th><th>Name</th><th>Grade</th><th>Points Balance</th><th>Action</th></tr></thead>
+                                        <thead>
+                                            <tr>
+                                                <th style={{ width: 30 }}>
+                                                    <input 
+                                                        type="checkbox" 
+                                                        onChange={(e) => {
+                                                            const visibleIds = students.filter(s => parseFloat(s.balance) > 0 && (s.fullName.toLowerCase().includes(searchText.toLowerCase()) || s.studentId.includes(searchText))).map(s => s.studentId);
+                                                            if (e.target.checked) setSelectedIds(new Set(visibleIds));
+                                                            else setSelectedIds(new Set());
+                                                        }} 
+                                                        checked={(() => {
+                                                            const visibleIds = students.filter(s => parseFloat(s.balance) > 0 && (s.fullName.toLowerCase().includes(searchText.toLowerCase()) || s.studentId.includes(searchText))).map(s => s.studentId);
+                                                            return visibleIds.length > 0 && visibleIds.every(id => selectedIds.has(id));
+                                                        })()}
+                                                    />
+                                                </th>
+                                                <th>ID</th><th>Name</th><th>Grade</th><th>Points Balance</th><th>Action</th>
+                                            </tr>
+                                        </thead>
                                         <tbody>
                                             {students.filter(s => parseFloat(s.balance) > 0).length === 0 ? (
-                                                <tr><td colSpan={5} style={{ textAlign: 'center' }}>No students with positive points.</td></tr>
+                                                <tr><td colSpan={6} style={{ textAlign: 'center' }}>No students with positive points.</td></tr>
                                             ) : (
                                                 students
                                                     .filter(s => parseFloat(s.balance) > 0)
@@ -896,6 +914,7 @@ export default function AdminDashboard({ onLogout }) {
                                                     })
                                                     .map(s => (
                                                         <tr key={s.studentId}>
+                                                            <td><input type="checkbox" checked={selectedIds.has(s.studentId)} onChange={() => handleToggleSelect(s.studentId)} /></td>
                                                             <td>{s.studentId}</td>
                                                             <td style={{ fontWeight: 'bold' }}>
                                                                 <span onClick={() => handleOpenProfile(s)} style={{ textDecoration: 'underline', cursor: 'pointer' }}>
