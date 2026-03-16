@@ -930,7 +930,12 @@ export default function AdminDashboard({ onLogout }) {
                                                         <td>{s.gradeSection}</td>
                                                         <td style={{ color: parseFloat(s.balance) < 0 ? 'red' : 'green' }}>SAR {parseFloat(s.balance).toFixed(2)}</td>
                                                         <td>
-                                                            <button className="win98-btn" style={{ padding: '2px 5px' }} onClick={() => setView('requests')}>View Request</button>
+                                                            <button className="win98-btn" style={{ padding: '2px 5px' }} onClick={() => { 
+                                                                setView('requests'); 
+                                                                setRequestSearch(s.studentId);
+                                                                setReqFilterDate(''); 
+                                                                setReqFilterSlot('ALL');
+                                                            }}>View Request</button>
                                                         </td>
                                                     </tr>
                                                 ));
