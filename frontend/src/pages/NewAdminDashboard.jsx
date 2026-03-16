@@ -175,10 +175,10 @@ export default function AdminDashboard({ onLogout }) {
         } catch (e) { console.error('Error loading main data:', e); } finally { setLoading(false); }
     };
 
-    // Load Heavy Stats ONLY when user explicitly asks for them (System or Reports view)
+    // Load Heavy Stats when entering System/Reports view — always refresh so today's transactions show up
     useEffect(() => {
         const loadHeavyStats = async () => {
-            if ((view === 'system' || view === 'reports') && !dailyStats?.system) {
+            if (view === 'system' || view === 'reports') {
                 try {
                     const dRes = await transactionService.getDailyStats(null, true);
                     if (dRes.data.status === 'success') {
@@ -966,7 +966,7 @@ export default function AdminDashboard({ onLogout }) {
                                         </div>
                                         <div className="win98-card">
                                             <div className="win98-card-label">Total Cash</div>
-                                            <div className="win98-card-value">SAR {reportData.system?.totalCashOnHand?.toFixed(2)}</div>
+                                            <div className="win98-card-value">SAR {(reportData.canteen?.cashCollected ?? 0).toFixed(2)}</div>
                                         </div>
                                         <div className="win98-card">
                                             <div className="win98-card-label">Credit</div>
