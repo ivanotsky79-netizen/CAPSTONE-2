@@ -534,9 +534,12 @@ export default function AdminDashboard({ onLogout }) {
             win.document.write(`
                 <html><head><title>QR - ${selectedStudent.fullName}</title>
                 <style>
-                    @media print { body { margin: 0; } }
+                    @media print { 
+                        body { margin: 0; padding: 0; } 
+                        img { width: 2.0in; height: 3.2in; object-fit: contain; }
+                    }
                     body { background: #fff; display: flex; justify-content: center; padding: 30px; font-family: Arial; }
-                    img { max-width: 100%; }
+                    img { width: 2.0in; height: 3.2in; object-fit: contain; border: 1px dashed #ccc; }
                 </style></head>
                 <body><img src="${dataUrl}" /></body></html>
             `);
